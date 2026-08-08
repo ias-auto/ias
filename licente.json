@@ -1,0 +1,16 @@
+{
+  "actualizat": "2026-08-08",
+  "licente": [
+    {
+      "cod": "IAS-9F3K-7QX2",
+      "nume": "Ioan-Adrian Stancu",
+      "rol": "proprietar",
+      "pana": "2099-12-31"
+    },
+    {
+      "cod": "IAS-4M8T-2WD6",
+      "nume": "Coleg pilot",
+      "pana": "2026-08-31"
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 /* IAS — lucrătorul care ține aplicația pornită și fără internet.
    La fiecare versiune nouă se schimbă numele depozitului de mai jos, vechiul
    depozit se șterge, iar telefonul preia noua versiune la următoarea pornire. */
-const CACHE = 'ias-v2.6.5';
+const CACHE = 'ias-v2.11.6';
 const ASSETS = ['./', './index.html', './manifest.json', './icon.png', './icon-192.png'];
 
 self.addEventListener('install', (e) => {
@@ -24,6 +24,14 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+
+  // Fișierul de licențe se ia mereu proaspăt din rețea, niciodată din memorie —
+  // altfel o prelungire făcută de proprietar n-ar ajunge la telefon. Dacă nu e
+  // semnal, cererea eșuează și aplicația se descurcă cu ce știe salvat.
+  if (new URL(req.url).pathname.endsWith('licente.json')) {
+    e.respondWith(fetch(req));
+    return;
+  }
 
   // Pagina în sine: încercăm întâi internetul, ca o versiune nouă urcată de tine
   // să fie preluată imediat; fără semnal, servim ce avem salvat.
