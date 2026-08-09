@@ -1,16 +1,40 @@
 {
-  "actualizat": "2026-08-08",
+  "actualizat": "2026-08-09",
+  "tipuri": {
+    "vip": {
+      "nume": "VIP",
+      "drepturi": [
+        "*"
+      ]
+    },
+    "completa": {
+      "nume": "Completă",
+      "drepturi": [
+        "*"
+      ]
+    },
+    "baza": {
+      "nume": "Bază",
+      "drepturi": [
+        "calendar",
+        "elevi"
+      ],
+      "maxElevi": 5
+    }
+  },
   "licente": [
     {
       "cod": "IAS-9F3K-7QX2",
-      "nume": "Ioan-Adrian Stancu",
+      "nume": "Proprietar",
       "rol": "proprietar",
       "pana": "2099-12-31"
     },
     {
-      "cod": "IAS-4M8T-2WD6",
-      "nume": "Coleg pilot",
-      "pana": "2026-08-31"
+      "cod": "IAS-4N9M-W2UL",
+      "nume": "DV-CO-GJGS",
+      "tip": "vip",
+      "pana": "2026-08-31",
+      "dispozitiv": "T1DS37SJQ"
     }
   ]
 }
