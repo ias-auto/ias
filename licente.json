@@ -1,5 +1,5 @@
 {
-  "actualizat": "2026-08-09",
+  "actualizat": "2026-08-20",
   "tipuri": {
     "vip": {
       "nume": "VIP",
@@ -35,6 +35,16 @@
       "tip": "vip",
       "pana": "2026-08-31",
       "dispozitiv": "T1DS37SJQ"
+    },
+    {
+      "cod": "IAS-68VB-WX7T",
+      "nume": "CM-NA-QML2",
+      "tip": "completa",
+      "pana": "2026-09-30",
+      "dispozitiv": "TC83FEQJ1"
+    }
+  ]
+}      "dispozitiv": "T1DS37SJQ"
     }
   ]
 }
