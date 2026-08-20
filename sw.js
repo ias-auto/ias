@@ -1,7 +1,7 @@
 /* Service worker: ține aplicația în telefon, ca să pornească fără internet.
    Fișierul de licențe se cere însă mereu de pe rețea — altfel prelungirile
    n-ar ajunge niciodată la om. */
-const CACHE = 'ias-v2.35.0';
+const CACHE = 'ias-v2.35.1';
 const FISIERE = ['./', './index.html', './manifest.json', './icon.png', './icon-192.png'];
 
 self.addEventListener('install', function (e) {
