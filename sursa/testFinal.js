@@ -64,7 +64,10 @@ const pauza = (ms) => new Promise(r => setTimeout(r, ms));
   verifica('Acasă pornește', /Bun venit în/.test(text()));
   verifica('numără elevii', /3 elevi|3elevi/.test(text().replace(/\s/g, ' ')), (text().match(/(\d+) elevi/) || [])[0]);
   verifica('arată ce cere atenție', /Necesită atenție/.test(text()));
-  verifica('examen apropiat semnalat', /examen în|examen mâine|examen azi/.test(text()));
+  verifica('examen apropiat semnalat', /examen practic \d+ \w+/.test(text()), (text().match(/· examen practic [^·]{0,22}/) || [])[0]);
+  verifica('statistica de promovați', /Elevi promovați/.test(text()), (text().match(/(\d+)%/) || [])[0]);
+  verifica('examene după tip', /Examene după tip/.test(text()) && /susțineri|susținere/.test(text()));
+  verifica('acțiuni rapide', /Elev nou/.test(text()) && /Planificator/.test(text()));
   verifica('ziua de naștere semnalată', /Azi e ziua lui Ștefan/.test(text()));
   verifica('ședințele de azi', /Astăzi/.test(text()) && /Râmbu Ștefan/.test(text()));
 

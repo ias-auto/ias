@@ -33,7 +33,7 @@ const DISPLAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
 const SESSION_DURATION = 90;          // minute; se poate schimba din Setări
 const APP_NAME = 'IAS';
-const APP_VERSION = 'v2.35.0';
+const APP_VERSION = 'v2.35.1';
 const VERSION_LABEL = `${APP_NAME} ${APP_VERSION}`;
 const SCHEMA_VERSION = 1;
 
@@ -2163,7 +2163,8 @@ function BrandHero({ vehicul, remorca }) {
 
 /* -------------------------------- ACASĂ ---------------------------------- */
 
-function DashboardTab({ data, onOpenSession, onOpenStudent, vehicul, remorca }) {
+function DashboardTab({ data, onOpenSession, onOpenStudent, onAddStudent, onAddSession,
+  onGoToPlanner, vehicul, remorca }) {
   const azi = todayISO();
   const cur = data.settings.currency;
 
@@ -2180,44 +2181,81 @@ function DashboardTab({ data, onOpenSession, onOpenStudent, vehicul, remorca }) 
   const deIncasat = data.students.reduce((sum, s) =>
     sum + Math.max(0, studentOutstanding(s, data.sessions, data.settings)), 0);
 
-  /* Ce cere atenție azi: ședințe neconfirmate, ședințe trecute fără rezultat,
-     examene apropiate, elevi gata de adeverință și zile de naștere. */
-  const atentie = [];
-  const neconfirmate = data.sessions.filter(s => s.status === 'pending' && s.date >= azi);
-  if (neconfirmate.length) {
-    atentie.push({
-      text: `${neconfirmate.length} ${neconfirmate.length === 1 ? 'ședință așteaptă' : 'ședințe așteaptă'} confirmare`,
-      sub: 'Sună sau scrie-le ca să le poți fixa.',
-      session: neconfirmate.sort((a, b) => (a.date + a.startMin).localeCompare(b.date + b.startMin))[0],
-    });
-  }
+  /* Ce cere atenție. Rândurile cu ședințe deschid prima ședință din șir: pe
+     măsură ce le rezolvi, numărul scade și următoarea atingere o deschide pe
+     următoarea — așa treci prin toate fără să le cauți în calendar. */
+  const dupaTimp = (a, b) => (a.date + minToTime(a.startMin)).localeCompare(b.date + minToTime(b.startMin));
   const trecuteFaraStare = data.sessions
-    .filter(s => s.date < azi && (s.status === 'pending' || s.status === 'scheduled'))
-    .sort((a, b) => a.date.localeCompare(b.date));
-  if (trecuteFaraStare.length) {
-    atentie.push({
-      text: `${trecuteFaraStare.length} ${trecuteFaraStare.length === 1 ? 'ședință trecută' : 'ședințe trecute'} fără rezultat`,
-      sub: 'Marchează-le efectuate sau anulate, ca socotelile să iasă.',
-      session: trecuteFaraStare[0],
-    });
-  }
-  data.students.filter(s => eInAsteptare(s) && zileDeAsteptare(s).ramase === 0).forEach(s => {
-    atentie.push({ text: `${s.name} poate primi adeverința`, sub: 'Au trecut cele două săptămâni de la examen.', student: s });
+    .filter(s => (s.status === 'scheduled' || s.status === 'pending') && s.date < azi).sort(dupaTimp);
+  const neconfirmate = data.sessions
+    .filter(s => s.status === 'pending' && s.date >= azi).sort(dupaTimp);
+  const totProgramat = data.students.filter(s => studentBookedRemaining(s, data.sessions) === 0 && eDisponibil(s));
+
+  // Examenele: cele trecute cer rezultatul, cele din următoarele două săptămâni
+  // sunt doar un semn că se apropie.
+  const panaLa = toISO(addDays(fromISO(azi), 14));
+  const examene = [];
+  data.students.filter(s => !s.withdrawn).forEach(s => {
+    if (s.examResult !== 'promovat' && s.examDate) {
+      if (s.examDate <= azi) examene.push({ student: s, date: s.examDate, kind: 'practic', due: true });
+      else if (s.examDate <= panaLa) examene.push({ student: s, date: s.examDate, kind: 'practic' });
+    }
+    if (s.theoryExamResult !== 'promovat' && s.theoryExamDate && s.theoryExamDate >= azi && s.theoryExamDate <= panaLa) {
+      examene.push({ student: s, date: s.theoryExamDate, kind: 'teoretic' });
+    }
   });
-  data.students.filter(s => s.examDate && s.examDate >= azi && zileIntre(azi, s.examDate) <= 7 && s.examResult !== 'promovat')
-    .sort((a, b) => a.examDate.localeCompare(b.examDate))
-    .forEach(s => {
-      const z = zileIntre(azi, s.examDate);
-      atentie.push({
-        text: `${s.name} · examen ${z === 0 ? 'azi' : z === 1 ? 'mâine' : `în ${deZile(z)}`}`,
-        sub: examPeriodText(s.examPeriod) || fmtHuman(s.examDate),
-        student: s,
-      });
-    });
-  data.students.filter(s => eZiuaLui(s) && !s.withdrawn).forEach(s => {
-    const v = varsta(s.birthDate);
-    atentie.push({ text: `Azi e ziua lui ${greetName(s)}`, sub: v != null ? `Împlinește ${v} ani.` : '', student: s });
-  });
+  examene.sort((a, b) => a.date.localeCompare(b.date));
+
+  const gataDeAdeverinta = data.students.filter(s => eInAsteptare(s) && zileDeAsteptare(s).ramase === 0);
+  const zileDeNastere = data.students.filter(s => eZiuaLui(s) && !s.withdrawn);
+
+  const areAtentie = trecuteFaraStare.length > 0 || neconfirmate.length > 0 || totProgramat.length > 0
+    || examene.length > 0 || gataDeAdeverinta.length > 0 || zileDeNastere.length > 0;
+
+  /* Statistici: cât la sută dintre elevi au luat examenul și cum stau
+     susținerile, pe teoretic și pe practic. */
+  const totalElevi = data.students.length;
+  const promovati = data.students.filter(s => s.examResult === 'promovat').length;
+  const procentPromovati = totalElevi ? Math.round((promovati / totalElevi) * 100) : 0;
+  const teorPromovat = data.students.filter(s => s.theoryExamResult === 'promovat').length;
+  const teorRespins = data.students.filter(s => s.theoryExamResult === 'respins').length;
+  const pracRespins = data.students.filter(s => s.examResult === 'respins').length;
+  const teorSustineri = data.students.reduce((n, s) => n + (Number(s.theoryExamAttempts) || 0), 0);
+  const pracSustineri = data.students.reduce((n, s) => n + (Number(s.examAttempts) || 0), 0);
+
+  // Bara cu două culori: cât s-a promovat și cât s-a respins din susțineri.
+  const BaraExamene = ({ label, pass, fail, attempts }) => {
+    const tot = pass + fail;
+    return (
+      <div className="mb-2.5 last:mb-0">
+        <div className="flex items-center justify-between text-xs mb-1">
+          <span className="text-slate-500">{label}</span>
+          <span className="text-slate-400">
+            {attempts} {attempts === 1 ? 'susținere' : 'susțineri'} · <span className="text-emerald-600">{pass} promovate</span> · <span className="text-red-500">{fail} respinse</span>
+          </span>
+        </div>
+        <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden flex">
+          {tot > 0 && <div className="h-full bg-emerald-500" style={{ width: `${(pass / tot) * 100}%` }} />}
+          {tot > 0 && <div className="h-full bg-red-400" style={{ width: `${(fail / tot) * 100}%` }} />}
+        </div>
+      </div>
+    );
+  };
+
+  const randAtentie = (cheie, icoana, text, sub, onClick, tonal) => (
+    <button key={cheie} onClick={onClick}
+      className="w-full flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-left border"
+      style={tonal
+        ? { background: 'var(--accent-soft)', borderColor: 'var(--accent-line)' }
+        : { background: 'var(--surface)', borderColor: 'var(--line)' }}>
+      {icoana}
+      <span className="flex-1 min-w-0">
+        <span className="block text-sm" style={{ color: tonal ? 'var(--accent-ink)' : 'var(--muted)' }}>{text}</span>
+        {sub ? <span className="block text-xs text-slate-400 truncate">{sub}</span> : null}
+      </span>
+      <ChevronRight size={15} className="shrink-0" style={{ color: tonal ? 'var(--accent)' : 'var(--muted-2)' }} />
+    </button>
+  );
 
   return (
     <div className="pb-4">
@@ -2244,41 +2282,17 @@ function DashboardTab({ data, onOpenSession, onOpenStudent, vehicul, remorca }) 
         </div>
       </div>
 
-      {atentie.length > 0 && (
-        <div className="px-4 mt-5">
-          <div className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">Necesită atenție</div>
-          <div className="space-y-1.5">
-            {atentie.map((a, i) => (
-              <button key={i}
-                onClick={() => {
-                  if (a.session) onOpenSession(a.session);
-                  else if (a.student) onOpenStudent(a.student.id);
-                }}
-                className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-left"
-                style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent-line)' }}>
-                <Flag size={15} className="shrink-0" style={{ color: 'var(--accent)' }} />
-                <span className="flex-1 min-w-0">
-                  <span className="block text-sm" style={{ color: 'var(--accent-ink)' }}>{a.text}</span>
-                  {a.sub ? <span className="block text-xs mt-0.5" style={{ color: 'var(--accent-ink)', opacity: 0.75 }}>{a.sub}</span> : null}
-                </span>
-                <ChevronRight size={15} className="shrink-0" style={{ color: 'var(--accent)' }} />
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       <div className="px-4 mt-5">
         <div className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">Astăzi</div>
         {aziSesiuni.length === 0 ? (
-          <div className="text-center py-8 text-sm text-slate-400">Nicio ședință azi.</div>
+          <div className="text-center py-8 text-sm text-slate-400">Nicio ședință programată astăzi.</div>
         ) : (
           <div className="space-y-1.5">
             {aziSesiuni.map(s => {
               const el = data.students.find(x => x.id === s.studentId);
               const meta = STATUS_META[s.status] || STATUS_META.scheduled;
               return (
-                <button key={s.id} onClick={() => onOpenSession(s)}
+                <button key={s.id} onClick={() => onOpenSession('edit', s)}
                   className="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl bg-white border border-slate-200 text-left">
                   <span className="font-mono-time text-xs text-slate-500 shrink-0">{minToTime(s.startMin)}</span>
                   <span className="flex-1 min-w-0">
@@ -2298,6 +2312,95 @@ function DashboardTab({ data, onOpenSession, onOpenStudent, vehicul, remorca }) 
             })}
           </div>
         )}
+      </div>
+
+      {areAtentie && (
+        <div className="px-4 mt-5">
+          <div className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">Necesită atenție</div>
+          <div className="space-y-1.5">
+            {neconfirmate.length > 0 && randAtentie('conf',
+              <Flag size={15} className="shrink-0" style={{ color: 'var(--accent)' }} />,
+              `${neconfirmate.length} ${neconfirmate.length === 1 ? 'ședință așteaptă' : 'ședințe așteaptă'} confirmare`,
+              null, () => onOpenSession('edit', neconfirmate[0]), true)}
+
+            {trecuteFaraStare.length > 0 && randAtentie('trecute',
+              <Flag size={15} className="shrink-0" style={{ color: 'var(--accent)' }} />,
+              `${trecuteFaraStare.length} ${trecuteFaraStare.length === 1 ? 'ședință trecută' : 'ședințe trecute'} fără status final`,
+              null, () => onOpenSession('edit', trecuteFaraStare[0]), true)}
+
+            {examene.map((x, i) => randAtentie(`ex_${x.student.id}_${x.kind}_${i}`,
+              <CalendarDays size={15} className="shrink-0" style={{ color: x.due ? 'var(--accent)' : 'var(--muted-2)' }} />,
+              `${x.student.name} · examen ${x.kind} ${fmtHuman(x.date)}`,
+              x.due ? 'notează rezultatul — promovat sau respins' : null,
+              () => onOpenStudent(x.student.id), !!x.due))}
+
+            {gataDeAdeverinta.map(s => randAtentie(`adev_${s.id}`,
+              <Flag size={15} className="shrink-0" style={{ color: 'var(--ok)' }} />,
+              `${s.name} poate primi adeverința`,
+              'Au trecut cele două săptămâni de la examen.',
+              () => onOpenStudent(s.id), false))}
+
+            {zileDeNastere.map(s => randAtentie(`zi_${s.id}`,
+              <Cake size={15} className="shrink-0" style={{ color: 'var(--accent)' }} />,
+              `Azi e ziua lui ${greetName(s)}`,
+              varsta(s.birthDate) != null ? `Împlinește ${varsta(s.birthDate)} ani.` : null,
+              () => onOpenStudent(s.id), true))}
+
+            {totProgramat.length > 0 && (
+              <div className="bg-white border border-slate-200 rounded-xl px-3.5 py-2.5">
+                <div className="text-sm text-slate-700 mb-1.5">Toate orele programate sau efectuate:</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {totProgramat.map(s => (
+                    <button key={s.id} onClick={() => onOpenStudent(s.id)}
+                      className="text-xs px-2 py-1 rounded-full bg-slate-50 border border-slate-200 text-slate-600">
+                      {s.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="px-4 mt-5">
+        <div className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">Statistici</div>
+        <div className="bg-white rounded-xl border border-slate-200 px-4 py-3.5 mb-2">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <div className="text-sm font-medium text-slate-800">Elevi promovați</div>
+              <div className="text-xs text-slate-400 mt-0.5">{promovati} din {totalElevi} elevi</div>
+            </div>
+            <div className="font-mono-time text-2xl font-semibold text-emerald-600">{procentPromovati}%</div>
+          </div>
+          <ProgressBar value={procentPromovati} tone="#10b981" />
+        </div>
+        <div className="bg-white rounded-xl border border-slate-200 px-4 py-3.5">
+          <div className="text-sm font-medium text-slate-800 mb-2.5">Examene după tip</div>
+          <BaraExamene label="Teoretic" pass={teorPromovat} fail={teorRespins} attempts={teorSustineri} />
+          <BaraExamene label="Practic" pass={promovati} fail={pracRespins} attempts={pracSustineri} />
+        </div>
+      </div>
+
+      <div className="px-4 mt-5">
+        <div className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">Acțiuni rapide</div>
+        <div className="grid grid-cols-3 gap-2">
+          <button onClick={onAddStudent}
+            className="flex flex-col items-center gap-1.5 bg-white rounded-xl border border-slate-200 py-3.5 active:bg-slate-50">
+            <Users size={18} className="text-slate-500" />
+            <span className="text-xs text-slate-600">Elev nou</span>
+          </button>
+          <button onClick={onAddSession}
+            className="flex flex-col items-center gap-1.5 bg-white rounded-xl border border-slate-200 py-3.5 active:bg-slate-50">
+            <CalendarDays size={18} className="text-slate-500" />
+            <span className="text-xs text-slate-600">Ședință nouă</span>
+          </button>
+          <button onClick={onGoToPlanner}
+            className="flex flex-col items-center gap-1.5 bg-white rounded-xl border border-slate-200 py-3.5 active:bg-slate-50">
+            <WandSparkles size={18} className="text-slate-500" />
+            <span className="text-xs text-slate-600">Planificator</span>
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -2802,6 +2905,23 @@ function SessionModal({ open, mode, initial, data, onClose, onSave, onDelete, on
         </Field>
       )}
 
+      <button type="button" onClick={() => setEnglish(!english)}
+        className="w-full flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 mb-3.5 text-left"
+        style={english
+          ? { borderColor: 'var(--accent-line)', background: 'var(--accent-soft)' }
+          : { borderColor: 'var(--line)', background: 'var(--surface)' }}>
+        <span className="flex items-center justify-center rounded-md shrink-0"
+          style={{
+            width: 18, height: 18, border: `1.5px solid ${english ? 'var(--accent)' : 'var(--line-2)'}`,
+            background: english ? 'var(--accent)' : 'transparent', color: '#3a2100',
+            fontSize: 12, fontWeight: 900, lineHeight: 1,
+          }}>{english ? '✓' : ''}</span>
+        <span className="flex-1 min-w-0">
+          <span className="block text-sm font-medium text-slate-800">Ședință în engleză</span>
+          <span className="block text-xs text-slate-400">La salariu se aplică tariful pentru ședințe în engleză.</span>
+        </span>
+      </button>
+
       {mode === 'edit' && student && student.phone && status !== 'cancelled' && (
         <button onClick={() => onTrimiteConfirmare({
           studentId, date, startMin, type, status, notes, location, otherInstructor, instructorName, english,
@@ -3110,12 +3230,16 @@ function StudentProfile({ open, student, sessions, settings, onClose, onEdit, on
           <span className="text-xs text-slate-400">{ramase} rămase</span>
         </div>
         <ProgressBar value={total ? (facute / total) * 100 : 0} />
-        <div className="flex gap-3 mt-2 text-xs text-slate-400">
-          <span>{student.includedHours || 0} incluse</span>
-          <span>· {student.extraHours || 0} suplimentare</span>
-          {rezervate > 0 ? <span>· {rezervate} programate</span> : null}
+        <div className="mt-2 space-y-0.5 text-xs text-slate-400">
+          <div>{student.includedHours || 0} incluse · {student.extraHours || 0} suplimentare</div>
+          {rezervate > 0 ? <div>{rezervate} programate în calendar: nu scad rămasele până nu sunt efectuate</div> : null}
           {studentOtherInstructorCount(sessions, student.id) > 0
-            ? <span>· {studentOtherInstructorCount(sessions, student.id)} alt instr.</span> : null}
+            ? <div>din care cu alți instructori: {studentOtherInstructorCount(sessions, student.id)}</div> : null}
+          {(() => {
+            const neprog = Math.max(0, (Number(student.extraHours) || 0)
+              - sessions.filter(x => x.studentId === student.id && x.status !== 'cancelled' && x.type !== 'included').length);
+            return neprog > 0 ? <div>{neprog} ore suplimentare încă neprogramate</div> : null;
+          })()}
         </div>
       </div>
 
@@ -3155,6 +3279,11 @@ function StudentProfile({ open, student, sessions, settings, onClose, onEdit, on
           <div>
             <div className="text-xs text-slate-400 mb-0.5">Examen teoretic</div>
             <div className="text-slate-800">{fmtHuman(student.theoryExamDate)}</div>
+            {student.theoryExamResult ? (
+              <div className="text-xs mt-0.5" style={{ color: student.theoryExamResult === 'promovat' ? 'var(--ok)' : 'var(--bad)' }}>
+                {student.theoryExamResult === 'promovat' ? 'promovat' : 'respins'}
+              </div>
+            ) : null}
           </div>
         ) : null}
         {student.area ? (
@@ -3400,6 +3529,7 @@ function StudentModal({ open, mode, initial, settings, sessions, onClose, onSave
     examDate: '', examPeriod: '', theoryExamDate: '', defaultLocation: '', notes: '',
     availDays: [], availParity: '', availFrom: '', availTo: '', minGapDays: 0,
     tura: '', turaData: '', turaOra: 420, turaLucru: '', turaLiber: '', turaOdihna: '',
+    theoryExamResult: '', theoryExamAttempts: 0, examAttempts: 0,
     english: false, withdrawn: false, asteptare: false, pachet: '',
   });
   const [form, setForm] = useState(gol());
@@ -3445,6 +3575,8 @@ function StudentModal({ open, mode, initial, settings, sessions, onClose, onSave
       extraHours: Number(form.extraHours) || 0,
       weeklyLimit: Number(form.weeklyLimit) || settings.defaultWeeklyLimit,
       minGapDays: Number(form.minGapDays) || 0,
+      theoryExamAttempts: Number(form.theoryExamAttempts) || 0,
+      examAttempts: Number(form.examAttempts) || 0,
     }, mode, initial);
   }
 
@@ -3575,9 +3707,30 @@ function StudentModal({ open, mode, initial, settings, sessions, onClose, onSave
           </select>
         </Field>
       </div>
-      <Field label="Examen teoretic">
-        <input type="date" className={inputCls} value={form.theoryExamDate || ''} onChange={e => set('theoryExamDate', e.target.value)} />
-      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Examen teoretic">
+          <input type="date" className={inputCls} value={form.theoryExamDate || ''} onChange={e => set('theoryExamDate', e.target.value)} />
+        </Field>
+        <Field label="Rezultat teoretic">
+          <select className={inputCls} value={form.theoryExamResult || ''} onChange={e => set('theoryExamResult', e.target.value)}>
+            <option value="">Nesusținut / în așteptare</option>
+            <option value="promovat">Promovat</option>
+            <option value="respins">Respins</option>
+          </select>
+        </Field>
+      </div>
+      {/* Contoarele hrănesc statisticile de pe Acasă: câte susțineri au fost, nu
+          doar câte s-au încheiat cu bine. */}
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Nr. susțineri teoretic">
+          <input type="number" min="0" max="20" className={inputCls} value={form.theoryExamAttempts || 0}
+            onChange={e => set('theoryExamAttempts', e.target.value)} />
+        </Field>
+        <Field label="Nr. susțineri practic">
+          <input type="number" min="0" max="20" className={inputCls} value={form.examAttempts || 0}
+            onChange={e => set('examAttempts', e.target.value)} />
+        </Field>
+      </div>
 
       <Field label="Locație de start implicită">
         <input className={inputCls} value={form.defaultLocation || ''} onChange={e => set('defaultLocation', e.target.value)} />
@@ -5341,6 +5494,13 @@ function SupportBox({ data }) {
 
 const CHANGELOG = [
   {
+    v: 'v2.35.1', titlu: 'Reparații după rescriere',
+    puncte: [
+      'Bara de taburi stă din nou lipită de marginea de jos.',
+      'Pe Acasă s-au întors statisticile — procentul de promovați și examenele după tip — acțiunile rapide și lista completă de lucruri care cer atenție.',
+    ],
+  },
+  {
     v: 'v2.35.0', titlu: 'Aplicația, rescrisă pe curat',
     puncte: [
       'Tot codul a fost scris din nou, mai limpede și mai ușor de dus mai departe. Datele, elevii și ședințele rămân neatinse.',
@@ -6232,9 +6392,14 @@ export default function App() {
   /* Examenul picat îl trimite singur în așteptare: două săptămâni, apoi adeverință.
      Așa nu-l mai programezi din greșeală în perioada în care oricum n-are voie. */
   function recordExam(id, rezultat) {
-    setStudent(id, s => (rezultat === 'respins'
-      ? { ...s, examResult: 'respins', asteptare: true, asteptareDin: todayISO(), adeverintaDin: '' }
-      : { ...s, examResult: 'promovat', asteptare: false }));
+    // Fiecare rezultat notat adaugă o susținere la contor — de acolo se scot
+    // procentele de pe Acasă.
+    setStudent(id, s => {
+      const sust = (Number(s.examAttempts) || 0) + 1;
+      return rezultat === 'respins'
+        ? { ...s, examResult: 'respins', examAttempts: sust, asteptare: true, asteptareDin: todayISO(), adeverintaDin: '' }
+        : { ...s, examResult: 'promovat', examAttempts: sust, asteptare: false };
+    });
     showToast(rezultat === 'promovat' ? 'Felicitări! Elev promovat.' : 'Marcat respins. Intră în așteptare.');
   }
   function elibereazaAdeverinta(id) {
@@ -6336,8 +6501,11 @@ export default function App() {
       {tab === 'home' && (
         <DashboardTab data={data}
           vehicul={data.settings.vehicul || 'hatchback'} remorca={data.settings.remorca || ''}
-          onOpenSession={(s) => deschideSesiune(s)}
-          onOpenStudent={(id) => setProfileId(id)} />
+          onOpenSession={deschideSesiune}
+          onOpenStudent={(id) => setProfileId(id)}
+          onAddStudent={paznic(() => setStudentModal({ open: true, mode: 'create', initial: null }))}
+          onAddSession={paznic(() => deschideSesiune('create', null))}
+          onGoToPlanner={() => setTab('planner')} />
       )}
       {tab === 'calendar' && (filaBlocata(TABS[1])
         ? <FilaBlocata titlu="Calendar" descriere="Programarea ședințelor face parte din licența completă." cod={licenta.cod} tipNume={stLic.tipNume} />
@@ -6537,8 +6705,13 @@ function EstiluriGlobale() {
       /* Fundalul se stinge cât timp e o fereastră deschisă. */
       body:has(.ecran-peste) [data-skin] > *:not(.ecran-peste):not(nav) { filter: brightness(.72); transition: filter .2s ease; }
 
+      /* Bara stă lipită de marginea de jos. Poziția e scrisă aici, nu lăsată pe
+         seama claselor utilitare: regula asta vine după ele în pagină și le-ar
+         anula, iar bara ar porni la plimbare odată cu pagina. */
       .bara-taburi {
-        position: relative;
+        position: fixed;
+        left: 0; right: 0; bottom: 0;
+        display: flex;
         background: var(--surface);
         border-top: 1px solid var(--line);
         padding-bottom: env(safe-area-inset-bottom);
