@@ -33,7 +33,7 @@ const DISPLAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
 const SESSION_DURATION = 90;          // minute; se poate schimba din Setări
 const APP_NAME = 'IAS';
-const APP_VERSION = 'v2.35.1';
+const APP_VERSION = 'v2.35.2';
 const VERSION_LABEL = `${APP_NAME} ${APP_VERSION}`;
 const SCHEMA_VERSION = 1;
 
@@ -127,6 +127,15 @@ function blockConflict(blocks, startMin, dur) {
   if (!blocks || !blocks.length) return null;
   const end = startMin + (dur || SESSION_DURATION);
   return blocks.find(b => startMin < b.end && end > b.start) || null;
+}
+
+/* Intervalele în care nu poți lucra — revizie, concediu, o zi liberă. Se pun din
+   calendar și sunt ocolite de planificator, la fel ca examenele. */
+function adaugaBlocaj(settings, blocaj) {
+  return { ...settings, blocks: [...(settings.blocks || []), { id: genId('blk'), ...blocaj }] };
+}
+function stergeBlocaj(settings, id) {
+  return { ...settings, blocks: (settings.blocks || []).filter(b => b.id !== id) };
 }
 
 /* ----------------------------- starea ședinței --------------------------- */
@@ -237,7 +246,12 @@ function loadData() {
   }
 }
 function saveData(data) {
-  try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (e) { /* memoria e plină sau blocată */ }
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    return true;
+  } catch (e) {
+    return false;   // memoria telefonului e plină sau blocată
+  }
 }
 
 /* ===================== SOCOTELILE UNUI ELEV ============================== */
@@ -305,6 +319,26 @@ function sedinteDupaAdeverinta(s, sessions) {
 // Elevul e disponibil pentru programare?
 const eDisponibil = (s) => !!s && !s.withdrawn && s.examResult !== 'promovat' && !eInAsteptare(s);
 
+/* Mementourile sunt legate de a câta ședință a elevului, nu de o dată: „la a
+   cincea ședință, amintește-mi de poligon". Ies la iveală când ședința aceea se
+   apropie și dispar după ce a fost efectuată. */
+function mementouriDeAratat(students, sessions, panaLa) {
+  const out = [];
+  students.forEach(st => {
+    const lista = st.reminders || [];
+    if (!lista.length) return;
+    const ale = sessions
+      .filter(x => x.studentId === st.id && x.status !== 'cancelled')
+      .sort((a, b) => (a.date + minToTime(a.startMin)).localeCompare(b.date + minToTime(b.startMin)));
+    lista.forEach(m => {
+      const ses = ale[(Number(m.atSession) || 0) - 1];
+      if (!ses || ses.status === 'completed' || ses.date > panaLa) return;
+      out.push({ student: st, reminder: m, session: ses });
+    });
+  });
+  return out.sort((a, b) => a.session.date.localeCompare(b.session.date));
+}
+
 /* ------------------------- rezerva de dinaintea examenului --------------- */
 
 const ORIZONT_SUGESTII = 10;
@@ -335,9 +369,9 @@ function reserveWarning(student, sessions, dateISO, excludeId) {
   if (ramase > rezerva) return null;
   if (student.examDate) {
     if (eInFereastraExamen(student, dateISO)) return null;
-    return `Atenție: e una dintre ultimele ${rezerva} ședințe. Ar trebui programată cu 1–5 zile înainte de examen (${fmtHuman(student.examDate)}). Apasă din nou „Salvează" ca să o programezi oricum.`;
+    return `Atenție: e una dintre ultimele ${rezerva} ședințe. Ar trebui programată cu 1–5 zile înainte de examen (${fmtHuman(student.examDate)}). Apasă „Programează oricum" ca să treci peste.`;
   }
-  return `Atenție: e una dintre ultimele ${rezerva} ședințe, păstrate pentru pregătirea de dinaintea examenului. ${student.name} nu are încă dată de examen. Apasă din nou „Salvează" ca să o programezi oricum.`;
+  return `Atenție: e una dintre ultimele ${rezerva} ședințe, păstrate pentru pregătirea de dinaintea examenului. ${student.name} nu are încă dată de examen. Apasă „Programează oricum" ca să treci peste.`;
 }
 
 /* ------------------------------ taxe și bani ----------------------------- */
@@ -1937,7 +1971,7 @@ function NotifyDialog({ prompt, onClose }) {
       <div className="absolute inset-0 bg-slate-900/50 fade-anim" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-md fade-anim">
         <h3 className="font-semibold text-slate-900 mb-0.5">{prompt.title || 'Anunți elevul?'}</h3>
-        <p className="text-xs text-slate-400 mb-3">Mesaj pentru {prompt.name}</p>
+        <p className="text-xs text-slate-400 mb-3">Mesaj pentru {prompt.name} — poți edita textul înainte de trimitere.</p>
         <textarea rows={6} className={inputCls} value={text} onChange={e => setText(e.target.value)} />
         <div className="grid grid-cols-2 gap-2 mt-3">
           <a href={waMsgHref(prompt.phone, text)} target="_blank" rel="noopener noreferrer" onClick={trimis}
@@ -2206,11 +2240,12 @@ function DashboardTab({ data, onOpenSession, onOpenStudent, onAddStudent, onAddS
   });
   examene.sort((a, b) => a.date.localeCompare(b.date));
 
+  const mementouri = mementouriDeAratat(data.students, data.sessions, panaLa);
   const gataDeAdeverinta = data.students.filter(s => eInAsteptare(s) && zileDeAsteptare(s).ramase === 0);
   const zileDeNastere = data.students.filter(s => eZiuaLui(s) && !s.withdrawn);
 
   const areAtentie = trecuteFaraStare.length > 0 || neconfirmate.length > 0 || totProgramat.length > 0
-    || examene.length > 0 || gataDeAdeverinta.length > 0 || zileDeNastere.length > 0;
+    || examene.length > 0 || gataDeAdeverinta.length > 0 || zileDeNastere.length > 0 || mementouri.length > 0;
 
   /* Statistici: cât la sută dintre elevi au luat examenul și cum stau
      susținerile, pe teoretic și pe practic. */
@@ -2334,6 +2369,12 @@ function DashboardTab({ data, onOpenSession, onOpenStudent, onAddStudent, onAddS
               x.due ? 'notează rezultatul — promovat sau respins' : null,
               () => onOpenStudent(x.student.id), !!x.due))}
 
+            {mementouri.map(m => randAtentie(`mem_${m.reminder.id}`,
+              <Flag size={15} className="shrink-0" style={{ color: 'var(--accent)' }} />,
+              m.reminder.text || 'Memento',
+              `${m.student.name} · ședința ${m.reminder.atSession} · ${fmtHuman(m.session.date)}`,
+              () => onOpenStudent(m.student.id), true))}
+
             {gataDeAdeverinta.map(s => randAtentie(`adev_${s.id}`,
               <Flag size={15} className="shrink-0" style={{ color: 'var(--ok)' }} />,
               `${s.name} poate primi adeverința`,
@@ -2408,10 +2449,11 @@ function DashboardTab({ data, onOpenSession, onOpenStudent, onAddStudent, onAddS
 
 /* ------------------------------- CALENDAR -------------------------------- */
 
-function CalendarTab({ data, onOpenSession, onUpdateBlocks }) {
+function CalendarTab({ data, onOpenSession, onAdaugaBlocaj, onStergeBlocaj }) {
   const [selectedDate, setSelectedDate] = useState(todayISO());
   const [saptCursor, setSaptCursor] = useState(() => startOfWeek(new Date()));
   const [oraAleasa, setOraAleasa] = useState(null);
+  const [blocajOpen, setBlocajOpen] = useState(false);
 
   const durata = durataDin(data.settings);
   const pas = pasDin(data.settings);
@@ -2571,9 +2613,15 @@ function CalendarTab({ data, onOpenSession, onUpdateBlocks }) {
               <div key={slotMin} className="flex items-center gap-3 px-3.5 py-2 rounded-xl"
                 style={{ background: 'var(--surface-2)', border: '1px dashed var(--line-2)' }}>
                 <span className="font-mono-time text-xs w-12 text-slate-400">{minToTime(slotMin)}</span>
-                <span className="text-xs text-slate-400">
-                  {examHit ? `Examen · ${examHit.student.name}` : (blockHit.reason || 'Indisponibil')}
+                <span className="text-xs text-slate-400 flex-1">
+                  {examHit
+                    ? `Examen practic · mașina e ocupată · ${examHit.student.name}`
+                    : (blockHit.reason || 'Indisponibil')}
                 </span>
+                {blockHit && (
+                  <button onClick={() => onStergeBlocaj(blockHit.id)} aria-label="Scoate marcajul"
+                    className="p-1 text-slate-400 shrink-0"><X size={14} /></button>
+                )}
               </div>
             );
           }
@@ -2610,6 +2658,17 @@ function CalendarTab({ data, onOpenSession, onUpdateBlocks }) {
         })}
       </div>
 
+      <div className="px-4 mt-3">
+        <button onClick={() => setBlocajOpen(true)}
+          className="w-full py-2.5 rounded-xl border border-dashed border-slate-300 text-slate-500 text-sm flex items-center justify-center gap-1.5">
+          <X size={14} />Marchează indisponibil
+        </button>
+      </div>
+
+      <BlocajDialog open={blocajOpen} data={selectedDate} settings={data.settings}
+        onClose={() => setBlocajOpen(false)}
+        onSave={(b) => { setBlocajOpen(false); onAdaugaBlocaj(b); }} />
+
       <MinutePicker open={oraAleasa != null} ora={oraAleasa} pas={pas} durata={durata}
         ocupat={(m) => daySessions.some(x => seSuprapun(m, durata, x.startMin, durataSed(x, data.settings)))
           || !!blockConflict(blocuri, m, durata) || !!examConflict(examene, m, durata)}
@@ -2622,6 +2681,69 @@ function CalendarTab({ data, onOpenSession, onUpdateBlocks }) {
         style={{ zIndex: LAYER.sheet - 1 }}>
         <Plus size={26} />
       </button>
+    </div>
+  );
+}
+
+/* Marcarea unui interval în care nu poți lucra. Ziua întreagă sau doar câteva
+   ore; motivul e opțional, dar ajută peste o săptămână, când nu-ți mai amintești
+   de ce e ziua aceea barată. */
+function BlocajDialog({ open, data, settings, onClose, onSave }) {
+  const [toataZiua, setToataZiua] = useState(true);
+  const [de, setDe] = useState(settings.startMin);
+  const [pana, setPana] = useState(settings.endMin);
+  const [motiv, setMotiv] = useState('');
+  useEffect(() => {
+    if (open) { setToataZiua(true); setDe(settings.startMin); setPana(settings.endMin); setMotiv(''); }
+  }, [open, settings.startMin, settings.endMin]);
+  if (!open) return null;
+  const ore = daySlots({ startMin: 0, endMin: 1440, sessionMin: 30, stepMin: 30 });
+  return (
+    <div className="fixed inset-0 flex items-center justify-center px-6 ecran-peste" style={{ zIndex: LAYER.dialog }}>
+      <div className="absolute inset-0 bg-slate-900/50 fade-anim" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm fade-anim">
+        <h3 className="font-semibold text-slate-900 mb-0.5">Marchează indisponibil</h3>
+        <p className="text-xs text-slate-400 mb-3">{fmtShort(data)} — intervalul nu va fi folosit la programare.</p>
+
+        <button type="button" onClick={() => setToataZiua(!toataZiua)}
+          className="w-full flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 mb-3 text-left"
+          style={toataZiua ? { borderColor: 'var(--accent-line)', background: 'var(--accent-soft)' } : { borderColor: 'var(--line)', background: 'var(--surface)' }}>
+          <span className="flex items-center justify-center rounded-md shrink-0"
+            style={{
+              width: 18, height: 18, border: `1.5px solid ${toataZiua ? 'var(--accent)' : 'var(--line-2)'}`,
+              background: toataZiua ? 'var(--accent)' : 'transparent', color: '#3a2100', fontSize: 12, fontWeight: 900, lineHeight: 1,
+            }}>{toataZiua ? '✓' : ''}</span>
+          <span className="text-sm font-medium text-slate-800 flex-1">Toată ziua</span>
+        </button>
+
+        {!toataZiua && (
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="De la ora">
+              <select className={inputCls} value={de} onChange={e => setDe(Number(e.target.value))}>
+                {ore.map(m => <option key={m} value={m}>{minToTime(m)}</option>)}
+              </select>
+            </Field>
+            <Field label="Până la">
+              <select className={inputCls} value={pana} onChange={e => setPana(Number(e.target.value))}>
+                {ore.map(m => <option key={m} value={m}>{minToTime(m)}</option>)}
+              </select>
+            </Field>
+          </div>
+        )}
+
+        <Field label="Motiv (opțional)">
+          <input className={inputCls} value={motiv} onChange={e => setMotiv(e.target.value)} placeholder="Ex: revizie mașină" />
+        </Field>
+
+        <div className="flex gap-2">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm">Renunță</button>
+          <button onClick={() => onSave({
+            date: data, allDay: toataZiua, startMin: toataZiua ? 0 : de,
+            endMin: toataZiua ? 1440 : Math.max(pana, de + 30), reason: motiv.trim(),
+          })}
+            className="flex-1 py-2.5 rounded-xl bg-slate-900 text-white text-sm">Marchează</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -2781,46 +2903,50 @@ function SessionModal({ open, mode, initial, data, onClose, onSave, onDelete, on
       setError('Acest interval se suprapune cu altă ședință.'); return;
     }
     const examHit = examConflict(examBlocksForDate(data.students, date), startMin, durata);
-    if (examHit && !prevError.startsWith('Atenție')) {
-      setError(`Atenție: ${examHit.student.name} are examen ${examPeriodText(examHit.period)}. Apasă din nou „Salvează" ca să programezi oricum.`);
+    if (examHit && !/^(Atenție|Depășește|Acest elev)/.test(prevError)) {
+      setError(`Atenție: ${examHit.student.name} are examen ${examPeriodText(examHit.period)}. Apasă „Programează oricum" ca să treci peste.`);
       return;
     }
     const blockHit = blockConflict(blocksForDate(data.settings, date), startMin, durata);
-    if (blockHit && !prevError.startsWith('Atenție')) {
-      setError(`Atenție: ai marcat intervalul ca indisponibil${blockHit.reason ? ` (${blockHit.reason})` : ''}. Apasă din nou „Salvează" ca să programezi oricum.`);
+    if (blockHit && !/^(Atenție|Depășește|Acest elev)/.test(prevError)) {
+      setError(`Atenție: ai marcat intervalul ca indisponibil${blockHit.reason ? ` (${blockHit.reason})` : ''}. Apasă „Programează oricum" ca să treci peste.`);
       return;
     }
     const turaHit = inTura(student, date, startMin, durata);
-    if (turaHit && !prevError.startsWith('Atenție')) {
-      setError(`Atenție: ${student.name} e în tură (${textTura(turaHit)}). Apasă din nou „Salvează" ca să programezi oricum.`);
+    if (turaHit && !/^(Atenție|Depășește|Acest elev)/.test(prevError)) {
+      setError(`Atenție: ${student.name} e în tură (${textTura(turaHit)}). Apasă „Programează oricum" ca să treci peste.`);
       return;
     }
-    if (hasSessionSameDay(data.sessions, studentId, date, excludeId) && !prevError.startsWith('Atenție')) {
-      setError('Atenție: elevul are deja o ședință în ziua asta. Apasă din nou „Salvează" ca să o adaugi oricum.');
+    if (hasSessionSameDay(data.sessions, studentId, date, excludeId) && !/^(Atenție|Depășește|Acest elev)/.test(prevError)) {
+      setError('Acest elev are deja o ședință în această zi. Apasă „Programează oricum" ca să treci peste.');
       return;
     }
     const limita = Number(student.weeklyLimit) || data.settings.defaultWeeklyLimit;
-    if (sessionsInWeek(data.sessions, studentId, date, excludeId) >= limita && !prevError.startsWith('Atenție')) {
-      setError(`Atenție: ${student.name} are deja ${limita} ședințe în săptămâna asta. Apasă din nou „Salvează" ca să o adaugi oricum.`);
+    if (sessionsInWeek(data.sessions, studentId, date, excludeId) >= limita && !/^(Atenție|Depășește|Acest elev)/.test(prevError)) {
+      setError(`Depășește limita săptămânală: ${student.name} are deja ${limita} ședințe în săptămâna asta. Apasă „Programează oricum" ca să treci peste.`);
       return;
     }
     const rezerva = reserveWarning(student, data.sessions, date, excludeId);
-    if (rezerva && !prevError.startsWith('Atenție')) { setError(rezerva); return; }
+    if (rezerva && !/^(Atenție|Depășește|Acest elev)/.test(prevError)) { setError(rezerva); return; }
 
     onSave({ studentId, date, startMin, type, status, notes, location, otherInstructor, instructorName, english }, mode, editing);
   }
 
   return (
-    <BottomSheet open={open} onClose={onClose} title={mode === 'edit' ? 'Ședință' : 'Ședință nouă'} layer={LAYER.form}
+    <BottomSheet open={open} onClose={onClose} title={mode === 'edit' ? 'Editează ședința' : 'Ședință nouă'} layer={LAYER.form}
       footer={(
         <div className="flex gap-2">
           <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 text-sm">Renunță</button>
-          <button onClick={salveaza} className="flex-1 py-3 rounded-xl bg-slate-900 text-white text-sm font-medium">Salvează</button>
+          <button onClick={salveaza}
+            className="flex-1 py-3 rounded-xl text-white text-sm font-medium"
+            style={{ background: error.startsWith('Atenție') || error.startsWith('Depășește') || error.startsWith('Acest elev') ? 'var(--accent-ink)' : 'var(--invert)' }}>
+            {error.startsWith('Atenție') || error.startsWith('Depășește') || error.startsWith('Acest elev') ? 'Programează oricum' : 'Salvează'}
+          </button>
         </div>
       )}>
       {error ? (
         <div className="mb-3 px-3.5 py-2.5 rounded-xl text-sm"
-          style={error.startsWith('Atenție')
+          style={/^(Atenție|Depășește|Acest elev)/.test(error)
             ? { background: 'var(--accent-soft)', border: '1px solid var(--accent-line)', color: 'var(--accent-ink)' }
             : { background: 'var(--bad-soft)', border: '1px solid var(--bad-line)', color: 'var(--bad)' }}>
           {error}
@@ -2842,17 +2968,17 @@ function SessionModal({ open, mode, initial, data, onClose, onSave, onDelete, on
         <Field label="Data" required>
           <input type="date" className={inputCls} value={date} onChange={e => setDate(e.target.value)} />
         </Field>
-        <Field label="Ora" required>
+        <Field label="Ora de început" required>
           <select className={inputCls} value={startMin} onChange={e => setStartMin(Number(e.target.value))}>
             {sloturi.map(m => {
               const ocupat = !otherInstructor && m !== startMin && oraOcupata(m);
-              return <option key={m} value={m} disabled={ocupat}>{minToTime(m)} – {minToTime(m + durata)}{ocupat ? ' (ocupat)' : ''}</option>;
+              return <option key={m} value={m} disabled={ocupat}>{minToTime(m)} – {minToTime(m + durata)}{ocupat ? ' · suprapusă' : ''}</option>;
             })}
           </select>
         </Field>
       </div>
 
-      <Field label="Locație de start">
+      <Field label="Punct de întâlnire (opțional)">
         <input className={inputCls} value={location} onChange={e => setLocation(e.target.value)} placeholder="Ex: Piața Gării, la fântână" />
       </Field>
       <LocationChips locations={data.settings.locations} value={location} onPick={setLocation} />
@@ -2895,8 +3021,8 @@ function SessionModal({ open, mode, initial, data, onClose, onSave, onDelete, on
             fontSize: 12, fontWeight: 900, lineHeight: 1,
           }}>{otherInstructor ? '✓' : ''}</span>
         <span className="flex-1 min-w-0">
-          <span className="block text-sm font-medium text-slate-800">Ținută de alt instructor</span>
-          <span className="block text-xs text-slate-400">Se scade din orele elevului, dar nu-ți ocupă intervalul.</span>
+          <span className="block text-sm font-medium text-slate-800">Efectuată de alt instructor</span>
+          <span className="block text-xs text-slate-400">Alt instructor · doar evidență: se scade din orele elevului, dar nu-ți ocupă intervalul și nu intră la salariu.</span>
         </span>
       </button>
       {otherInstructor && (
@@ -2917,7 +3043,7 @@ function SessionModal({ open, mode, initial, data, onClose, onSave, onDelete, on
             fontSize: 12, fontWeight: 900, lineHeight: 1,
           }}>{english ? '✓' : ''}</span>
         <span className="flex-1 min-w-0">
-          <span className="block text-sm font-medium text-slate-800">Ședință în engleză</span>
+          <span className="block text-sm font-medium text-slate-800">Limba ședinței: engleză</span>
           <span className="block text-xs text-slate-400">La salariu se aplică tariful pentru ședințe în engleză.</span>
         </span>
       </button>
@@ -3162,6 +3288,7 @@ function StudentProfile({ open, student, sessions, settings, onClose, onEdit, on
         <Tort student={student} size={18} />
         <Plate student={student} county={student.county} h={28} />
         {student.group ? <span className="text-xs text-slate-400">grupa {student.group}</span> : null}
+        {student.transferatDe ? <span className="text-xs text-slate-400">· Adusă prin transfer</span> : null}
         <span className="flex-1" />
         <button onClick={() => onEdit(student)} className="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-600 text-xs flex items-center gap-1.5">
           <Pencil size={13} />Editează
@@ -3211,8 +3338,11 @@ function StudentProfile({ open, student, sessions, settings, onClose, onEdit, on
       {/* rezultatul examenului, cerut după ce a trecut ziua */}
       {student.examDate && student.examDate <= todayISO() && student.examResult !== 'promovat' && (
         <div className="rounded-xl px-3.5 py-3 mb-4" style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent-line)' }}>
-          <div className="text-sm font-medium mb-2" style={{ color: 'var(--accent-ink)' }}>
+          <div className="text-sm font-medium" style={{ color: 'var(--accent-ink)' }}>
             Cum a fost examenul din {fmtHuman(student.examDate)}?
+          </div>
+          <div className="text-xs text-slate-500 mt-0.5 mb-2">
+            Notează rezultatul. Se adaugă o susținere la contor ({Number(student.examAttempts) || 0} până acum), iar la respins data rămâne liberă pentru reexaminare.
           </div>
           <div className="flex gap-2">
             <button onClick={() => onRecordExam(student.id, 'promovat')}
@@ -3279,11 +3409,10 @@ function StudentProfile({ open, student, sessions, settings, onClose, onEdit, on
           <div>
             <div className="text-xs text-slate-400 mb-0.5">Examen teoretic</div>
             <div className="text-slate-800">{fmtHuman(student.theoryExamDate)}</div>
-            {student.theoryExamResult ? (
-              <div className="text-xs mt-0.5" style={{ color: student.theoryExamResult === 'promovat' ? 'var(--ok)' : 'var(--bad)' }}>
-                {student.theoryExamResult === 'promovat' ? 'promovat' : 'respins'}
-              </div>
-            ) : null}
+            <div className="text-xs mt-0.5"
+              style={{ color: student.theoryExamResult === 'promovat' ? 'var(--ok)' : student.theoryExamResult === 'respins' ? 'var(--bad)' : 'var(--muted-2)' }}>
+              {student.theoryExamResult === 'promovat' ? 'promovat' : student.theoryExamResult === 'respins' ? 'respins' : 'nesusținut'}
+            </div>
           </div>
         ) : null}
         {student.area ? (
@@ -3395,7 +3524,11 @@ function StudentProfile({ open, student, sessions, settings, onClose, onEdit, on
                     <span className="block text-xs text-slate-400 truncate">
                       {(settings.rateTypes.find(rt => rt.id === s.type) || {}).name || s.type}
                       {s.otherInstructor ? ` · ${s.instructorName || 'alt instructor'}` : ''}
-                      {plata === 'package' ? ' · din pachet' : plata === 'due' ? ' · de plată' : plata === 'partial' ? ' · parțial' : ''}
+                      {s.type === 'included' ? ' · inclusă · achitat prin școlarizare'
+                        : plata === 'package' ? ' · din pachet'
+                          : plata === 'due' ? ' · de plată'
+                            : plata === 'partial' ? ' · parțial achitată'
+                              : plata === 'paid' ? ' · achitată' : ''}
                     </span>
                   </span>
                   <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full bg-${meta.c}-50 text-${meta.c}-700 border border-${meta.c}-200`}>
@@ -3449,29 +3582,48 @@ function PayDialog({ open, currency, datorie, onClose, onSave }) {
   const [suma, setSuma] = useState('');
   const [colector, setColector] = useState('me');
   const [data2, setData2] = useState(todayISO());
-  useEffect(() => { if (open) { setSuma(''); setColector('me'); setData2(todayISO()); } }, [open]);
+  useEffect(() => {
+    // Pornim cu suma întreagă de achitat: de cele mai multe ori omul plătește tot.
+    if (open) { setSuma(datorie > 0.5 ? String(Math.round(datorie)) : ''); setColector('me'); setData2(todayISO()); }
+  }, [open, datorie]);
   if (!open) return null;
+  const n = Number(suma) || 0;
+  const rest = Math.max(0, Math.round(datorie - n));
   return (
     <div className="fixed inset-0 flex items-center justify-center px-6 ecran-peste" style={{ zIndex: LAYER.dialog }}>
       <div className="absolute inset-0 bg-slate-900/50 fade-anim" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm fade-anim">
-        <h3 className="font-semibold text-slate-900 mb-0.5">Adaugă plată</h3>
+        <h3 className="font-semibold text-slate-900 mb-0.5">Înregistrează plata</h3>
         <p className="text-xs text-slate-400 mb-3">
-          {datorie > 0.5 ? `Are de achitat ${Math.round(datorie).toLocaleString('ro-RO')} ${currency}.` : 'Nu are datorie.'}
+          {datorie > 0.5
+            ? `Are de achitat ${Math.round(datorie).toLocaleString('ro-RO')} ${currency}. Modifică suma dacă plata e parțială.`
+            : 'Nu are datorie. Poți înregistra oricum un avans.'}
         </p>
         <Field label="Sumă" required>
           <input type="number" min="0" inputMode="decimal" className={inputCls} value={suma} onChange={e => setSuma(e.target.value)} />
         </Field>
-        <Field label="Data"><input type="date" className={inputCls} value={data2} onChange={e => setData2(e.target.value)} /></Field>
+        {n > 0 && datorie > 0.5 && (
+          <p className="text-xs -mt-2 mb-3.5" style={{ color: rest > 0 ? 'var(--accent-ink)' : 'var(--ok)' }}>
+            {rest > 0 ? `· rest de plată: ${rest.toLocaleString('ro-RO')} ${currency}` : 'Achită tot restul.'}
+          </p>
+        )}
+        <Field label="Data plății">
+          <input type="date" className={inputCls} value={data2} onChange={e => setData2(e.target.value)} />
+        </Field>
         <Field label="Cine a încasat">
           <select className={inputCls} value={colector} onChange={e => setColector(e.target.value)}>
             <option value="me">Eu</option>
             <option value="school">Școala</option>
           </select>
         </Field>
-        <div className="flex gap-2 mt-1">
+        <p className="text-xs text-slate-400 -mt-2 mb-3.5">
+          {colector === 'me'
+            ? 'Scade datoria elevului și intră la încasările tale din luna plății.'
+            : 'Scade datoria elevului, dar nu intră la banii încasați de tine.'}
+        </p>
+        <div className="flex gap-2">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm">Renunță</button>
-          <button onClick={() => { const n = Number(suma) || 0; if (n > 0) onSave(n, colector, data2); }}
+          <button onClick={() => { if (n > 0) onSave(n, colector, data2); }}
             className="flex-1 py-2.5 rounded-xl bg-slate-900 text-white text-sm">Salvează</button>
         </div>
       </div>
@@ -3483,11 +3635,13 @@ function PaymentEditDialog({ open, payment, currency, onClose, onSave, onDelete 
   const [suma, setSuma] = useState('');
   const [colector, setColector] = useState('me');
   const [data2, setData2] = useState(todayISO());
+  const [confirm, setConfirm] = useState(false);
   useEffect(() => {
     if (open && payment) {
       setSuma(String(payment.amount || ''));
       setColector(payment.collector || 'me');
       setData2(payment.date || todayISO());
+      setConfirm(false);
     }
   }, [open, payment]);
   if (!open || !payment) return null;
@@ -3499,21 +3653,32 @@ function PaymentEditDialog({ open, payment, currency, onClose, onSave, onDelete 
         <Field label="Sumă" required>
           <input type="number" min="0" inputMode="decimal" className={inputCls} value={suma} onChange={e => setSuma(e.target.value)} />
         </Field>
-        <Field label="Data"><input type="date" className={inputCls} value={data2} onChange={e => setData2(e.target.value)} /></Field>
+        <Field label="Data plății"><input type="date" className={inputCls} value={data2} onChange={e => setData2(e.target.value)} /></Field>
         <Field label="Cine a încasat">
           <select className={inputCls} value={colector} onChange={e => setColector(e.target.value)}>
             <option value="me">Eu</option>
             <option value="school">Școala</option>
           </select>
         </Field>
+        <p className="text-xs text-slate-400 -mt-2 mb-3.5">
+          {colector === 'me'
+            ? 'Scade datoria elevului și intră la încasările tale din luna plății.'
+            : 'Scade datoria elevului, dar nu intră la banii încasați de tine.'}
+        </p>
         <div className="flex gap-2">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm">Renunță</button>
           <button onClick={() => onSave({ ...payment, amount: Number(suma) || 0, collector: colector, date: data2 })}
             className="flex-1 py-2.5 rounded-xl bg-slate-900 text-white text-sm">Salvează</button>
         </div>
-        <button onClick={() => onDelete(payment.id)} className="w-full py-2 mt-2 text-xs" style={{ color: 'var(--bad)' }}>
+        <button onClick={() => setConfirm(true)} className="w-full py-2 mt-2 text-xs" style={{ color: 'var(--bad)' }}>
           Șterge plata
         </button>
+
+        <ConfirmDialog open={confirm} title="Ștergi plata?"
+          message="Suma se întoarce la datoria elevului. Sigur?"
+          confirmLabel="Da, șterge definitiv" danger
+          onConfirm={() => { setConfirm(false); onDelete(payment.id); }}
+          onCancel={() => setConfirm(false)} />
       </div>
     </div>
   );
@@ -3529,12 +3694,13 @@ function StudentModal({ open, mode, initial, settings, sessions, onClose, onSave
     examDate: '', examPeriod: '', theoryExamDate: '', defaultLocation: '', notes: '',
     availDays: [], availParity: '', availFrom: '', availTo: '', minGapDays: 0,
     tura: '', turaData: '', turaOra: 420, turaLucru: '', turaLiber: '', turaOdihna: '',
-    theoryExamResult: '', theoryExamAttempts: 0, examAttempts: 0,
+    theoryExamResult: '', theoryExamAttempts: 0, examAttempts: 0, reminders: [],
     english: false, withdrawn: false, asteptare: false, pachet: '',
   });
   const [form, setForm] = useState(gol());
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [gpsElev, setGpsElev] = useState('');
+  const [eroare, setEroare] = useState('');
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   // Punctul de domiciliu, prins de la fața locului. E o singură dată per elev.
@@ -3567,7 +3733,10 @@ function StudentModal({ open, mode, initial, settings, sessions, onClose, onSave
 
   function salveaza() {
     const nume = `${(form.lastName || '').trim()} ${(form.firstName || '').trim()}`.trim();
-    if (!nume) return;
+    if (!(form.lastName || '').trim() || !(form.firstName || '').trim()) {
+      setEroare('Numele și prenumele sunt obligatorii.');
+      return;
+    }
     onSave({
       ...form,
       name: nume,
@@ -3588,6 +3757,13 @@ function StudentModal({ open, mode, initial, settings, sessions, onClose, onSave
           <button onClick={salveaza} className="flex-1 py-3 rounded-xl bg-slate-900 text-white text-sm font-medium">Salvează</button>
         </div>
       )}>
+      {eroare ? (
+        <div className="mb-3 px-3.5 py-2.5 rounded-xl text-sm"
+          style={{ background: 'var(--bad-soft)', border: '1px solid var(--bad-line)', color: 'var(--bad)' }}>
+          {eroare}
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-2 gap-3">
         <Field label="Nume de familie" required>
           <input className={inputCls} value={form.lastName} onChange={e => set('lastName', e.target.value)} />
@@ -3638,7 +3814,7 @@ function StudentModal({ open, mode, initial, settings, sessions, onClose, onSave
             {LICENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </Field>
-        <Field label="Județ">
+        <Field label="Județ (plăcuță)">
           <select className={inputCls} value={form.county} onChange={e => set('county', e.target.value)}>
             {COUNTIES.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
@@ -3702,8 +3878,10 @@ function StudentModal({ open, mode, initial, settings, sessions, onClose, onSave
         </Field>
         <Field label="Jumătatea de zi">
           <select className={inputCls} value={form.examPeriod || ''} onChange={e => set('examPeriod', e.target.value)}>
-            <option value="">—</option>
-            {Object.entries(EXAM_PERIODS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            <option value="">Nespecificată</option>
+            {Object.entries(EXAM_PERIODS).map(([k, v]) => (
+              <option key={k} value={k}>{v.label} · {minToTime(v.start)}–{minToTime(v.end)}</option>
+            ))}
           </select>
         </Field>
       </div>
@@ -3732,7 +3910,7 @@ function StudentModal({ open, mode, initial, settings, sessions, onClose, onSave
         </Field>
       </div>
 
-      <Field label="Locație de start implicită">
+      <Field label="Punct de întâlnire obișnuit (opțional)">
         <input className={inputCls} value={form.defaultLocation || ''} onChange={e => set('defaultLocation', e.target.value)} />
       </Field>
       <LocationChips locations={settings.locations} value={form.defaultLocation} onPick={(n) => set('defaultLocation', n)} />
@@ -3796,8 +3974,14 @@ function StudentModal({ open, mode, initial, settings, sessions, onClose, onSave
             <option value="odd">Doar impare</option>
           </select>
         </Field>
-        <Field label="Pauză minimă (zile)">
-          <input type="number" min="0" max="14" className={inputCls} value={form.minGapDays || 0} onChange={e => set('minGapDays', e.target.value)} />
+        <Field label="Cât de des poate veni">
+          <select className={inputCls} value={form.minGapDays || 0} onChange={e => set('minGapDays', Number(e.target.value))}>
+            <option value={0}>Oricât de des</option>
+            <option value={2}>O dată la 2 zile</option>
+            <option value={3}>O dată la 3 zile</option>
+            <option value={4}>O dată la 4 zile</option>
+            <option value={7}>O dată pe săptămână</option>
+          </select>
         </Field>
       </div>
 
@@ -3858,6 +4042,20 @@ function StudentModal({ open, mode, initial, settings, sessions, onClose, onSave
         </>
       )}
 
+      <button type="button" onClick={() => set('english', !form.english)}
+        className="w-full flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 mb-3.5 text-left"
+        style={form.english ? { borderColor: 'var(--accent-line)', background: 'var(--accent-soft)' } : { borderColor: 'var(--line)', background: 'var(--surface)' }}>
+        <span className="flex items-center justify-center rounded-md shrink-0"
+          style={{
+            width: 18, height: 18, border: `1.5px solid ${form.english ? 'var(--accent)' : 'var(--line-2)'}`,
+            background: form.english ? 'var(--accent)' : 'transparent', color: '#3a2100', fontSize: 12, fontWeight: 900, lineHeight: 1,
+          }}>{form.english ? '✓' : ''}</span>
+        <span className="flex-1 min-w-0">
+          <span className="block text-sm font-medium text-slate-800">Limba ședințelor: engleză</span>
+          <span className="block text-xs text-slate-400">Ședințele lui pornesc bifate ca fiind în engleză.</span>
+        </span>
+      </button>
+
       <Field label="Situație">
         <select className={inputCls}
           value={form.withdrawn ? 'withdrawn' : (form.asteptare ? 'asteptare' : 'active')}
@@ -3874,11 +4072,40 @@ function StudentModal({ open, mode, initial, settings, sessions, onClose, onSave
       </Field>
 
       <Field label="Notițe">
-        <textarea rows={3} className={inputCls} value={form.notes || ''} onChange={e => set('notes', e.target.value)} />
+        <textarea rows={3} className={inputCls} value={form.notes || ''} onChange={e => set('notes', e.target.value)} placeholder="Opțional" />
       </Field>
 
+      <Section title="Mementouri" summary={(form.reminders || []).length ? `${(form.reminders || []).length}` : 'niciunul'}>
+        <div className="space-y-2 mb-2">
+          {(form.reminders || []).map((m, k) => (
+            <div key={m.id || k} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs text-slate-500 shrink-0">La ședința nr.</span>
+                <input type="number" min="1" inputMode="numeric" className={`${inputCls} text-center`}
+                  style={{ flex: '0 0 58px', width: 58, paddingLeft: 6, paddingRight: 6 }} placeholder="—"
+                  value={m.atSession || ''}
+                  onChange={e => set('reminders', (form.reminders || []).map((x, i) => (i === k ? { ...x, atSession: e.target.value } : x)))} />
+                <button type="button" onClick={() => set('reminders', (form.reminders || []).filter((x, i) => i !== k))}
+                  className="ml-auto p-2 -mr-1 text-slate-400 shrink-0"><Trash2 size={15} /></button>
+              </div>
+              <input className={inputCls} placeholder="Ex: de făcut poligonul" value={m.text || ''}
+                onChange={e => set('reminders', (form.reminders || []).map((x, i) => (i === k ? { ...x, text: e.target.value } : x)))} />
+            </div>
+          ))}
+        </div>
+        <button type="button" onClick={() => set('reminders', [...(form.reminders || []), { id: genId('mem'), atSession: '', text: '' }])}
+          className="w-full py-2.5 rounded-xl border border-dashed border-slate-300 text-slate-500 text-sm flex items-center justify-center gap-1.5">
+          <Plus size={14} />Memento nou
+        </button>
+        <p className="text-xs text-slate-400 mt-2">
+          Apare pe Acasă când se apropie ședința aceea și dispare după ce a fost efectuată.
+        </p>
+      </Section>
+
       {mode === 'edit' && (
-        <button onClick={() => setConfirmDelete(true)} className="w-full text-center text-xs text-red-500 py-2">Șterge definitiv elevul</button>
+        <button onClick={() => setConfirmDelete(true)} className="w-full text-center text-xs py-2" style={{ color: 'var(--bad)' }}>
+          Șterge elevul
+        </button>
       )}
 
       <ConfirmDialog open={confirmDelete} title="Ștergi elevul?"
@@ -3964,7 +4191,7 @@ function PlannerTab({ data, onUpdateStudentLimit, onApplyPlan, onStergePropuneri
 
       {eligible.length === 0 ? (
         <div className="text-center py-10 text-sm text-slate-400 px-4">
-          Niciun elev cu ore rămase. Adaugă ore pe fișele lor și revino.
+          Niciun elev cu ședințe rămase. Adaugă ore pe fișele lor și revino.
         </div>
       ) : (
         <>
@@ -4051,10 +4278,11 @@ function PlannerTab({ data, onUpdateStudentLimit, onApplyPlan, onStergePropuneri
             </Field>
             <Field label="Perioada planificată">
               <select className={inputCls} value={horizon} onChange={e => { setHorizon(Number(e.target.value)); setPlan(null); }}>
-                <option value={0}>Până se termină orele</option>
-                <option value={7}>O săptămână</option>
-                <option value={14}>Două săptămâni</option>
-                <option value={30}>O lună</option>
+                <option value={0}>Cât e nevoie</option>
+                <option value={7}>1 săptămână</option>
+                <option value={14}>2 săptămâni</option>
+                <option value={21}>3 săptămâni</option>
+                <option value={28}>4 săptămâni</option>
               </select>
             </Field>
             <Field label="Grupare geografică">
@@ -4074,7 +4302,7 @@ function PlannerTab({ data, onUpdateStudentLimit, onApplyPlan, onStergePropuneri
             <button onClick={genereaza} disabled={selected.size === 0}
               className="w-full py-3 rounded-xl text-white font-medium text-sm disabled:opacity-40 flex items-center justify-center gap-2"
               style={{ background: 'var(--invert)' }}>
-              <WandSparkles size={16} />Generează plan
+              <WandSparkles size={16} />Generează plan ({selected.size})
             </button>
           </div>
         </>
@@ -4205,7 +4433,7 @@ function PlanCalculator({ students, allStudents, sessions, settings }) {
           <div className="text-xs mt-1" style={{ color: 'rgba(255,255,255,.75)' }}>ultima: {fmtHuman(r.ultimaZi)}</div>
           <div className="text-xs mt-2 pt-2" style={{ color: 'rgba(255,255,255,.75)', borderTop: '1px solid rgba(255,255,255,.14)' }}>
             {r.totIncape
-              ? `Până la ${fmtHuman(ultimaZiDin(todayISO()))} termini tot.`
+              ? `Termini tot până atunci.`
               : `până la ${fmtHuman(ultimaZiDin(todayISO()))}: ${r.incapPanaLaFinal} din ${r.totalOre} ședințe · ${r.zileRamase} zile`}
           </div>
         </div>
@@ -4221,7 +4449,7 @@ function PlanCalculator({ students, allStudents, sessions, settings }) {
         </div>
       </div>
       <p className="text-xs text-slate-400 mt-2">
-        Socotit cu {r.peZi} ședințe pe zi, zile îndesate la maximum. Planul de mai sus respectă limitele fiecărui elev, deci va ieși mai lung.
+        Socotit cu {r.peZi} ședințe pe zi, zile îndesate la maximum · o ședință pe zi de elev. Planul de mai sus respectă limitele fiecărui elev, deci va ieși mai lung.
       </p>
     </div>
   );
@@ -4384,7 +4612,7 @@ function FinanceTab({ data, onUpdateSettings, onUpdateRateTypes, onUpdateEmploye
               </div>
             )}
             <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-sm">
-              <span className="text-slate-700">De recuperat (toți elevii)</span>
+              <span className="text-slate-700">De recuperat (toți elevii, total)</span>
               <span className="font-mono-time font-medium text-slate-900">{lei(deRecuperat)}</span>
             </div>
           </div>
@@ -4446,7 +4674,7 @@ function FinanceTab({ data, onUpdateSettings, onUpdateRateTypes, onUpdateEmploye
                 <Field label="Data" required><input type="date" className={inputCls} value={vDraft.date} onChange={e => setVDraft({ ...vDraft, date: e.target.value })} /></Field>
                 <Field label="Sumă" required><input type="number" min="0" inputMode="decimal" className={inputCls} value={vDraft.amount} onChange={e => setVDraft({ ...vDraft, amount: e.target.value })} /></Field>
               </div>
-              <Field label="Mențiune"><input className={inputCls} value={vDraft.note || ''} onChange={e => setVDraft({ ...vDraft, note: e.target.value })} placeholder="Ex: chitanța 128" /></Field>
+              <Field label="Mențiune"><input className={inputCls} value={vDraft.note || ''} onChange={e => setVDraft({ ...vDraft, note: e.target.value })} placeholder="Ex: chitanța 128, pentru grupa 12" /></Field>
               <div className="flex gap-2">
                 <button onClick={() => setVDraft(null)} className="flex-1 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-600">Renunță</button>
                 <button onClick={salveazaVarsamant} className="flex-1 py-2.5 rounded-lg bg-slate-900 text-white text-sm">Salvează</button>
@@ -4661,6 +4889,7 @@ function FeeTypesEditor({ feeTypes, currency, onChange }) {
   return (
     <>
       <div className="space-y-1.5 mb-3">
+        {feeTypes.length === 0 && <div className="text-sm text-slate-400 py-2">Nicio taxă definită.</div>}
         {feeTypes.map(f => (
           <div key={f.id} className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white border border-slate-200">
             <button onClick={() => setDraft({ id: f.id, name: f.name, price: f.price, hours: f.hours || '', oreTip: oreTipul(f), laScoala: !!f.laScoala })}
@@ -5452,6 +5681,56 @@ function dateTehnice(data) {
   ].join('\n');
 }
 
+/* Verificarea fișierelor: dacă aplicația e instalată pe telefon dar unul dintre
+   fișiere lipsește de pe GitHub, se vede aici — altfel omul ar afla abia când
+   nu-i mai merge ceva. */
+function VerificareFisiere() {
+  const [stare, setStare] = useState(null);
+  const [lucrator, setLucrator] = useState('se verifică…');
+
+  useEffect(() => {
+    let viu = true;
+    const fisiere = [
+      ['manifest.json', 'Fișier de identitate'],
+      ['icon-192.png', 'Iconiță mică'],
+      ['icon.png', 'Iconiță mare'],
+      ['sw.js', 'Fișier sw.js'],
+    ];
+    Promise.all(fisiere.map(([f, nume]) =>
+      fetch(`${f}?t=${Date.now()}`, { cache: 'no-store' })
+        .then(r => ({ nume, ok: r.ok }))
+        .catch(() => ({ nume, ok: false }))))
+      .then(r => { if (viu) setStare(r); });
+
+    if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
+      navigator.serviceWorker.getRegistration()
+        .then(r => { if (viu) setLucrator(r ? (r.active ? 'pornit' : 'se instalează') : 'neînregistrat'); })
+        .catch(() => { if (viu) setLucrator('Lucrător de fundal: eroare la verificare'); });
+    } else setLucrator('Lucrător de fundal: nesuportat aici');
+
+    return () => { viu = false; };
+  }, []);
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white px-3.5 py-3 mb-3">
+      <div className="text-xs font-medium text-slate-500 mb-1.5">Fișierele aplicației</div>
+      {stare === null ? (
+        <div className="text-xs text-slate-400">Se încarcă…</div>
+      ) : (
+        <div className="space-y-1">
+          {stare.map(x => (
+            <div key={x.nume} className="flex items-center justify-between text-xs">
+              <span className="text-slate-600">{x.nume}</span>
+              <span style={{ color: x.ok ? 'var(--ok)' : 'var(--bad)' }}>{x.ok ? 'prezent' : 'lipsește'}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="text-xs text-slate-400 mt-1.5">Lucrător de fundal: {lucrator}</div>
+    </div>
+  );
+}
+
 function SupportBox({ data }) {
   const [copiat, setCopiat] = useState(false);
   const [unde, setUnde] = useState('');
@@ -5494,17 +5773,17 @@ function SupportBox({ data }) {
 
 const CHANGELOG = [
   {
-    v: 'v2.35.1', titlu: 'Reparații după rescriere',
+    v: 'v2.35.2', titlu: 'Totul înapoi la locul lui',
     puncte: [
       'Bara de taburi stă din nou lipită de marginea de jos.',
-      'Pe Acasă s-au întors statisticile — procentul de promovați și examenele după tip — acțiunile rapide și lista completă de lucruri care cer atenție.',
+      'S-au întors statisticile de pe Acasă, acțiunile rapide, mementourile, intervalele indisponibile din calendar și restul lucrurilor mărunte.',
     ],
   },
   {
     v: 'v2.35.0', titlu: 'Aplicația, rescrisă pe curat',
     puncte: [
       'Tot codul a fost scris din nou, mai limpede și mai ușor de dus mai departe. Datele, elevii și ședințele rămân neatinse.',
-      'Garajul are un model nou: SUV. Fasciculele farurilor se așază corect pe asfalt, la orice vehicul și cu orice remorcă.',
+      'Garajul are un model nou: SUV.',
     ],
   },
   {
@@ -5515,11 +5794,43 @@ const CHANGELOG = [
     ],
   },
   {
+    v: 'v2.32.0', titlu: 'Mașina din antet',
+    puncte: [
+      'Mașina e desenată din nou, cu proporțiile unui hatchback real.',
+      'Caseta de plafon e la cotele legale — 420 × 380 × 120 mm — și se aprinde noaptea.',
+      'Noaptea, farurile își aștern lumina pe asfalt.',
+    ],
+  },
+  {
+    v: 'v2.31.0', titlu: 'Programare mai ușoară',
+    puncte: [
+      'Elevul se alege căutându-l după nume, grupă sau telefon.',
+      'Poți trimite confirmarea unei ședințe și mai târziu, direct din fișa ei.',
+      'Licențele se deschid ca fereastră, la fel ca restul.',
+    ],
+  },
+  {
     v: 'v2.30.0', titlu: 'Școlarizare, bun venit și zile de naștere',
     puncte: [
       'La adăugarea unui elev alegi pachetul de școlarizare: îi pune singur ședințele incluse și, după caz, plata sau datoria.',
       'Buton de mesaj de bun venit pe fișa fiecărui elev nou.',
       'În ziua lui de naștere, elevul are un tort lângă nume.',
+      'Notițele elevului apar pe fișa lui.',
+    ],
+  },
+  {
+    v: 'v2.29.0', titlu: 'Data nașterii',
+    puncte: [
+      'Fișa elevului are data nașterii și îți arată vârsta.',
+      'Căutarea găsește numele și fără diacritice.',
+    ],
+  },
+  {
+    v: 'v2.28.0', titlu: 'Locuri de întâlnire',
+    puncte: [
+      'Fiecare locație poate ține minte punctul exact de pe hartă.',
+      'Elevul primește locul și harta în mesaj.',
+      'În Calendar ai traseul zilei și drumul spre următoarea ședință.',
     ],
   },
   {
@@ -5544,6 +5855,18 @@ const CHANGELOG = [
     ],
   },
   {
+    v: 'v2.18.0', titlu: 'Setări și Finanțe pe grupuri',
+    puncte: [
+      'Setările și Finanțele sunt strânse pe categorii, mai ușor de parcurs.',
+    ],
+  },
+  {
+    v: 'v2.12.0', titlu: 'Programul, pe măsura ta',
+    puncte: [
+      'Alegi durata unei ședințe și pasul orelor din calendar.',
+    ],
+  },
+  {
     v: 'v2.10.0', titlu: 'Acces pe perioadă',
     puncte: [
       'Aplicația se deschide cu un cod primit o singură dată.',
@@ -5551,11 +5874,30 @@ const CHANGELOG = [
     ],
   },
   {
-    v: 'v2.0.0', titlu: 'Bani, taxe și salariu',
+    v: 'v2.0.0', titlu: 'Plăți corectabile',
+    puncte: [
+      'Orice plată se poate corecta sau șterge, iar datoria se recalculează singură.',
+    ],
+  },
+  {
+    v: 'v1.32.0', eticheta: 'până la v1.32.9', titlu: 'Bani, taxe și salariu',
     puncte: [
       'Taxe și pachete stabilite de tine, plăți încasate de tine sau la școală.',
-      'Salariul de la angajator se calculează singur, cu prag lunar.',
-      'Orice plată se poate corecta sau șterge, iar datoria se recalculează.',
+      'Salariul de la angajator se calculează singur, cu prag lunar și tarife pentru engleză.',
+    ],
+  },
+  {
+    v: 'v1.31.0', eticheta: 'până la v1.32.9', titlu: 'Planificare pe măsura fiecărui elev',
+    puncte: [
+      'Planificatorul respectă zilele și orele în care poate veni fiecare elev.',
+      'Ultimele ședințe se păstrează pentru pregătirea de dinaintea examenului.',
+    ],
+  },
+  {
+    v: 'v1.30.0', eticheta: 'până la v1.32.9', titlu: 'Elevii și legătura cu ei',
+    puncte: [
+      'Mesaje gata scrise pentru WhatsApp și SMS, la programare, mutare sau anulare.',
+      'Mementouri, transfer de elev către alt instructor și evidența ședințelor cu alți instructori.',
     ],
   },
 ];
@@ -5617,7 +5959,7 @@ function SettingsTab({ data, onUpdateSettings, onUpdateLocations, onExport, onIm
       const j = JSON.parse(text);
       if (j && j.kind === STUDENT_FILE_KIND) { setPendingStudent(j); setImportErr(''); return; }
       const n = normalizeData(j);
-      if (!n.students.length && !n.sessions.length) { setImportErr('Fișierul nu pare un backup IAS.'); return; }
+      if (!n.students.length && !n.sessions.length) { setImportErr('Acesta nu pare a fi un fișier valid al aplicației.'); return; }
       setPendingImport(n); setImportErr('');
     } catch (e) { setImportErr('Nu am putut citi fișierul. Verifică dacă e cel bun.'); }
   }
@@ -5769,7 +6111,7 @@ function SettingsTab({ data, onUpdateSettings, onUpdateLocations, onExport, onIm
             <textarea rows={6} className={inputCls} value={s.textBunVenit || BUN_VENIT_IMPLICIT} onChange={e => onUpdateSettings({ textBunVenit: e.target.value })} />
           </Field>
           <p className="text-xs text-slate-400 -mt-2 mb-2">
-            Se completează singure: <span className="font-mono-time">{'{salut}'}</span>, <span className="font-mono-time">{'{prenume}'}</span>, <span className="font-mono-time">{'{eu}'}</span>, <span className="font-mono-time">{'{scoala}'}</span>, <span className="font-mono-time">{'{disponibil}'}</span>.
+            Se completează singure: <span className="font-mono-time">{'{salut}'}</span> (Salut/Bună, după cum e trecut elevul), <span className="font-mono-time">{'{prenume}'}</span>, <span className="font-mono-time">{'{eu}'}</span>, <span className="font-mono-time">{'{scoala}'}</span>, <span className="font-mono-time">{'{disponibil}'}</span>.
           </p>
           <button onClick={() => onUpdateSettings({ textBunVenit: BUN_VENIT_IMPLICIT })}
             className="w-full py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm">Revino la textul implicit</button>
@@ -5949,6 +6291,7 @@ function SettingsTab({ data, onUpdateSettings, onUpdateLocations, onExport, onIm
             <button onClick={() => { setGrup(null); onDespre(); }} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm">Ce face aplicația</button>
             <button onClick={() => { setGrup(null); onNoutati(); }} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm">Ce e nou</button>
           </div>
+          <VerificareFisiere />
           <div className="mt-4 text-center">
             <div className="text-xs font-semibold text-slate-500">{BRAND.mark}™ · {BRAND.expansion}</div>
             <div className="text-xs text-slate-400 mt-0.5">© {new Date().getFullYear()} {BRAND.owner} · Toate drepturile rezervate.</div>
@@ -6023,7 +6366,9 @@ function DespreView({ open, onClose }) {
   ];
   return (
     <BottomSheet open={open} onClose={onClose} title={`Ce face ${BRAND.mark}`} layer={LAYER.dialog}>
-      <p className="text-sm text-slate-600 mb-4">{BRAND.tagline}</p>
+      <p className="text-sm text-slate-600 mb-4">
+        <span className="font-semibold">{BRAND.mark}</span> îți ține evidența de instructor într-un singur loc, pe telefon.
+      </p>
       <div className="space-y-2.5">
         {capitole.map(c => (
           <div key={c.t} className="rounded-xl bg-white border border-slate-200 px-3.5 py-3">
@@ -6032,7 +6377,9 @@ function DespreView({ open, onClose }) {
           </div>
         ))}
       </div>
-      <button onClick={onClose} className="w-full py-2.5 mt-4 rounded-xl border border-slate-200 text-slate-600 text-sm">Închide</button>
+      <button onClick={onClose} className="w-full py-2.5 mt-4 rounded-xl text-white text-sm font-medium" style={{ background: 'var(--invert)' }}>
+        Am înțeles
+      </button>
     </BottomSheet>
   );
 }
@@ -6041,6 +6388,9 @@ function NoutatiView({ open, onClose }) {
   if (!open) return null;
   return (
     <BottomSheet open={open} onClose={onClose} title="Ce e nou" layer={LAYER.dialog}>
+      <p className="text-xs text-slate-400 mb-3">
+        Schimbările de la versiunea {CHANGELOG[CHANGELOG.length - 1].v} încoace.
+      </p>
       <div className="space-y-3">
         {CHANGELOG.map(c => (
           <div key={c.v} className="rounded-xl bg-white border border-slate-200 px-3.5 py-3">
@@ -6049,6 +6399,7 @@ function NoutatiView({ open, onClose }) {
                 style={{ background: 'var(--accent-soft)', color: 'var(--accent-ink)', border: '1px solid var(--accent-line)' }}>
                 {c.v}
               </span>
+              {c.eticheta ? <span className="text-xs text-slate-400">{c.eticheta}</span> : null}
               <span className="text-sm font-medium text-slate-900">{c.titlu}</span>
             </div>
             <ul className="space-y-1">
@@ -6121,7 +6472,8 @@ function fisierCalendar(data) {
     .filter(x => x.date >= todayISO() && x.status !== 'cancelled')
     .sort((a, b) => (a.date + a.startMin).localeCompare(b.date + b.startMin));
 
-  const linii = ['BEGIN:VCALENDAR', 'VERSION:2.0', `PRODID:-//${BRAND.mark}//RO`, 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
+  const linii = ['BEGIN:VCALENDAR', 'VERSION:2.0', `PRODID:-//${BRAND.mark}//RO`, 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    `X-WR-CALNAME:Ședințe ${BRAND.mark}`];
   viitoare.forEach(x => {
     const el = data.students.find(y => y.id === x.studentId);
     const inc = local(x.date, x.startMin);
@@ -6145,6 +6497,7 @@ function fisierCalendar(data) {
 
 export default function App() {
   const [data, setData] = useState(loadData);
+  const [pornit, setPornit] = useState(false);
   const [tab, setTab] = useState('home');
   const [toast, setToast] = useState(null);
 
@@ -6172,17 +6525,19 @@ export default function App() {
   const update = useCallback((fn) => {
     setData(prev => {
       const next = fn(prev);
-      saveData(next);
+      // Dacă salvarea nu reușește, omul trebuie să afle imediat — altfel crede
+      // că datele lui sunt în siguranță și nu sunt.
+      if (!saveData(next)) setTimeout(() => showToast('Salvarea a eșuat. Verifică memoria telefonului.', 'error'), 0);
       return next;
     });
-  }, []);
+  }, [showToast]);
 
   const stLic = useMemo(() => stareLicenta(licenta), [licenta]);
   const blocat = !!(stLic && stLic.blocat);
 
   // Modificările se opresc când accesul e blocat, dar restul rămâne la vedere.
   const paznic = useCallback((fn) => (...args) => {
-    if (blocat) { showToast('Accesul a expirat. Nu poți face modificări.', 'error'); return; }
+    if (blocat) { showToast('Acces expirat. Cere prelungirea ca să poți modifica.', 'error'); return; }
     fn(...args);
   }, [blocat, showToast]);
 
@@ -6206,10 +6561,17 @@ export default function App() {
   }, [data.settings.theme]);
 
   /* ---- licența: la pornire și când revii în aplicație ---- */
-  const verifica = useCallback(async (cod) => {
+  const verifica = useCallback(async (cod, cuMesaj) => {
     setLicOcupat(true);
+    const eraBlocat = !!(stareLicenta(citesteLicenta()) || {}).blocat;
     const r = await verificaCod(cod);
     setLicOcupat(false);
+    if (cuMesaj) {
+      if (r.stare === 'offline') showToast('Nu am putut verifica. Verifică internetul.', 'error');
+      else if (r.stare === 'necunoscut') showToast('Codul nu este recunoscut. Verifică-l încă o dată sau scrie-mi.', 'error');
+      else if (r.pana && r.pana < todayISO()) showToast('Tot expirat deocamdată.', 'error');
+      else if (eraBlocat) showToast('Acces reînnoit. Poți lucra.');
+    }
     if (r.stare === 'offline') {
       // Fără internet păstrăm ce știam; verificarea se reia mai târziu.
       const vechi = citesteLicenta();
@@ -6221,6 +6583,8 @@ export default function App() {
     setLicenta(l);
     return l;
   }, []);
+
+  useEffect(() => { setPornit(true); }, []);
 
   useEffect(() => {
     // Codul poate veni și din linkul trimis de proprietar.
@@ -6269,9 +6633,9 @@ export default function App() {
       update(p => ({ ...p, sessions: [...p.sessions, noua] }));
       const el = data.students.find(s => s.id === form.studentId);
       if (el && el.phone) {
-        setNotify({ name: el.name, phone: el.phone, title: 'Anunți elevul?', message: buildSessionMessage('created', el, noua, null, data.settings) });
+        setNotify({ name: el.name, phone: el.phone, title: 'Anunți elevul de programare?', message: buildSessionMessage('created', el, noua, null, data.settings) });
       }
-      showToast('Ședință adăugată.');
+      showToast('Ședință programată.');
     }
     setSessionModal({ open: false, mode: 'create', initial: null });
   }
@@ -6297,7 +6661,7 @@ export default function App() {
         return {
           id: genId('ses'), studentId: x.studentId, date: x.date, startMin: x.startMin,
           duration: durata, type: el ? suggestType(el, p.sessions) : 'included',
-          status: 'pending', auto: true, notes: '',
+          status: 'pending', auto: true, notes: 'Creată din planificator',
           location: (el && el.defaultLocation) || '', english: !!(el && el.english),
           createdAt: nowISO(),
         };
@@ -6381,12 +6745,12 @@ export default function App() {
   function savePayment(studentId, plata) {
     setStudent(studentId, s => ({ ...s, payments: (s.payments || []).map(p => (p.id === plata.id ? plata : p)) }));
     setPayEdit(null);
-    showToast('Plată actualizată.');
+    showToast('Plată corectată.');
   }
   function deletePayment(studentId, platăId) {
     setStudent(studentId, s => ({ ...s, payments: (s.payments || []).filter(p => p.id !== platăId) }));
     setPayEdit(null);
-    showToast('Plată ștearsă.');
+    showToast('Plată ștearsă. Datoria s-a recalculat.');
   }
 
   /* Examenul picat îl trimite singur în așteptare: două săptămâni, apoi adeverință.
@@ -6400,7 +6764,7 @@ export default function App() {
         ? { ...s, examResult: 'respins', examAttempts: sust, asteptare: true, asteptareDin: todayISO(), adeverintaDin: '' }
         : { ...s, examResult: 'promovat', examAttempts: sust, asteptare: false };
     });
-    showToast(rezultat === 'promovat' ? 'Felicitări! Elev promovat.' : 'Marcat respins. Intră în așteptare.');
+    showToast(rezultat === 'promovat' ? 'Examen promovat — felicitări!' : 'Marcat respins. Intră în așteptare.');
   }
   function elibereazaAdeverinta(id) {
     setStudent(id, { asteptare: false, adeverintaDin: todayISO() });
@@ -6415,7 +6779,7 @@ export default function App() {
       student: st, sessions: data.sessions.filter(s => s.studentId === st.id),
     };
     const r = await trimiteFisier(`${BRAND.mark}-${stripDia(st.name).slice(0, 12)}.json`, JSON.stringify(pachet, null, 2), 'application/json');
-    showToast(r === 'descarcat' ? 'Fișier descărcat.' : r === 'anulat' ? 'Trimitere anulată.' : 'Trimis.');
+    showToast(r === 'descarcat' ? 'Fișa elevului a fost descărcată.' : r === 'anulat' ? 'Trimitere anulată.' : 'Trimis.');
   }
   function importStudent(pachet) {
     const st = pachet.student || {};
@@ -6442,11 +6806,11 @@ export default function App() {
   async function trimiteBackup() {
     const r = await trimiteFisier(numeBackup(), JSON.stringify(data, null, 2), 'application/json');
     if (r !== 'anulat') noteazaBackup();
-    showToast(r === 'descarcat' ? 'Telefonul nu a putut atașa fișierul, așa că l-am descărcat.' : r === 'anulat' ? 'Anulat.' : 'Backup trimis.');
+    showToast(r === 'descarcat' ? 'Telefonul nu acceptă atașarea fișierului. L-am descărcat.' : r === 'anulat' ? 'Anulat.' : 'Backup trimis.');
   }
   async function trimiteCalendar() {
     const viitoare = data.sessions.filter(x => x.date >= todayISO() && x.status !== 'cancelled');
-    if (!viitoare.length) { showToast('Nu ai ședințe viitoare de trimis.', 'error'); return; }
+    if (!viitoare.length) { showToast('N-ai nicio ședință viitoare de trimis.', 'error'); return; }
     const r = await trimiteFisier(`${BRAND.mark}-sedinte.ics`, fisierCalendar(data), 'text/calendar');
     showToast(r === 'descarcat' ? 'Fișier descărcat — deschide-l ca să intre în calendar.' : r === 'anulat' ? 'Anulat.' : `${viitoare.length} ședințe trimise.`);
   }
@@ -6473,6 +6837,17 @@ export default function App() {
     else setSessionModal({ open: true, mode, initial });
   };
 
+  // O clipă albă la pornire e mai bună decât ecranul de cod care apare și dispare
+  // pentru cine are deja acces.
+  if (!pornit) {
+    return (
+      <div data-skin={skin} className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
+        <EstiluriGlobale />
+        <span className="text-sm text-slate-400">Se încarcă…</span>
+      </div>
+    );
+  }
+
   if (!licenta) {
     return (
       <div data-skin={skin}>
@@ -6496,7 +6871,34 @@ export default function App() {
     <div data-skin={skin} className="min-h-screen bg-slate-50 pb-24" style={{ background: 'var(--bg)' }}>
       <EstiluriGlobale />
 
-      {blocat && <LockBar st={stLic} cod={licenta.cod} ocupat={licOcupat} onVerifica={() => verifica(licenta.cod)} />}
+      {blocat && <LockBar st={stLic} cod={licenta.cod} ocupat={licOcupat} onVerifica={() => verifica(licenta.cod, true)} />}
+
+      {(() => {
+        // Memento discret, dar insistent: datele stau doar în telefon, iar un
+        // telefon se pierde.
+        if (!data.students.length) return null;
+        let zile = null;
+        try {
+          const v = window.localStorage.getItem(BACKUP_KEY);
+          zile = v ? zileIntre(v, todayISO()) : null;
+        } catch (e) { /* memoria e blocată */ }
+        if (zile != null && zile < ZILE_BACKUP) return null;
+        return (
+          <div className="px-4 pt-3">
+            <div className="flex items-center gap-3 rounded-xl px-3.5 py-2.5"
+              style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent-line)' }}>
+              <Download size={15} className="shrink-0" style={{ color: 'var(--accent)' }} />
+              <span className="flex-1 min-w-0 text-xs" style={{ color: 'var(--accent-ink)' }}>
+                {zile == null ? 'Nu ți-ai salvat niciodată datele.' : `Ultimul backup: acum ${deZile(zile)}.`}
+              </span>
+              <button onClick={trimiteBackup} className="shrink-0 px-3 py-1.5 rounded-lg text-white text-xs font-medium"
+                style={{ background: 'var(--invert)' }}>
+                Salvează acum
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {tab === 'home' && (
         <DashboardTab data={data}
@@ -6509,7 +6911,9 @@ export default function App() {
       )}
       {tab === 'calendar' && (filaBlocata(TABS[1])
         ? <FilaBlocata titlu="Calendar" descriere="Programarea ședințelor face parte din licența completă." cod={licenta.cod} tipNume={stLic.tipNume} />
-        : <CalendarTab data={data} onOpenSession={deschideSesiune} />)}
+        : <CalendarTab data={data} onOpenSession={deschideSesiune}
+          onAdaugaBlocaj={paznic(b => { update(p => ({ ...p, settings: adaugaBlocaj(p.settings, b) })); showToast('Interval marcat ca indisponibil.'); })}
+          onStergeBlocaj={paznic(id => { update(p => ({ ...p, settings: stergeBlocaj(p.settings, id) })); showToast('Marcaj scos.'); })} />)}
       {tab === 'students' && (filaBlocata(TABS[2])
         ? <FilaBlocata titlu="Elevi" descriere="Evidența elevilor face parte din licența completă." cod={licenta.cod} tipNume={stLic.tipNume} />
         : <StudentsTab data={data} onOpenStudent={(id) => setProfileId(id)}
@@ -6537,7 +6941,7 @@ export default function App() {
           onExport={exportData} onTrimiteBackup={trimiteBackup} onTrimiteCalendar={trimiteCalendar}
           onImport={paznic(importData)} onImportStudent={paznic(importStudent)} onResetAll={paznic(resetAll)}
           licenta={licenta} stLic={stLic} licOcupat={licOcupat}
-          onVerificaLicenta={() => verifica(licenta.cod)}
+          onVerificaLicenta={() => verifica(licenta.cod, true)}
           onSchimbaCod={() => { scrieLicenta(null); setLicenta(null); setLicEroare(''); }}
           onDespre={() => setDespreOpen(true)} onNoutati={() => setNoutatiOpen(true)}
           onLicente={() => setLicenteOpen(true)} />

@@ -75,7 +75,8 @@ const pauza = (ms) => new Promise(r => setTimeout(r, ms));
   clic(tab(/Calendar/)); await pauza(500);
   verifica('Calendar se deschide', /Traseul zilei|Liber/.test(text()));
   clic(buton(/Râmbu Ștefan/)); await pauza(450);
-  verifica('fișa ședinței se deschide', /Ședință/.test(text()) && !!doc().querySelector('.sheet-anim'));
+  verifica('fișa ședinței se deschide', /Editează ședința/.test(text()) && !!doc().querySelector('.sheet-anim'));
+  verifica('marcarea indisponibilului', /Marchează indisponibil/.test(text()));
   const inchide = () => { const f = doc().querySelector('.sheet-anim'); if (f) clic(f.parentElement.querySelector('.absolute')); };
   inchide(); await pauza(350);
 
