@@ -1,32 +1,64 @@
-/* Service worker: ține aplicația în telefon, ca să pornească fără internet.
-   Fișierul de licențe se cere însă mereu de pe rețea — altfel prelungirile
-   n-ar ajunge niciodată la om. */
-const CACHE = 'ias-v2.35.3';
-const FISIERE = ['./', './index.html', './manifest.json', './icon.png', './icon-192.png'];
+/* IAS — lucrătorul care ține aplicația pornită și fără internet.
+   La fiecare versiune nouă se schimbă numele depozitului de mai jos, vechiul
+   depozit se șterge, iar telefonul preia noua versiune la următoarea pornire. */
+const CACHE = 'ias-v2.34.27';
+const ASSETS = ['./', './index.html', './manifest.json', './icon.png', './icon-192.png'];
 
-self.addEventListener('install', function (e) {
-  e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FISIERE); }).then(function () { return self.skipWaiting(); }));
+self.addEventListener('install', (e) => {
+  e.waitUntil(
+    caches.open(CACHE)
+      .then((c) => c.addAll(ASSETS))
+      .then(() => self.skipWaiting())
+      .catch(() => self.skipWaiting())
+  );
 });
 
-self.addEventListener('activate', function (e) {
-  e.waitUntil(caches.keys().then(function (chei) {
-    return Promise.all(chei.filter(function (k) { return k !== CACHE; }).map(function (k) { return caches.delete(k); }));
-  }).then(function () { return self.clients.claim(); }));
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
+    caches.keys()
+      .then((names) => Promise.all(names.filter((n) => n !== CACHE).map((n) => caches.delete(n))))
+      .then(() => self.clients.claim())
+  );
 });
 
-self.addEventListener('fetch', function (e) {
-  if (e.request.method !== 'GET') return;
-  if (e.request.url.indexOf('licente.json') !== -1) {
-    e.respondWith(fetch(e.request).catch(function () { return new Response('{}', { headers: { 'Content-Type': 'application/json' } }); }));
+self.addEventListener('fetch', (e) => {
+  const req = e.request;
+  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+
+  // Fișierul de licențe se ia mereu proaspăt din rețea, niciodată din memorie —
+  // altfel o prelungire făcută de proprietar n-ar ajunge la telefon. Dacă nu e
+  // semnal, cererea eșuează și aplicația se descurcă cu ce știe salvat.
+  if (new URL(req.url).pathname.endsWith('licente.json')) {
+    e.respondWith(fetch(req));
     return;
   }
-  e.respondWith(caches.match(e.request).then(function (r) {
-    return r || fetch(e.request).then(function (resp) {
-      if (resp && resp.status === 200 && resp.type === 'basic') {
-        var copie = resp.clone();
-        caches.open(CACHE).then(function (c) { c.put(e.request, copie); });
-      }
-      return resp;
-    }).catch(function () { return caches.match('./index.html'); });
-  }));
+
+  // Pagina în sine: încercăm întâi internetul, ca o versiune nouă urcată de tine
+  // să fie preluată imediat; fără semnal, servim ce avem salvat.
+  if (req.mode === 'navigate') {
+    e.respondWith(
+      fetch(req)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put('./index.html', copy));
+          return res;
+        })
+        .catch(() => caches.match('./index.html').then((r) => r || caches.match('./')))
+    );
+    return;
+  }
+
+  // Restul (iconițe, manifest): din memorie, rapid, cu împrospătare în fundal.
+  e.respondWith(
+    caches.match(req).then((hit) => {
+      const net = fetch(req)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy));
+          return res;
+        })
+        .catch(() => hit);
+      return hit || net;
+    })
+  );
 });
