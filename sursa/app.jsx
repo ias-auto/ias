@@ -33,7 +33,7 @@ const DISPLAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
 const SESSION_DURATION = 90;          // minute; se poate schimba din Setări
 const APP_NAME = 'IAS';
-const APP_VERSION = 'v2.35.2';
+const APP_VERSION = 'v2.35.3';
 const VERSION_LABEL = `${APP_NAME} ${APP_VERSION}`;
 const SCHEMA_VERSION = 1;
 
@@ -2610,7 +2610,7 @@ function CalendarTab({ data, onOpenSession, onAdaugaBlocaj, onStergeBlocaj }) {
 
           if (examHit || blockHit) {
             return (
-              <div key={slotMin} className="flex items-center gap-3 px-3.5 py-2 rounded-xl"
+              <div key={slotMin} className="rand-blocat flex items-center gap-3 px-3.5 py-2 rounded-xl"
                 style={{ background: 'var(--surface-2)', border: '1px dashed var(--line-2)' }}>
                 <span className="font-mono-time text-xs w-12 text-slate-400">{minToTime(slotMin)}</span>
                 <span className="text-xs text-slate-400 flex-1">
@@ -5773,10 +5773,11 @@ function SupportBox({ data }) {
 
 const CHANGELOG = [
   {
-    v: 'v2.35.2', titlu: 'Totul înapoi la locul lui',
+    v: 'v2.35.3', titlu: 'Totul înapoi la locul lui',
     puncte: [
-      'Bara de taburi stă din nou lipită de marginea de jos.',
-      'S-au întors statisticile de pe Acasă, acțiunile rapide, mementourile, intervalele indisponibile din calendar și restul lucrurilor mărunte.',
+      'S-au întors culorile: fiecare stare, fiecare buton și fiecare interval are din nou culoarea lui, în ambele teme.',
+      'Bara de taburi stă lipită de marginea de jos, cu fila activă colorată și cadrul de lumină din jurul paginii.',
+      'S-au întors statisticile de pe Acasă, acțiunile rapide, mementourile și intervalele indisponibile din calendar.',
     ],
   },
   {
@@ -6884,7 +6885,7 @@ export default function App() {
         } catch (e) { /* memoria e blocată */ }
         if (zile != null && zile < ZILE_BACKUP) return null;
         return (
-          <div className="px-4 pt-3">
+          <div className="shrink-0 px-4 pt-3">
             <div className="flex items-center gap-3 rounded-xl px-3.5 py-2.5"
               style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent-line)' }}>
               <Download size={15} className="shrink-0" style={{ color: 'var(--accent)' }} />
@@ -6948,13 +6949,14 @@ export default function App() {
       )}
 
       {/* bara de taburi: stă deasupra ferestrelor, ca lumina ei să rămână la vedere */}
-      <nav className="fixed bottom-0 left-0 right-0 flex bara-taburi" style={{ zIndex: LAYER.nav }}>
+      <nav className="flex bara-taburi bg-white" style={{ zIndex: LAYER.nav }}>
         <span className="glow-cadru" />
         {TABS.map(t => {
           const Icon = t.icon;
           const activ = tab === t.id;
           return (
-            <button key={t.id} onClick={() => incearcaTab(t.id)} className="flex-1 flex flex-col items-center gap-1 py-1.5">
+            <button key={t.id} onClick={() => incearcaTab(t.id)}
+              className={`flex-1 flex flex-col items-center gap-1 py-1.5 fila${activ ? ' fila-activa' : ''}`}>
               <span className="flex items-center justify-center"
                 style={{ width: 42, height: 24, borderRadius: 99, background: activ ? 'var(--accent-soft)' : 'transparent', transition: 'background .2s ease' }}>
                 <Icon size={19} className={activ ? 'text-amber-600' : 'text-slate-400'} />
@@ -7015,90 +7017,219 @@ export default function App() {
 function EstiluriGlobale() {
   return (
     <style>{`
-      :root {
-        --bg: #f1f5f9;
-        --surface: #ffffff;
-        --surface-2: #f8fafc;
-        --ink: #0f172a;
-        --muted: #475569;
-        --muted-2: #94a3b8;
-        --line: #e2e8f0;
-        --line-2: #cbd5e1;
-        --invert: #0f172a;
-        --accent: #f0900b;
-        --accent-ink: #b45309;
-        --accent-soft: #fff7ed;
-        --accent-line: #fed7aa;
-        --ok: #059669;
-        --ok-soft: #ecfdf5;
-        --ok-line: #a7f3d0;
-        --bad: #dc2626;
-        --bad-soft: #fef2f2;
-        --bad-line: #fecaca;
-        --glow: rgba(240,144,11,.30);
+      /* ===================== SISTEM DE CULORI =====================
+         Un singur design. Ziua = jetoanele de mai jos; noaptea = ACELEAȘI
+         jetoane, doar coborâte în luminozitate. Nimic nu se rescrie în
+         interfață — se schimbă doar valorile. */
+      :root{
+        --bg:#e9eef6; --bg-tint:rgba(245,158,11,.16);
+        --surface:#ffffff; --surface-2:#eef3f9; --field:#eef3f9;
+        --invert:#0f1d31; --on-invert:#ffffff;
+        --text:#0c1a2b; --text-2:#33475e; --muted:#556a83; --muted-2:#6b8099; --faint:#8b9db4;
+        --ink:#0c1a2b;
+        --line:rgba(12,26,43,.11); --line-2:rgba(12,26,43,.20); --track:rgba(12,26,43,.10);
+        --accent:#f0900b; --accent-ink:#8a4f04; --accent-soft:rgba(240,144,11,.13); --accent-line:rgba(240,144,11,.34);
+        --ok:#00875a; --ok-soft:rgba(0,135,90,.11); --ok-line:rgba(0,135,90,.28);
+        --info:#1f6fd0; --info-soft:rgba(31,111,208,.10); --info-line:rgba(31,111,208,.26);
+        --bad:#d0342c; --bad-soft:rgba(208,52,44,.10); --bad-line:rgba(208,52,44,.26);
+        --sky:#0b74a8; --sky-soft:rgba(11,116,168,.10); --sky-line:rgba(11,116,168,.26);
+        --violet:#6d3fd4;
+        --glow:rgba(240,144,11,.30);
+        --shadow:0 1px 2px rgba(12,26,43,.05), 0 10px 26px rgba(12,26,43,.08);
+        --shadow-lg:0 20px 46px rgba(12,26,43,.20);
       }
-      [data-skin="dark"] {
-        --bg: #0b1220;
-        --surface: #131c2e;
-        --surface-2: #0f1829;
-        --ink: #e2e8f0;
-        --muted: #cbd5e1;
-        --muted-2: #7c8da8;
-        --line: #23304a;
-        --line-2: #33425f;
-        --invert: #1e293b;
-        --accent: #e0a13a;
-        --accent-ink: #f5c977;
-        --accent-soft: rgba(224,161,58,.14);
-        --accent-line: rgba(224,161,58,.34);
-        --ok: #34d399;
-        --ok-soft: rgba(52,211,153,.13);
-        --ok-line: rgba(52,211,153,.32);
-        --bad: #f87171;
-        --bad-soft: rgba(248,113,113,.13);
-        --bad-line: rgba(248,113,113,.32);
-        --glow: rgba(224,161,58,.32);
+      [data-skin="dark"]{
+        --bg:#080d16; --bg-tint:rgba(240,144,11,.06);
+        --surface:#121c2c; --surface-2:#0e1725; --field:#182434;
+        --invert:#1d2c42; --on-invert:#e8eff8;
+        --text:#e6edf6; --text-2:#c3d0e0; --muted:#94a6bd; --muted-2:#8598b0; --faint:#71849c;
+        --ink:#e6edf6;
+        --line:rgba(255,255,255,.11); --line-2:rgba(255,255,255,.20); --track:rgba(255,255,255,.11);
+        --accent:#e0a13a; --accent-ink:#f0c579; --accent-soft:rgba(224,161,58,.15); --accent-line:rgba(224,161,58,.34);
+        --ok:#4cc79a; --ok-soft:rgba(76,199,154,.14); --ok-line:rgba(76,199,154,.3);
+        --info:#7fb0ef; --info-soft:rgba(127,176,239,.14); --info-line:rgba(127,176,239,.3);
+        --bad:#ef8b84; --bad-soft:rgba(239,139,132,.14); --bad-line:rgba(239,139,132,.3);
+        --sky:#6cc0e8; --sky-soft:rgba(108,192,232,.14); --sky-line:rgba(108,192,232,.3);
+        --violet:#b09ae8;
+        --glow:rgba(224,161,58,.32);
+        --shadow:0 1px 2px rgba(0,0,0,.5); --shadow-lg:0 20px 46px rgba(0,0,0,.6);
       }
 
       body { background: var(--bg); }
       .font-display { font-family: 'Barlow Condensed', system-ui, sans-serif; }
       .font-mono-time { font-family: 'JetBrains Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
 
-      /* Tailwind scrie culori fixe; le legăm de variabile, ca tema să le prindă. */
-      [data-skin] .bg-white { background: var(--surface) !important; }
-      [data-skin] .bg-slate-50 { background: var(--surface-2) !important; }
-      [data-skin] .bg-slate-900 { background: var(--invert) !important; }
-      [data-skin] .text-slate-900 { color: var(--ink) !important; }
-      [data-skin] .text-slate-800 { color: var(--ink) !important; }
-      [data-skin] .text-slate-700 { color: var(--muted) !important; }
-      [data-skin] .text-slate-600 { color: var(--muted) !important; }
-      [data-skin] .text-slate-500 { color: var(--muted-2) !important; }
-      [data-skin] .text-slate-400 { color: var(--muted-2) !important; }
-      [data-skin] .text-slate-300 { color: var(--line-2) !important; }
-      [data-skin] .border-slate-200 { border-color: var(--line) !important; }
-      [data-skin] .border-slate-300 { border-color: var(--line-2) !important; }
-      [data-skin] .border-slate-100 { border-color: var(--line) !important; }
-      [data-skin="dark"] .bg-slate-900 { color: var(--ink); }
-      [data-skin="dark"] input, [data-skin="dark"] select, [data-skin="dark"] textarea {
-        background: var(--surface) !important; color: var(--ink) !important; border-color: var(--line) !important;
+      /* --------- clasele existente, redirecționate spre jetoane ---------
+         Fiecare culoare din interfață trece prin variabilele de mai sus, ca
+         verdele de „achitat", albastrul de „programată" și roșul de „anulată"
+         să rămână deosebite între ele și în temă întunecată. */
+      [data-skin] .bg-white{background-color:var(--surface)}
+      [data-skin] .bg-slate-50{background-color:var(--surface-2)}
+      [data-skin] .bg-slate-100{background-color:var(--track)}
+      [data-skin] .bg-slate-900{background-color:var(--invert)}
+      [data-skin] .bg-amber-50{background-color:var(--accent-soft)}
+      [data-skin] .bg-emerald-50{background-color:var(--ok-soft)}
+      [data-skin] .bg-blue-50{background-color:var(--info-soft)}
+      [data-skin] .bg-red-50{background-color:var(--bad-soft)}
+      [data-skin] .bg-sky-50{background-color:var(--sky-soft)}
+      [data-skin] .bg-amber-400,[data-skin] .bg-amber-500{background-color:var(--accent)}
+      [data-skin] .bg-emerald-500,[data-skin] .bg-emerald-600{background-color:var(--ok)}
+      [data-skin] .bg-blue-500{background-color:var(--info)}
+      [data-skin] .bg-red-400,[data-skin] .bg-red-500,[data-skin] .bg-red-600{background-color:var(--bad)}
+      [data-skin] .text-slate-900,[data-skin] .text-slate-800{color:var(--text)}
+      [data-skin] .text-slate-700,[data-skin] .text-slate-600{color:var(--text-2)}
+      [data-skin] .text-slate-500{color:var(--muted)}
+      [data-skin] .text-slate-400{color:var(--muted-2)}
+      [data-skin] .text-slate-300{color:var(--faint)}
+      [data-skin] .text-white{color:var(--on-invert)}
+      [data-skin] .text-amber-600,[data-skin] .text-amber-700,[data-skin] .text-amber-800{color:var(--accent-ink)}
+      [data-skin] .text-emerald-600,[data-skin] .text-emerald-700,[data-skin] .text-emerald-800{color:var(--ok)}
+      [data-skin] .text-blue-700{color:var(--info)}
+      [data-skin] .text-red-500,[data-skin] .text-red-600,[data-skin] .text-red-700{color:var(--bad)}
+      [data-skin] .text-sky-600,[data-skin] .text-sky-700{color:var(--sky)}
+      [data-skin] .text-violet-600{color:var(--violet)}
+      [data-skin] .border-slate-100,[data-skin] .border-slate-200{border-color:var(--line)}
+      [data-skin] .border-slate-300{border-color:var(--line-2)}
+      [data-skin] .border-slate-900{border-color:var(--invert)}
+      [data-skin] .border-amber-200,[data-skin] .border-amber-300{border-color:var(--accent-line)}
+      [data-skin] .border-emerald-200{border-color:var(--ok-line)}
+      [data-skin] .border-blue-200{border-color:var(--info-line)}
+      [data-skin] .border-red-200{border-color:var(--bad-line)}
+      [data-skin] .border-sky-200{border-color:var(--sky-line)}
+      [data-skin] .active\\:bg-slate-50:active{background-color:var(--surface-2)}
+      [data-skin] .hover\\:bg-slate-100:hover{background-color:var(--track)}
+
+      /* ------------------------- limbaj vizual ------------------------- */
+      [data-skin] .rounded-xl{border-radius:15px}
+      [data-skin] .rounded-2xl{border-radius:20px}
+      [data-skin] .rounded-t-2xl{border-top-left-radius:24px;border-top-right-radius:24px}
+      [data-skin] .bg-white.border{box-shadow:var(--shadow)}
+      [data-skin] .bg-slate-900.rounded-2xl{background-image:linear-gradient(155deg,rgba(255,255,255,.07),rgba(0,0,0,.22));box-shadow:var(--shadow-lg)}
+      [data-skin] .bg-slate-900.rounded-xl{box-shadow:0 6px 16px rgba(12,26,43,.20)}
+      [data-skin] .bg-amber-500.rounded-full{background-image:linear-gradient(180deg,#fbbf24,#ef8f0a);box-shadow:0 12px 26px rgba(240,144,11,.45)}
+      [data-skin] .bg-amber-500.text-white{color:#3a2100}
+      [data-skin] input.bg-white,[data-skin] select.bg-white,[data-skin] textarea.bg-white{background-color:var(--field)}
+      [data-skin] ::placeholder{color:var(--faint);opacity:1}
+      [data-skin] option{background:var(--surface);color:var(--text)}
+      [data-skin] input[type="number"],[data-skin] input[type="date"],[data-skin] input[type="time"]{color:var(--text);background-color:var(--field)}
+
+      /* semnătura IAS: liniuță de marcaj rutier la titlurile de secțiune */
+      [data-skin] .text-xs.font-medium.uppercase.tracking-wide::before{
+        content:'';display:inline-block;width:15px;height:2px;border-radius:2px;
+        background:var(--accent);margin-right:8px;vertical-align:middle;position:relative;top:-1px;
       }
-      [data-skin="dark"] .text-white { color: #f8fafc !important; }
+      [data-skin] h1.font-display.text-xl::after{
+        content:'';display:block;width:38px;height:3px;border-radius:3px;margin-top:7px;
+        background:linear-gradient(90deg,var(--accent),transparent);
+      }
+
+      /* ---------------- ÎNCADRARE PE ORICE LĂȚIME DE ECRAN ----------------
+         Un <select> cere implicit lățimea celui mai lung text din el. În grile
+         de două coloane asta împingea formularul dincolo de marginea ecranelor
+         înguste, iar telefonul micșora toată pagina. */
+      html, body { overflow-x: hidden; }
+      [data-skin] { overflow-x: hidden; }
+      [data-skin] input, [data-skin] select, [data-skin] textarea { min-width: 0; max-width: 100%; }
+      [data-skin] .grid > * { min-width: 0; }
+      [data-skin] label { min-width: 0; }
+      [data-skin] .overflow-y-auto { overflow-x: hidden; }
+      [data-skin] select { text-overflow: ellipsis; }
+      @media (max-width: 390px) {
+        [data-skin] .px-5 { padding-left: 1rem; padding-right: 1rem; }
+        [data-skin] .px-4 { padding-left: 0.875rem; padding-right: 0.875rem; }
+        [data-skin] .gap-3 { gap: 0.5rem; }
+      }
+
+      /* ---------------------- COAJĂ DE APLICAȚIE ----------------------
+         Pagina în sine nu derulează deloc: ecranul e împărțit într-o zonă de
+         conținut care derulează pe dinăuntru și o bară de taburi fixă jos, la
+         îndemâna degetului mare. */
+      [data-skin].min-h-screen {
+        position: fixed; inset: 0;
+        display: flex; flex-direction: column;
+        overflow: hidden;
+        min-height: 0;
+        padding: env(safe-area-inset-top) 0 0 0 !important;
+      }
+      [data-skin] > nav.bara-taburi {
+        position: relative !important;
+        flex: 0 0 auto;
+        border-top: 0;
+        padding-top: 0 !important;
+        padding-bottom: max(0.375rem, env(safe-area-inset-bottom)) !important;
+      }
+      /* Panoul filei active — singurul lucru care derulează. */
+      [data-skin] > .pb-4,
+      [data-skin] > .pb-6,
+      [data-skin] > .min-h-screen {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 6rem;
+        border-bottom: 1px solid var(--accent-line);
+      }
+
+      /* ------------------------- FILĂ DE DOSAR -------------------------
+         Fila activă are colțurile de jos rotunjite, culoarea proprie și se
+         lipește de panoul de deasupra ei, iar pagina primește un contur în
+         aceeași culoare. */
+      [data-skin] nav.bara-taburi button.fila {
+        border-radius: 0 0 13px 13px;
+        padding-top: 0.45rem;
+        border: 1px solid transparent;
+        border-top: 0;
+        transition: background .2s ease, border-color .2s ease;
+      }
+      [data-skin] nav.bara-taburi button.fila-activa {
+        background: var(--glow);
+        border-color: var(--accent-line);
+      }
+
+      /* Cadrul de lumină pornește de pe muchia de sus a barei de taburi și
+         urcă: o dungă pe toată lățimea, chiar deasupra barei, și două aripi
+         care se ridică pe laturi, toate de aceeași grosime. */
+      .glow-cadru {
+        position: absolute;
+        left: 0; right: 0; bottom: 100%;
+        height: 62vh;
+        pointer-events: none;
+        transition: opacity .25s ease;
+        -webkit-mask-image: linear-gradient(to top, #000 0, #000 34%, transparent 100%);
+        mask-image: linear-gradient(to top, #000 0, #000 34%, transparent 100%);
+        background:
+          linear-gradient(to right, var(--glow), transparent) left center / clamp(10px, 3vw, 18px) 100% no-repeat,
+          linear-gradient(to left, var(--glow), transparent) right center / clamp(10px, 3vw, 18px) 100% no-repeat,
+          linear-gradient(to top, var(--glow), transparent) center bottom / 100% clamp(10px, 3vw, 18px) no-repeat;
+      }
+      /* Cât timp e deschisă o fereastră, lumina de pe fundal se stinge: rămâne
+         doar haloul ferestrei, ca ochiul să aibă un singur punct de sprijin. */
+      [data-skin]:has(.ecran-peste) .glow-cadru { opacity: 0; }
 
       @keyframes slideUp { from { transform: translateY(14px); opacity: 0 } to { transform: none; opacity: 1 } }
       @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
       .fade-anim { animation: fadeIn .16s ease-out; }
       .sheet-anim { animation: slideUp .22s ease-out; }
-
-      /* Fereastra din față: halou chihlimbariu, cu loc dedesubt pentru bara de taburi. */
-      .sheet-wrap { padding: 1rem; padding-bottom: calc(5.5rem + env(safe-area-inset-bottom)); }
-      [data-skin] .sheet-anim {
+      [data-skin] .sheet-anim{
+        border-radius: 24px;
         overflow: hidden;
+        max-height: 100% !important;
         transition: box-shadow .16s ease;
         box-shadow: 0 0 0 1px var(--accent-line), 0 0 40px -4px var(--glow), 0 26px 70px rgba(0,0,0,.5);
       }
-      /* Când apeși un tab cu fereastra deschisă: conturul devine roșu și „×"-ul
-         pulsează. Nu atingem animația de deschidere, ca fereastra să nu pară că
-         se închide și se redeschide. */
+      .sheet-wrap {
+        padding: 0.75rem;
+        padding-top: 2.5rem;
+        padding-top: calc(env(safe-area-inset-top, 0px) + 2.5rem);
+        padding-bottom: 5.5rem;
+        padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+      }
+      [data-skin] .fixed.bottom-20 { bottom: calc(5rem + env(safe-area-inset-bottom)); }
+      [data-skin] .fixed.bottom-24 { bottom: calc(6.25rem + env(safe-area-inset-bottom)); }
+
+      /* Fereastra cere să fie închisă: contur roșu, fără să atingem animația de
+         deschidere — altfel ar părea că se închide și se redeschide. */
       .cere-inchidere .sheet-anim {
         box-shadow: 0 0 0 2px var(--bad), 0 0 52px -2px var(--bad), 0 26px 70px rgba(0,0,0,.5);
       }
@@ -7106,30 +7237,18 @@ function EstiluriGlobale() {
       .cere-inchidere .btn-inchide { animation: iasPulsX 1s ease; color: var(--bad) !important; }
       .cere-inchidere.raport-overlay { box-shadow: inset 0 0 0 3px var(--bad); }
 
-      /* Fundalul se stinge cât timp e o fereastră deschisă. */
-      body:has(.ecran-peste) [data-skin] > *:not(.ecran-peste):not(nav) { filter: brightness(.72); transition: filter .2s ease; }
-
-      /* Bara stă lipită de marginea de jos. Poziția e scrisă aici, nu lăsată pe
-         seama claselor utilitare: regula asta vine după ele în pagină și le-ar
-         anula, iar bara ar porni la plimbare odată cu pagina. */
-      .bara-taburi {
-        position: fixed;
-        left: 0; right: 0; bottom: 0;
-        display: flex;
-        background: var(--surface);
-        border-top: 1px solid var(--line);
-        padding-bottom: env(safe-area-inset-bottom);
+      /* ------------------- BUTOANE SELECTATE -------------------
+         Zilele de lucru, tema, zilele elevului, filtrele de sortare și ziua din
+         calendar foloseau negrul de fundal, care noaptea se confunda cu cardul.
+         Selecția trece pe chihlimbariu, aceeași culoare cu conturul filei
+         active. Butoanele mari de acțiune rămân închise — ele n-au bordură. */
+      [data-skin] .bg-slate-900.border-slate-900 {
+        background-color: var(--accent) !important;
+        border-color: var(--accent) !important;
+        box-shadow: 0 6px 14px -8px var(--accent);
       }
-      /* Cadrul de lumină care urcă din bara de taburi. */
-      .glow-cadru {
-        position: absolute; left: 0; right: 0; bottom: 100%; height: 62vh;
-        pointer-events: none;
-        background:
-          linear-gradient(to right, var(--glow), transparent 3%),
-          linear-gradient(to left, var(--glow), transparent 3%);
-        -webkit-mask-image: linear-gradient(to top, #000 40%, transparent 70%);
-        mask-image: linear-gradient(to top, #000 40%, transparent 70%);
-      }
+      [data-skin] .bg-slate-900.border-slate-900,
+      [data-skin] .bg-slate-900.border-slate-900 * { color: #2a1800 !important; }
 
       /* stelele de pe cerul de noapte din antet */
       .ias-star { position: absolute; border-radius: 99px; background: #fff; opacity: .85; animation: fadeIn 2s ease-in-out infinite alternate; }
@@ -7141,20 +7260,35 @@ function EstiluriGlobale() {
       @keyframes iasDash { to { transform: translateX(-52px) } }
       .ias-car { position: absolute; left: 50%; top: 46%; transform: translate(-50%,-50%); }
 
-      /* La tipărire rămâne doar tabelul, pe A4, cu capul de tabel pe fiecare pagină. */
+      /* --------------------------- TIPĂRIRE ---------------------------
+         La tipărire pleacă doar raportul, curat, pe alb, cu capul de tabel
+         repetat pe fiecare pagină. Coaja fixă se desface, ca să nu taie
+         conținutul la o singură pagină. */
       @media print {
-        @page { size: A4; margin: 12mm; }
-        body { background: #fff !important; }
-        body > *:not(.raport-overlay) { display: none !important; }
-        .raport-overlay { position: static !important; background: #fff !important; }
-        .raport-print { height: auto !important; overflow: visible !important; }
-        .fara-print { display: none !important; }
-        .doar-print { display: block !important; }
-        .raport-tabel { width: 100%; border-collapse: collapse; font-size: 10pt; }
-        .raport-tabel thead { display: table-header-group; }
-        .raport-tabel tfoot { display: table-row-group; }
-        .raport-tabel tr { break-inside: avoid; }
-        .raport-tabel td, .raport-tabel th { border-bottom: 1px solid #cbd5e1 !important; color: #0f172a !important; }
+        @page { margin: 14mm 12mm; }
+        html, body { background: #fff !important; height: auto !important; overflow: visible !important; }
+        body * { visibility: hidden !important; }
+        .raport-print, .raport-print * { visibility: visible !important; }
+        [data-skin].min-h-screen {
+          position: static !important; display: block !important;
+          overflow: visible !important; height: auto !important; padding: 0 !important;
+          background: #fff !important; box-shadow: none !important;
+        }
+        .raport-overlay { position: absolute !important; inset: 0 auto auto 0 !important; width: 100% !important; background: #fff !important; }
+        .raport-print {
+          position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important;
+          height: auto !important; max-height: none !important; overflow: visible !important;
+          padding: 0 !important; background: #fff !important; color: #000 !important;
+        }
+        .raport-print .fara-print { display: none !important; }
+        .raport-print .doar-print { display: block !important; }
+        .raport-print * { color: #000 !important; }
+        .raport-tabel { width: 100% !important; border-collapse: collapse !important; }
+        .raport-tabel th, .raport-tabel td { border: 1px solid #999 !important; padding: 5pt 6pt !important; font-size: 10.5pt !important; }
+        .raport-tabel thead { display: table-header-group !important; }
+        .raport-tabel tfoot { display: table-row-group !important; }
+        .raport-tabel tr { break-inside: avoid !important; page-break-inside: avoid !important; }
+        .raport-tabel tfoot td { font-weight: 700 !important; }
       }
     `}</style>
   );
