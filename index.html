@@ -3120,7 +3120,7 @@ void main() {
     po = [1, 2, 3, 4, 5, 6, 0],
     si = 90,
     AA = "IAS",
-    ri = "v2.34.29",
+    ri = "v2.34.30",
     ha = {
         am: {
             label: "Diminea\u021B\u0103",
@@ -5151,16 +5151,179 @@ function Ik(n) {
         lungime: .9
     }
 }
+
+/* ================= MODELE ADEVĂRATE, CITITE DIN FIȘIER =================
+   Vehiculele desenate de mână din cutii arătau ca niște cutii. Modelele
+   adevărate stau ca fișiere .glb în dosarul „modele" și se citesc aici, cu un
+   cititor scris de mână — fără nicio bibliotecă în plus.
+
+   Formatul .glb are un antet, o bucată de text care descrie modelul și una cu
+   datele brute. Culoarea fiecărui vârf vine dintr-o singură imagine-paletă,
+   comună tuturor modelelor: o citim o dată și o punem direct pe geometrie, ca
+   să scăpăm de textură și ca vopsirea în altă culoare să fie doar o înlocuire
+   de culori.                                                              */
+
+var iasPaleta = null;
+
+function iasCitesteGLB(bufer) {
+    var dv = new DataView(bufer);
+    if (dv.getUint32(0, true) !== 1179937895) throw new Error("nu e .glb");
+    var poz = 12, json = null, bin = null;
+    while (poz < dv.byteLength) {
+        var lung = dv.getUint32(poz, true), fel = dv.getUint32(poz + 4, true), start = poz + 8;
+        if (fel === 1313821514) json = JSON.parse(new TextDecoder().decode(new Uint8Array(bufer, start, lung)));
+        else if (fel === 5130562) bin = new Uint8Array(bufer, start, lung);
+        poz = start + lung + (lung % 4 ? 4 - lung % 4 : 0);
+    }
+    if (!json || !bin) throw new Error("fișier incomplet");
+    return { json: json, bin: bin };
+}
+
+// Un atribut al modelului: poziții, normale sau coordonate de culoare.
+function iasAccesor(json, bin, index) {
+    var acc = json.accessors[index], bv = json.bufferViews[acc.bufferView];
+    var buc = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 }[acc.type];
+    var feluri = { 5126: [Float32Array, 4], 5125: [Uint32Array, 4], 5123: [Uint16Array, 2], 5121: [Uint8Array, 1] };
+    var Tip = feluri[acc.componentType][0], octeti = feluri[acc.componentType][1];
+    var start = (bv.byteOffset || 0) + (acc.byteOffset || 0), pas = bv.byteStride || buc * octeti;
+    var iesire = new Tip(acc.count * buc);
+    for (var i = 0; i < acc.count; i++) {
+        var b = new Tip(bin.buffer, bin.byteOffset + start + i * pas, buc);
+        for (var k = 0; k < buc; k++) iesire[i * buc + k] = b[k];
+    }
+    return iesire;
+}
+
+// Paleta se citește o singură dată și rămâne în memorie.
+function iasIncarcaPaleta() {
+    if (iasPaleta) return Promise.resolve(iasPaleta);
+    return new Promise(function (gata, nu) {
+        var img = new Image();
+        img.onload = function () {
+            var c = document.createElement("canvas");
+            c.width = img.width; c.height = img.height;
+            var g = c.getContext("2d");
+            g.drawImage(img, 0, 0);
+            iasPaleta = { date: g.getImageData(0, 0, c.width, c.height), lat: c.width, inalt: c.height };
+            gata(iasPaleta);
+        };
+        img.onerror = function () { nu(new Error("lipsește paleta")); };
+        img.src = "modele/colormap.png";
+    });
+}
+
+/* Construiește vehiculul din fișier. Modelele Kenney stau întinse pe axa Z, iar
+   aplicația le vrea pe X, așa că le întoarcem un sfert de tură și le aducem la
+   lungimea cerută. Roțile își păstrează numele din fișier, deci le putem roti. */
+function iasConstruiesteModel(cale, lungimeTinta, culoare, unelte) {
+    return Promise.all([
+        fetch(cale).then(function (r) { if (!r.ok) throw new Error("lipsește " + cale); return r.arrayBuffer(); }),
+        iasIncarcaPaleta(),
+    ]).then(function (doua) {
+        var citit = iasCitesteGLB(doua[0]), paleta = doua[1];
+        var json = citit.json, bin = citit.bin;
+
+        var grup = new unelte.Group(), roti = [];
+        var minZ = 1e9, maxZ = -1e9, minY = 1e9;
+
+        // culoarea cea mai des întâlnită pe caroserie = vopseaua mașinii
+        var socoteala = {};
+
+        json.nodes.forEach(function (nod) {
+            if (nod.mesh == null) return;
+            var t = nod.translation || [0, 0, 0];
+            var eRoata = /wheel/.test(nod.name || "");
+            var bucata = new unelte.Group();
+
+            json.meshes[nod.mesh].primitives.forEach(function (p) {
+                var poz = iasAccesor(json, bin, p.attributes.POSITION);
+                var nor = p.attributes.NORMAL != null ? iasAccesor(json, bin, p.attributes.NORMAL) : null;
+                var uv = p.attributes.TEXCOORD_0 != null ? iasAccesor(json, bin, p.attributes.TEXCOORD_0) : null;
+                var idx = iasAccesor(json, bin, p.indices);
+
+                var culori = new Float32Array(poz.length);
+                if (uv) {
+                    for (var i = 0, k = 0; i < uv.length; i += 2, k += 3) {
+                        var px = Math.min(paleta.lat - 1, Math.max(0, Math.round(uv[i] * paleta.lat)));
+                        var py = Math.min(paleta.inalt - 1, Math.max(0, Math.round((1 - uv[i + 1]) * paleta.inalt)));
+                        var o = (py * paleta.lat + px) * 4;
+                        var d = paleta.date.data;
+                        culori[k] = d[o] / 255; culori[k + 1] = d[o + 1] / 255; culori[k + 2] = d[o + 2] / 255;
+                        if (!eRoata) {
+                            var cheie = d[o] + "," + d[o + 1] + "," + d[o + 2];
+                            socoteala[cheie] = (socoteala[cheie] || 0) + 1;
+                        }
+                    }
+                } else culori.fill(0.8);
+
+                var geo = new unelte.Geometry();
+                geo.setAttribute("position", new unelte.Attribute(poz, 3));
+                if (nor) geo.setAttribute("normal", new unelte.Attribute(nor, 3));
+                geo.setAttribute("color", new unelte.Attribute(culori, 3));
+                geo.setIndex(Array.from(idx));
+                if (!nor) geo.computeVertexNormals();
+                geo.translate(t[0], t[1], t[2]);
+
+                for (var q = 2; q < poz.length; q += 3) {
+                    var z = poz[q] + t[2], y = poz[q - 1] + t[1];
+                    if (z < minZ) minZ = z;
+                    if (z > maxZ) maxZ = z;
+                    if (y < minY) minY = y;
+                }
+                bucata.add(new unelte.Mesh(geo, unelte.material));
+            });
+
+            if (eRoata) { grup.add(bucata); roti.push(bucata); }
+            else grup.add(bucata);
+        });
+
+        // întoarcem modelul pe axa mașinii și îl aducem la scara aplicației
+        var lungime = maxZ - minZ || 1;
+        var scara = lungimeTinta / lungime;
+        grup.rotation.y = -Math.PI / 2;
+        grup.scale.set(scara, scara, scara);
+        grup.position.y = -minY * scara;
+
+        return { grup: grup, roti: roti, vopsea: socoteala };
+    });
+}
+
+/* O intrare de garaj care aduce un model din fișier. Întoarce pe loc un grup
+   gol, ca scena să pornească fără întârziere, iar modelul intră în el când e
+   gata. Dacă fișierul lipsește, rămâne grupul gol — nu se strică nimic. */
+function iasVehiculDinFisier(fisier, lungime, inaltimeCaseta) {
+    return function (mats) {
+        var grup = new xt(), roti = [];
+        var unelte = {
+            Group: xt, Mesh: Le,
+            Geometry: Object.getPrototypeOf(Ge.prototype).constructor,
+            Attribute: new Ge(1, 1, 1).attributes.position.constructor,
+            material: new (Object.getPrototypeOf($l.prototype).constructor)({
+                vertexColors: true, roughness: .45, metalness: .25,
+            }),
+        };
+        iasConstruiesteModel("modele/" + fisier + ".glb", lungime, null, unelte)
+            .then(function (r) {
+                grup.add(r.grup);
+                r.roti.forEach(function (x) { roti.push(x); });
+                // caseta ȘCOALA se pune deasupra, la cotele legale
+                za(mats).caseta(grup, 0, inaltimeCaseta, 0);
+            })
+            .catch(function () { /* fișierul lipsește din depozit */ });
+        return { grup: grup, roti: roti, lungime: lungime };
+    };
+}
+
 var Zn = {
         hatchback: {
             nume: "Hatchback",
             categorie: "B",
-            build: bk
+            build: iasVehiculDinFisier("hatchback-sports", 3.9, 1.35)
         },
         sedan: {
             nume: "Sedan",
             categorie: "B",
-            build: wk
+            build: iasVehiculDinFisier("sedan", 4.2, 1.3)
         },
         break: {
             nume: "Break",
@@ -5447,7 +5610,7 @@ function Tk({
                 },
                 Ee = ve(4.6, 1.2, 2.45, 16773312),
                 ae = ve(1.9, 1.8, -2.8, 16726832);
-            Ee.rotation.z = Math.PI / 2, ae.rotation.z = -Math.PI / 2, r.current = {
+            Ee.rotation.z = -Math.PI / 2, ae.rotation.z = Math.PI / 2, r.current = {
                 setPhase: ke => {
                     let Ie = hw[ke] || hw.day;
                     S.color.setHex(Ie.hemiSky), S.groundColor.setHex(Ie.hemiGround), S.intensity = Ie.hemiI, k.color.setHex(Ie.dir), k.intensity = Ie.dirI, E.intensity = ke === "night" ? .22 : .5, B.intensity = Ie.spot, re.emissiveIntensity = Ie.head, se.emissiveIntensity = .2 + Ie.head * .5, fe.emissiveIntensity = Ie.tail, H.emissiveIntensity = Ie.glow;
@@ -5541,6 +5704,10 @@ function Ak({
         className: "relative overflow-hidden",
         style: {
             borderRadius: 22,
+            // Antetul își ține singur înălțimea acum: animația e fundal, iar
+            // textul stă deasupra ei, nu sub ea.
+            minHeight: 300,
+            paddingBottom: 12,
             background: l.sky,
             boxShadow: "var(--shadow-lg)",
             transition: "background .8s ease"
@@ -5617,7 +5784,16 @@ function Ak({
             background: s === "dawn" ? "#ffd0a1" : "#fb923c",
             boxShadow: "0 0 44px rgba(251,146,60,0.9)"
         }
-    }), o.default.createElement("span", {
+    }), o.default.createElement("div", {
+        className: "absolute inset-0",
+        style: {
+            zIndex: 0
+        }
+    }, o.default.createElement(Tk, {
+        phase: s,
+        vehicul: n,
+        remorca: e
+    })), o.default.createElement("span", {
         className: "absolute inset-0",
         style: {
             background: "linear-gradient(102deg, rgba(3,7,18,0.55) 0%, rgba(3,7,18,0.2) 52%, transparent 88%)"
@@ -5695,17 +5871,7 @@ function Ak({
             border: "1px solid rgba(255,255,255,0.26)",
             color: "#ffd84d"
         }
-    }, mo))), o.default.createElement("div", {
-        className: "relative",
-        style: {
-            height: 142,
-            borderTop: "1px solid rgba(255,255,255,0.16)"
-        }
-    }, o.default.createElement(Tk, {
-        phase: s,
-        vehicul: n,
-        remorca: e
-    })))
+    }, mo))))
 }
 
 function kk({
@@ -11427,7 +11593,7 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
-    v: "v2.34.29",
+    v: "v2.34.30",
     titlu: "Garajul",
     puncte: ["Alegi din Set\u0103ri vehiculul din capul paginii: hatchback, sedan, break, ma\u0219inu\u021B\u0103 de 16 ani, motociclet\u0103 cu sau f\u0103r\u0103 ata\u0219, cap tractor sau autobuz.", "Fiec\u0103ruia i se poate prinde remorca potrivit\u0103 categoriei lui, iar caseta \u0218COALA r\u0103m\xE2ne pe oricare."]
 }, {
