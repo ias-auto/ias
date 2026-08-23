@@ -1,0 +1,35 @@
+</script>
+<script>
+  var b = document.getElementById('boot');
+  if (b && b.parentNode) b.parentNode.removeChild(b);
+
+  // Rotirea ecranului rămâne la latitudinea telefonului. Dacă instalarea a
+  // păstrat o blocare mai veche pe portret, o eliberăm aici.
+  try {
+    if (window.screen && screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
+  } catch (e) { /* browserul nu permite — rămâne cum e */ }
+
+  // Instalarea pe telefon și pornirea fără internet. Când urci o versiune nouă,
+  // aplicația o preia singură și se reîncarcă o dată, fără să pierzi date.
+  if ('serviceWorker' in navigator) {
+    window.__iasSW = { eroare: '' };
+    window.addEventListener('load', function () {
+      var aveaVersiune = !!navigator.serviceWorker.controller;
+      navigator.serviceWorker.register('./sw.js').catch(function (e) {
+        window.__iasSW.eroare = (e && e.message) ? e.message : String(e);
+      });
+      if (aveaVersiune) {
+        var reincarc = false;
+        navigator.serviceWorker.addEventListener('controllerchange', function () {
+          if (reincarc) return;
+          reincarc = true;
+          window.location.reload();
+        });
+      }
+    });
+  } else {
+    window.__iasSW = { eroare: 'Browserul nu acceptă lucrători de fundal (fereastră privată?).' };
+  }
+</script>
+</body>
+</html>
