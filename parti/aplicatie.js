@@ -4216,7 +4216,8 @@ function Hk({
 function Uk({
     elevi: n,
     value: e,
-    onChange: t
+    onChange: t,
+    ascunsi: iasAscunsi = 0
 }) {
     let [a, r] = (0, o.useState)(!1), [i, s] = (0, o.useState)(""), l = n.find(f => f.id === e) || null, u = pu(i).trim(), d = u ? n.filter(f => pu(`${f.name} ${f.group||""}`).includes(u) || (f.phone || "").includes(i.trim())) : n;
     return a ? o.default.createElement("div", {
@@ -4248,7 +4249,9 @@ function Uk({
         }
     }, d.length === 0 && o.default.createElement("div", {
         className: "px-3.5 py-3 text-sm text-slate-400"
-    }, "Niciun elev nu se potrive\u0219te."), d.map(f => o.default.createElement("button", {
+    }, iasAscunsi > 0 && !u
+        ? `To\u021Bi elevii disponibili au deja o \u0219edin\u021B\u0103 \xEEn ziua asta.`
+        : "Niciun elev nu se potrive\u0219te."), d.map(f => o.default.createElement("button", {
         key: f.id,
         type: "button",
         onClick: () => {
@@ -4262,7 +4265,11 @@ function Uk({
         size: 13
     }), f.group ? o.default.createElement("span", {
         className: "text-xs text-slate-400 shrink-0"
-    }, "gr. ", f.group) : null)))) : o.default.createElement("div", {
+    }, "gr. ", f.group) : null))), iasAscunsi > 0 ? o.default.createElement("p", {
+        className: "text-xs text-slate-400 mt-1.5"
+    }, iasAscunsi === 1
+        ? "Un elev nu apare \xEEn list\u0103: are deja o \u0219edin\u021B\u0103 \xEEn ziua asta."
+        : `${iasAscunsi} elevi nu apar \xEEn list\u0103: au deja o \u0219edin\u021B\u0103 \xEEn ziua asta.`) : null) : o.default.createElement("div", {
         className: "flex items-center gap-2 mb-3.5"
     }, o.default.createElement("button", {
         type: "button",
@@ -4437,7 +4444,11 @@ function Rk({
     }, "Elev", o.default.createElement("span", {
         className: "text-amber-600"
     }, " *")), o.default.createElement(Uk, {
-        elevi: [...a.students].filter(L => L.id === p || Pf(L)).sort((L, T) => L.name.localeCompare(T.name, "ro")),
+        /* Elevii care au deja o ședință în ziua aleasă nu mai apar în listă: la
+           programare nu te interesează decât cine mai poate veni. Cel deja ales
+           rămâne, ca să nu dispară de sub deget când editezi o ședință. */
+        elevi: [...a.students].filter(L => L.id === p || (Pf(L) && !Nw(a.sessions, L.id, m, de))).sort((L, T) => L.name.localeCompare(T.name, "ro")),
+        ascunsi: a.students.filter(L => L.id !== p && Pf(L) && Nw(a.sessions, L.id, m, de)).length,
         value: p,
         onChange: L => {
             c(L);
@@ -8663,6 +8674,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.34.40",
+    titlu: "Programare mai curat\u0103",
+    puncte: ["La programarea unei \u0219edin\u021Be, elevii care au deja una \xEEn ziua aceea nu mai apar \xEEn list\u0103 \u2014 iar sub list\u0103 scrie c\xE2\u021Bi au r\u0103mas deoparte \u0219i de ce."]
+}, {
     v: "v2.34.39",
     titlu: "Ma\u0219inile tale \u0219i banii \u0219colii",
     puncte: ["\xCE\u021Bi treci ma\u0219inile \xEEn Set\u0103ri \u2192 Ma\u0219inile mele, cu num\u0103rul \u0219i cutia fiec\u0103reia.", "Pe fi\u0219a elevului alegi cutia \u0219i ma\u0219ina lui, iar planul \xEEi a\u0219az\u0103 grupat pe cei cu aceea\u0219i ma\u0219in\u0103, ca s-o schimbi c\xE2t mai rar.", "Banii du\u0219i la \u0219coal\u0103 se deschid la atingere: vezi din ce \xEEncas\u0103ri s-au adunat \u0219i ce ai dus p\xE2n\u0103 acum.", "La elevul achitat la zi, butonul devine \u201EPl\u0103te\u0219te \xEEn avans\u201D.", "Op\u021Biunile din Plan sunt str\xE2nse sub un singur titlu.", "Ma\u0219inile din antet sunt modele adev\u0103rate, cu paletar de culori."]
