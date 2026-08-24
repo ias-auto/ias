@@ -27,9 +27,16 @@ const versiuneNoua = process.argv[2];
 if (versiuneNoua) {
   const vechea = (amprenta.versiune || '').replace('IAS ', '');
   if (!vechea) { console.error('✕ Nu știu versiunea veche.'); process.exit(1); }
-  const inainte = aplicatie;
-  aplicatie = aplicatie.split(vechea).join(versiuneNoua);
-  if (aplicatie === inainte) { console.error('✕ Nu am găsit versiunea', vechea, 'în cod.'); process.exit(1); }
+  /* Se schimbă DOAR constanta care ține versiunea aplicației. Înainte se
+     înlocuia peste tot, iar asta stampila și intrările vechi din „Ce e nou":
+     „Garajul", scris cândva ca v2.34.27, ajungea la fiecare livrare să pară cea
+     mai nouă schimbare și apărea din nou pe ecran. */
+  const tipar = new RegExp('(\\bri\\s*=\\s*")' + vechea.replace(/\./g, '\\.') + '(")');
+  if (!tipar.test(aplicatie)) {
+    console.error('✕ Nu găsesc constanta de versiune (' + vechea + ') în cod.');
+    process.exit(1);
+  }
+  aplicatie = aplicatie.replace(tipar, '$1' + versiuneNoua + '$2');
   // Titlul paginii și mesajul de pornire poartă și ele numărul; le schimbăm doar
   // în copia din memorie, ca amprenta părților neatinse să rămână valabilă.
   cap = cap.split(vechea).join(versiuneNoua);
@@ -46,6 +53,13 @@ const probe = [
   ['are aplicația', html.includes('Instructor Auto Sistem')],
   ['are garajul', html.includes('Hatchback') && html.includes('iasVehiculDinFisier')],
   ['are licențierea', html.includes('9F3K')],
+  /* Intrările din „Ce e nou" trebuie să-și păstreze versiunea lor. Dacă apar
+     două cu același număr, înseamnă că ștampila de versiune a scăpat unde nu
+     trebuia — exact defectul care făcea să reapară mesajul „Garajul". */
+  ['istoricul nu a fost ștampilat', (() => {
+    const versiuni = (html.match(/v:\s*"(v[0-9.]+)"/g) || []).map(x => x.split('"')[1]);
+    return versiuni.length === new Set(versiuni).size;
+  })()],
   ['scripturile au rămas la fel',
     (html.match(/<script>/g) || []).length === amprenta.etichete.deschise
     && (html.match(/<\/script>/g) || []).length === amprenta.etichete.inchise],
