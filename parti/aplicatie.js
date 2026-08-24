@@ -8674,6 +8674,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.34.41",
+    titlu: "Scrisul din c\xE2mpuri, vizibil pe noapte",
+    puncte: ["Num\u0103rul de \u0219edin\u021Be pe s\u0103pt\u0103m\xE2n\u0103 din Plan \u2014 \u0219i orice alt c\xE2mp scris ca text \u2014 r\u0103m\xE2nea negru pe tema \xEEntunecat\u0103. Acum toate c\xE2mpurile iau culoarea temei."]
+}, {
     v: "v2.34.40",
     titlu: "Programare mai curat\u0103",
     puncte: ["La programarea unei \u0219edin\u021Be, elevii care au deja una \xEEn ziua aceea nu mai apar \xEEn list\u0103 \u2014 iar sub list\u0103 scrie c\xE2\u021Bi au r\u0103mas deoparte \u0219i de ce."]
@@ -10155,6 +10159,11 @@ function y3() {
         [data-skin] input.bg-white,[data-skin] select.bg-white,[data-skin] textarea.bg-white{background-color:var(--field)}
         [data-skin] ::placeholder{color:var(--faint);opacity:1}
         [data-skin] option{background:var(--surface);color:var(--text)}
+        /* Culoarea scrisului din câmpuri. Regula prindea doar câmpurile de tip
+           număr, dată și oră; cele scrise ca text — cum e numărul de ședințe pe
+           săptămână din Plan — rămâneau negre și se pierdeau pe tema de noapte.
+           Acum toate câmpurile iau culoarea temei. */
+        [data-skin] input,[data-skin] select,[data-skin] textarea{color:var(--text)}
         [data-skin] input[type="number"],[data-skin] input[type="date"],[data-skin] input[type="time"]{color:var(--text);background-color:var(--field)}
 
         /* semn\u0103tura IAS: liniu\u021B\u0103 de marcaj rutier la titluri de sec\u021Biune */
