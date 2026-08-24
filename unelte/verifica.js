@@ -23,6 +23,11 @@ cer('paleta de culori', ['--ok:', '--bad:', '--info:', '--sky:', '--accent:']
 cer('nu cere fișiere din afară',
   !/src=["']https?:\/\/(?!fonts\.googleapis|fonts\.gstatic)/.test(html));
 
+/* Aplicația nu trebuie să se reîncarce singură. O făcea la fiecare versiune
+   nouă, iar pe telefon se vedea ca și cum s-ar închide și s-ar redeschide. */
+cer('nu se reîncarcă singură', !/location\.reload/.test(html));
+cer('lucrătorul de fundal se înregistrează', /serviceWorker\.register/.test(html));
+
 // --- 2. pornim aplicația cu date reale ---
 const students = [
   { id: 's1', name: 'Râmbu Ștefan', lastName: 'Râmbu', firstName: 'Ștefan', group: '12', county: 'CT',
