@@ -1132,7 +1132,8 @@ function ok(n, e) {
     })).filter(({
         s: t,
         free: a
-    }) => a > 0 && Pf(t) && Qw(t, e) && !Nw(n.sessions, t.id, e, null) && Pw(n.sessions, t.id, e, null) < (Number(t.weeklyLimit) || n.settings.defaultWeeklyLimit)).sort((t, a) => {
+        // elevul plecat o perioadă nu se propune în ziua în care lipsește
+    }) => a > 0 && Pf(t) && !iasLipseste(t, e) && Qw(t, e) && !Nw(n.sessions, t.id, e, null) && Pw(n.sessions, t.id, e, null) < (Number(t.weeklyLimit) || n.settings.defaultWeeklyLimit)).sort((t, a) => {
         let r = t.s.examDate ? Sf(e, t.s.examDate) : 9999,
             i = a.s.examDate ? Sf(e, a.s.examDate) : 9999,
             s = Mf(t.s, e) ? 0 : 1,
@@ -3611,7 +3612,10 @@ function zk({
         className: "min-w-0"
     }, o.default.createElement("span", {
         className: "block text-sm font-medium text-slate-900 truncate"
-    }, X(z.studentId), z.otherInstructor && o.default.createElement("span", {
+    }, X(z.studentId), o.default.createElement(Lf, {
+        student: n.students.find(iasE => iasE.id === z.studentId),
+        size: 13
+    }), z.otherInstructor && o.default.createElement("span", {
         className: "ml-1.5 text-xs font-normal text-violet-600"
     }, "\xB7 ", z.instructorName || "alt instr.")), z.location && o.default.createElement("span", {
         className: "block text-xs text-slate-400 truncate"
@@ -3706,7 +3710,10 @@ function zk({
         key: z.id,
         onClick: () => i(z.id),
         className: "text-xs px-2 py-1 rounded-full bg-slate-50 border border-slate-200 text-slate-600"
-    }, z.name)))))), o.default.createElement("div", {
+    }, z.name, o.default.createElement(Lf, {
+        student: z,
+        size: 12
+    }))))))), o.default.createElement("div", {
         className: "px-4 mt-5"
     }, o.default.createElement("div", {
         className: "text-xs font-medium text-slate-400 uppercase tracking-wide mb-2"
@@ -3942,7 +3949,10 @@ function Hk({
             size: 16
         })))), o.default.createElement("div", {
             className: "text-sm font-medium text-slate-900 truncate"
-        }, W.student.name), o.default.createElement("div", {
+        }, W.student.name, o.default.createElement(Lf, {
+            student: W.student,
+            size: 13
+        })), o.default.createElement("div", {
             className: "text-xs text-slate-500"
         }, W.label.toLowerCase(), " \xB7 ", Se(W.start), "\u2013", Se(W.end)), N && o.default.createElement(o.default.Fragment, null, o.default.createElement("div", {
             className: "flex gap-2 mt-2.5"
@@ -4046,24 +4056,13 @@ function Hk({
     }), "Marcheaz\u0103 indisponibil")), (() => {
         let A = KA(x, n.settings),
             O = x.filter(N => (N.status === "scheduled" || N.status === "pending") && N.location).sort((N, C) => N.startMin - C.startMin)[0];
-        return !A && !O ? null : o.default.createElement("div", {
+        /* Traseul zilei a fost scos: presupunea un drum de făcut între toate
+           punctele, ca la un curier. Munca merge altfel — iei un elev, faci ora
+           pe unde e nevoie, îl lași și te duci la următorul. Singurul drum care
+           contează e cel până la următoarea întâlnire, iar butonul acela a rămas. */
+        return !O ? null : o.default.createElement("div", {
             className: "px-4 mb-3 flex gap-2"
-        }, A && o.default.createElement("a", {
-            href: A.href,
-            target: "_blank",
-            rel: "noopener noreferrer",
-            style: {
-                touchAction: "manipulation"
-            },
-            className: "flex-1 min-w-0 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-medium flex items-center justify-center gap-1.5"
-        }, o.default.createElement(dn, {
-            size: 14,
-            style: {
-                color: "var(--accent-ink)"
-            }
-        }), o.default.createElement("span", {
-            className: "truncate"
-        }, "Traseul zilei \xB7 ", A.opriri)), O && o.default.createElement("a", {
+        }, O && o.default.createElement("a", {
             href: wu(xo(n.settings, O.location), O.location, "dir"),
             target: "_blank",
             rel: "noopener noreferrer",
@@ -4111,7 +4110,10 @@ function Hk({
                 className: "font-mono-time text-xs text-slate-400"
             }, Se(Y.startMin), " \u2013 ", Se(Y.startMin + or(Y, n.settings))), o.default.createElement("div", {
                 className: "font-medium text-slate-900 text-sm mt-0.5 truncate"
-            }, k(Y.studentId), Y.auto && o.default.createElement("span", {
+            }, k(Y.studentId), o.default.createElement(Lf, {
+                student: n.students.find(iasE => iasE.id === Y.studentId),
+                size: 13
+            }), Y.auto && o.default.createElement("span", {
                 className: "ml-1.5 text-xs font-normal",
                 style: {
                     color: "var(--accent-ink)"
@@ -4204,7 +4206,10 @@ function Hk({
                 studentId: Y.id
             }),
             className: "text-xs px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700"
-        }, "+ ", Y.name))))
+        }, "+ ", Y.name, o.default.createElement(Lf, {
+            student: Y,
+            size: 12
+        })))))
     })), o.default.createElement(Ok, {
         open: f != null,
         ora: f,
@@ -4699,7 +4704,10 @@ function Gk({
                 }
             }, x ? "\u2713" : ""), o.default.createElement("span", {
                 className: "text-sm text-slate-800 truncate"
-            }, w.name))
+            }, w.name, o.default.createElement(Lf, {
+                student: w,
+                size: 12
+            })))
         })));
     return o.default.createElement("div", {
         className: "fixed inset-0 raport-overlay ecran-peste",
@@ -6614,7 +6622,10 @@ function jk({
             className: "flex-1 min-w-0"
         }, o.default.createElement("div", {
             className: "text-sm font-medium text-slate-900 truncate"
-        }, N.name), o.default.createElement("div", {
+        }, N.name, o.default.createElement(Lf, {
+            student: N,
+            size: 13
+        })), o.default.createElement("div", {
             className: "text-xs text-slate-400"
         }, N.remaining, " de programat", N.examDate ? ` \xB7 examen ${qe(N.examDate)}` : ""), N.tura && L0(N) && (() => {
             let W = Jw(N, 1)[0];
@@ -8769,6 +8780,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.34.45",
+    titlu: "Tortul peste tot \u0219i calendar mai curat",
+    puncte: ["Tortul apare acum l\xE2ng\u0103 numele elevului oriunde \xEEl vezi: Acas\u0103, \xEEn calendar, la sugestii, \xEEn rapoarte.", "Elevii pleca\u021Bi o perioad\u0103 nu mai sunt propu\u0219i nici la ad\u0103ugarea rapid\u0103 din calendar.", "Butonul \u201ETraseul zilei\u201D a fost scos \u2014 drumul care conteaz\u0103 e cel p\xE2n\u0103 la urm\u0103toarea \u0219edin\u021B\u0103, iar butonul acela a r\u0103mas."]
+}, {
     v: "v2.34.44",
     titlu: "Elevi pleca\u021Bi o perioad\u0103",
     puncte: ["Pe fi\u0219a elevului bifezi \u201EIndisponibil o perioad\u0103\u201D \u0219i dai fie ziua \xEEntoarcerii, fie c\xE2te zile lipse\u0219te.", "C\xE2t lipse\u0219te nu apare la programare \u0219i nici \xEEn plan, iar \xEEn ziua \xEEn care revine intr\u0103 singur \xEEnapoi \xEEn liste.", "\xCEn lista de elevi are un semn cu ziua \xEEn care se \xEEntoarce."]
