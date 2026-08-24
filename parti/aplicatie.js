@@ -8674,6 +8674,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.34.43",
+    titlu: "Pornire lini\u0219tit\u0103 dup\u0103 actualizare",
+    puncte: ["Dup\u0103 o versiune nou\u0103, aplica\u021Bia se reînc\u0103rca singur\u0103 \u0219i p\u0103rea c\u0103 se \xEEnchide \u0219i se redeschide. Acum pornirea e dintr-o bucat\u0103.", "Mesajul \u201ECe e nou\u201D nu mai arat\u0103 din gre\u0219eal\u0103 schimb\u0103ri vechi."]
+}, {
     v: "v2.34.41",
     titlu: "Scrisul din c\xE2mpuri, vizibil pe noapte",
     puncte: ["Num\u0103rul de \u0219edin\u021Be pe s\u0103pt\u0103m\xE2n\u0103 din Plan \u2014 \u0219i orice alt c\xE2mp scris ca text \u2014 r\u0103m\xE2nea negru pe tema \xEEntunecat\u0103. Acum toate c\xE2mpurile iau culoarea temei."]

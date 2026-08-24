@@ -9,23 +9,21 @@
     if (window.screen && screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
   } catch (e) { /* browserul nu permite — rămâne cum e */ }
 
-  // Instalarea pe telefon și pornirea fără internet. Când urci o versiune nouă,
-  // aplicația o preia singură și se reîncarcă o dată, fără să pierzi date.
+  /* Instalarea pe telefon și pornirea fără internet.
+
+     Aici se reîncărca pagina de fiecare dată când intra în funcțiune un lucrător
+     nou — iar asta se vedea ca o aplicație care se închide și se redeschide
+     singură, chiar sub degetul tău.
+
+     Reîncărcarea nu folosea la nimic: pagina se cere oricum din rețea la fiecare
+     pornire, deci versiunea de pe ecran e deja cea nouă. Lucrătorul proaspăt
+     preia singur cererile de mai departe, fără să clipească nimic. */
   if ('serviceWorker' in navigator) {
     window.__iasSW = { eroare: '' };
     window.addEventListener('load', function () {
-      var aveaVersiune = !!navigator.serviceWorker.controller;
       navigator.serviceWorker.register('./sw.js').catch(function (e) {
         window.__iasSW.eroare = (e && e.message) ? e.message : String(e);
       });
-      if (aveaVersiune) {
-        var reincarc = false;
-        navigator.serviceWorker.addEventListener('controllerchange', function () {
-          if (reincarc) return;
-          reincarc = true;
-          window.location.reload();
-        });
-      }
     });
   } else {
     window.__iasSW = { eroare: 'Browserul nu acceptă lucrători de fundal (fereastră privată?).' };
