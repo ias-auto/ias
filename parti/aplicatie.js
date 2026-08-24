@@ -364,6 +364,21 @@ function Dw(n) {
 function UA(n, e) {
     return !n || !n.adeverintaDin ? 0 : e.filter(t => t.studentId === n.id && t.status === "completed" && t.date >= n.adeverintaDin).length
 }
+/* Elevul plecat o perioadă: vacanță, deplasare, orice. Ține două date, ambele
+   inclusiv. În ziua în care se întoarce e din nou disponibil. */
+function iasLipseste(elev, zi) {
+    if (!elev || !elev.plecatPana) return false;
+    var de = elev.plecatDin || Be();
+    return zi >= de && zi <= elev.plecatPana;
+}
+// Câte zile mai are de lipsit, socotit de azi. Zero înseamnă că azi se întoarce.
+function iasZilePlecat(elev) {
+    if (!elev || !elev.plecatPana) return null;
+    var azi = Be();
+    if (elev.plecatPana < azi) return null;          // s-a întors deja
+    return { din: elev.plecatDin || azi, pana: elev.plecatPana, revine: ft(pn(Ue(elev.plecatPana), 1)) };
+}
+
 var Pf = n => !!n && !n.withdrawn && n.examResult !== "promovat" && !ho(n),
     RA = 10,
     Sf = (n, e) => Math.round((Ue(e).getTime() - Ue(n).getTime()) / 864e5),
@@ -1367,7 +1382,8 @@ function uk({
                         re = ze !== "fara" && m[z] || null,
                         se = fe => {
                             for (let he of i) {
-                                if (l[he.id] <= 0 || f[`${he.id}_${z}`] || !Qw(he, z) || !v(he, z)) continue;
+                                // elevul plecat o perioadă nu intră în plan cât lipsește
+                                if (l[he.id] <= 0 || f[`${he.id}_${z}`] || iasLipseste(he, z) || !Qw(he, z) || !v(he, z)) continue;
                                 if (fe) {
                                     if (ze === "harta") {
                                         let T = QA(re, he);
@@ -4447,8 +4463,8 @@ function Rk({
         /* Elevii care au deja o ședință în ziua aleasă nu mai apar în listă: la
            programare nu te interesează decât cine mai poate veni. Cel deja ales
            rămâne, ca să nu dispară de sub deget când editezi o ședință. */
-        elevi: [...a.students].filter(L => L.id === p || (Pf(L) && !Nw(a.sessions, L.id, m, de))).sort((L, T) => L.name.localeCompare(T.name, "ro")),
-        ascunsi: a.students.filter(L => L.id !== p && Pf(L) && Nw(a.sessions, L.id, m, de)).length,
+        elevi: [...a.students].filter(L => L.id === p || (Pf(L) && !iasLipseste(L, m) && !Nw(a.sessions, L.id, m, de))).sort((L, T) => L.name.localeCompare(T.name, "ro")),
+        ascunsi: a.students.filter(L => L.id !== p && Pf(L) && (iasLipseste(L, m) || Nw(a.sessions, L.id, m, de))).length,
         value: p,
         onChange: L => {
             c(L);
@@ -4893,7 +4909,14 @@ function Vk({
             className: "shrink-0 text-xs px-1.5 py-0.5 rounded-full bg-slate-50 text-slate-500 border border-slate-200"
         }, "retras"), !B && O === "nou" && o.default.createElement("span", {
             className: "shrink-0 text-xs px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200"
-        }, "nou"), E.examResult === "promovat" && o.default.createElement("span", {
+        }, "nou"), (() => {
+            // cine lipsește o perioadă poartă semnul lui, cu ziua întoarcerii
+            let iasP = iasZilePlecat(E);
+            return iasP ? o.default.createElement("span", {
+                className: "shrink-0 text-xs px-1.5 py-0.5 rounded-full",
+                style: { background: "var(--accent-soft)", color: "var(--accent-ink)", border: "1px solid var(--accent-line)" }
+            }, "revine ", qe(iasP.revine)) : null
+        })(), E.examResult === "promovat" && o.default.createElement("span", {
             className: "shrink-0 text-xs px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200"
         }, "promovat"), !B && E.examResult === "respins" && o.default.createElement("span", {
             className: "shrink-0 text-xs px-1.5 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200"
@@ -5410,7 +5433,77 @@ function Wk({
         }, E.name, " \xB7 ", (Number(E.price) || 0).toLocaleString("ro-RO"), " \xB7 ", Number(E.hours), " ", hu(ur(E)))))), o.default.createElement("p", {
             className: "text-xs text-slate-400 -mt-2 mb-3.5"
         }, k ? k.laScoala ? `\xCEi adaug\u0103 ${Number(k.hours)} ${hu(ur(k))} \u0219i trece cei ${(Number(k.price)||0).toLocaleString("ro-RO")} ${l} ca plat\u0103 f\u0103cut\u0103 direct la \u0219coal\u0103 \u2014 nu r\u0103m\xE2ne datorie la tine.` : `\xCEi adaug\u0103 ${Number(k.hours)} ${hu(ur(k))} \u0219i ${(Number(k.price)||0).toLocaleString("ro-RO")} ${l} la datorie. Pl\u0103\u021Bile le treci pe fi\u0219a lui, pe m\u0103sur\u0103 ce le \xEEncasezi.` : "Pachetele se stabilesc \xEEn Finan\u021Be \u2192 Taxe. Po\u021Bi alege \u0219i mai t\xE2rziu, de pe fi\u0219a lui."))
-    })(), o.default.createElement(xe, {
+    })(),
+
+    /* Plecat o perioadă: vacanță, deplasare, orice. Bifa deschide intervalul.
+       Perioada se dă fie ca dată de întoarcere, fie ca număr de zile — cum îți
+       spune elevul: „plec de mâine patru zile" sau „lipsesc până pe 14". */
+    o.default.createElement("button", {
+        type: "button",
+        onClick: () => {
+            if (c.plecatPana) { b("plecatDin", ""), b("plecatPana", "") }
+            else { b("plecatDin", Be()), b("plecatPana", ft(pn(Ue(Be()), 6))) }
+        },
+        className: "w-full flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 mb-3.5 text-left",
+        style: c.plecatPana
+            ? { borderColor: "var(--accent-line)", background: "var(--accent-soft)" }
+            : { borderColor: "var(--line)", background: "var(--surface)" }
+    }, o.default.createElement("span", {
+        className: "flex items-center justify-center rounded-md shrink-0",
+        style: {
+            width: 18, height: 18,
+            border: `1.5px solid ${c.plecatPana ? "var(--accent)" : "var(--line-2)"}`,
+            background: c.plecatPana ? "var(--accent)" : "transparent",
+            color: "#3a2100", fontSize: 12, fontWeight: 900, lineHeight: 1
+        }
+    }, c.plecatPana ? "\u2713" : ""), o.default.createElement("span", {
+        className: "flex-1 min-w-0"
+    }, o.default.createElement("span", {
+        className: "block text-sm font-medium text-slate-800"
+    }, "Indisponibil o perioad\u0103"), o.default.createElement("span", {
+        className: "block text-xs text-slate-400"
+    }, "Nu apare la programare \u0219i nici \xEEn plan c\xE2t lipse\u0219te."))),
+
+    c.plecatPana ? o.default.createElement(o.default.Fragment, null,
+        o.default.createElement("div", { className: "grid grid-cols-2 gap-3" },
+            o.default.createElement(xe, { label: "Pleac\u0103 de pe" },
+                o.default.createElement("input", {
+                    type: "date", className: ie,
+                    value: c.plecatDin || Be(),
+                    onChange: S => {
+                        let k = S.target.value || Be();
+                        b("plecatDin", k);
+                        if ((c.plecatPana || "") < k) b("plecatPana", k)
+                    }
+                })),
+            o.default.createElement(xe, { label: "Ultima zi lips\u0103" },
+                o.default.createElement("input", {
+                    type: "date", className: ie,
+                    value: c.plecatPana || "",
+                    min: c.plecatDin || Be(),
+                    onChange: S => b("plecatPana", S.target.value)
+                }))),
+        o.default.createElement("span", {
+            className: "block text-xs font-medium text-slate-500 mb-1.5"
+        }, "sau c\xE2te zile lipse\u0219te"),
+        o.default.createElement("div", { className: "flex gap-1.5 mb-2" },
+            [2, 3, 4, 7, 14].map(zile => {
+                let din = c.plecatDin || Be(),
+                    pana = ft(pn(Ue(din), zile - 1)),
+                    ales = c.plecatPana === pana;
+                return o.default.createElement("button", {
+                    key: zile, type: "button",
+                    onClick: () => b("plecatPana", pana),
+                    className: `flex-1 py-2 rounded-xl text-xs font-medium border ${ales ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-500 border-slate-200"}`
+                }, zile, " zile")
+            })),
+        o.default.createElement("p", {
+            className: "text-xs mb-3.5",
+            style: { color: "var(--accent-ink)" }
+        }, `Revine \u0219i reapare \xEEn liste pe ${qe(ft(pn(Ue(c.plecatPana), 1)))}.`)
+    ) : null,
+
+    o.default.createElement(xe, {
         label: "Situa\u021Bie"
     }, o.default.createElement("select", {
         className: ie,
@@ -6411,6 +6504,8 @@ function jk({
             area: C.area,
             masina: C.masina,
             cutie: C.cutie,
+            plecatDin: C.plecatDin,
+            plecatPana: C.plecatPana,
             lat: C.lat,
             lng: C.lng,
             availParity: C.availParity,
@@ -8674,6 +8769,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.34.44",
+    titlu: "Elevi pleca\u021Bi o perioad\u0103",
+    puncte: ["Pe fi\u0219a elevului bifezi \u201EIndisponibil o perioad\u0103\u201D \u0219i dai fie ziua \xEEntoarcerii, fie c\xE2te zile lipse\u0219te.", "C\xE2t lipse\u0219te nu apare la programare \u0219i nici \xEEn plan, iar \xEEn ziua \xEEn care revine intr\u0103 singur \xEEnapoi \xEEn liste.", "\xCEn lista de elevi are un semn cu ziua \xEEn care se \xEEntoarce."]
+}, {
     v: "v2.34.43",
     titlu: "Pornire lini\u0219tit\u0103 dup\u0103 actualizare",
     puncte: ["Dup\u0103 o versiune nou\u0103, aplica\u021Bia se reînc\u0103rca singur\u0103 \u0219i p\u0103rea c\u0103 se \xEEnchide \u0219i se redeschide. Acum pornirea e dintr-o bucat\u0103.", "Mesajul \u201ECe e nou\u201D nu mai arat\u0103 din gre\u0219eal\u0103 schimb\u0103ri vechi."]
