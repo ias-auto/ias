@@ -3413,6 +3413,33 @@ function T0() {
     }))))
 }
 
+/* Explicațiile de sub câmpuri stăteau mereu la vedere. Acum stau într-un „i"
+   încercuit: îl atingi când ai nevoie, îl închizi când te-ai lămurit. */
+function IasInfo({ text: iasT }) {
+    let [deschis, arata] = (0, o.useState)(!1);
+    return o.default.createElement("span", { className: "inline-block" },
+        o.default.createElement("button", {
+            type: "button", onClick: () => arata(!deschis), "aria-label": "Explica\u021Bie",
+            className: "inline-flex items-center justify-center align-middle ml-1.5",
+            style: {
+                width: 17, height: 17, borderRadius: 99, fontSize: 11, fontWeight: 700,
+                lineHeight: 1, fontStyle: "italic",
+                border: `1px solid ${deschis ? "var(--accent)" : "var(--line-2)"}`,
+                background: deschis ? "var(--accent-soft)" : "transparent",
+                color: deschis ? "var(--accent-ink)" : "var(--muted-2)"
+            }
+        }, "i"),
+        deschis ? o.default.createElement("span", {
+            className: "block rounded-xl px-3 py-2.5 mb-3.5 mt-1.5",
+            style: { background: "var(--accent-soft)", border: "1px solid var(--accent-line)" }
+        }, o.default.createElement("span", {
+            className: "block text-xs", style: { color: "var(--accent-ink)" }
+        }, iasT), o.default.createElement("button", {
+            type: "button", onClick: () => arata(!1),
+            className: "mt-1.5 text-xs font-medium", style: { color: "var(--accent-ink)" }
+        }, "\xD7 \xEEnchide")) : null)
+}
+
 function Jn({
     title: n,
     summary: e,
@@ -5177,7 +5204,12 @@ function Wk({
         },
         county: c.county,
         h: 40
-    })), o.default.createElement("div", {
+    })),
+    o.default.createElement(Jn, {
+        title: "Persoana",
+        summary: `${(c.lastName || "") + " " + (c.firstName || "")}`.trim() || "necompletat",
+        defaultOpen: !0
+    }, o.default.createElement("div", {
         className: "grid grid-cols-2 gap-3"
     }, o.default.createElement(xe, {
         label: "Nume de familie",
@@ -5195,7 +5227,8 @@ function Wk({
         value: c.firstName || "",
         onChange: S => b("firstName", S.target.value),
         placeholder: "Ana Maria"
-    }))), o.default.createElement(xe, {
+    }))),
+    o.default.createElement(xe, {
         label: "Sex"
     }, o.default.createElement("select", {
         className: ie,
@@ -5207,9 +5240,11 @@ function Wk({
         value: "m"
     }, "Masculin"), o.default.createElement("option", {
         value: "f"
-    }, "Feminin"))), o.default.createElement("p", {
-        className: "text-xs text-slate-400 -mt-2 mb-3.5"
-    }, '\xCEn mesajele c\u0103tre elev se folose\u0219te doar primul prenume, iar adresarea se acord\u0103: \u201ESalut, Andrei!" la b\u0103ie\u021Bi, \u201EBun\u0103, Ana!" la fete. F\u0103r\u0103 men\u021Biune, mesajul r\u0103m\xE2ne neutru.'), o.default.createElement(xe, {
+    }, "Feminin"))),
+    o.default.createElement(IasInfo, {
+        text: '\xCEn mesajele c\u0103tre elev se folose\u0219te doar primul prenume, iar adresarea se acord\u0103: \u201ESalut, Andrei!" la b\u0103ie\u021Bi, \u201EBun\u0103, Ana!" la fete. F\u0103r\u0103 men\u021Biune, mesajul r\u0103m\xE2ne neutru.'
+    }),
+    o.default.createElement(xe, {
         label: "Telefon"
     }, o.default.createElement("input", {
         className: ie,
@@ -5219,63 +5254,17 @@ function Wk({
         value: c.phone,
         onChange: S => b("phone", S.target.value),
         placeholder: "07xx xxx xxx"
-    })), o.default.createElement("div", {
+    })),
+    o.default.createElement("div", {
         className: "grid grid-cols-2 gap-3"
     }, o.default.createElement(xe, {
-        label: "Nr. \xEEnregistrare"
+        label: "Data na\u0219terii"
     }, o.default.createElement("input", {
+        type: "date",
         className: ie,
-        inputMode: "numeric",
-        value: c.regNumber,
-        onChange: S => b("regNumber", S.target.value)
+        value: c.birthDate || "",
+        onChange: S => b("birthDate", S.target.value)
     })), o.default.createElement(xe, {
-        label: "Grupa"
-    }, o.default.createElement("input", {
-        className: ie,
-        inputMode: "numeric",
-        value: c.group || "",
-        onChange: S => b("group", S.target.value),
-        placeholder: "2 cifre"
-    }))), (() => {
-        let S = String(c.group || "").trim().toUpperCase() === "OS";
-        return o.default.createElement("button", {
-            type: "button",
-            onClick: () => b("group", S ? "" : "OS"),
-            className: "w-full flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 mb-3.5 text-left",
-            style: S ? {
-                borderColor: "var(--accent-line)",
-                background: "var(--accent-soft)"
-            } : {
-                borderColor: "var(--line)",
-                background: "var(--surface)"
-            }
-        }, o.default.createElement("span", {
-            className: "flex items-center justify-center rounded-md shrink-0",
-            style: {
-                width: 18,
-                height: 18,
-                border: `1.5px solid ${S?"var(--accent)":"var(--line-2)"}`,
-                background: S ? "var(--accent)" : "transparent",
-                color: "#3a2100",
-                fontSize: 12,
-                fontWeight: 900,
-                lineHeight: 1
-            }
-        }, S ? "\u2713" : ""), o.default.createElement("span", {
-            className: "text-sm font-medium text-slate-800 flex-1"
-        }, "OS \xB7 ore suplimentare"))
-    })(), o.default.createElement("div", {
-        className: "grid grid-cols-2 gap-3"
-    }, o.default.createElement(xe, {
-        label: "Categoria de permis"
-    }, o.default.createElement("select", {
-        className: ie,
-        value: c.licenseCategory || "B",
-        onChange: S => b("licenseCategory", S.target.value)
-    }, NA.map(S => o.default.createElement("option", {
-        key: S,
-        value: S
-    }, S)))), o.default.createElement(xe, {
         label: "Jude\u021B (pl\u0103cu\u021B\u0103)"
     }, o.default.createElement("select", {
         className: ie,
@@ -5284,43 +5273,16 @@ function Wk({
     }, Aw.map(S => o.default.createElement("option", {
         key: S,
         value: S
-    }, S)))))
-
-    , o.default.createElement("div", {
-        className: "grid grid-cols-2 gap-3"
-    }, o.default.createElement(xe, {
-        label: "Cutie de viteze"
-    }, o.default.createElement("select", {
-        className: ie,
-        value: c.cutie || "",
-        onChange: S => b("cutie", S.target.value)
-    }, o.default.createElement("option", { value: "" }, "Nespecificat\u0103"),
-        o.default.createElement("option", { value: "manuala" }, "Manual\u0103"),
-        o.default.createElement("option", { value: "automata" }, "Automat\u0103"))),
-        o.default.createElement(xe, {
-            label: "Ma\u0219ina lui"
-        }, o.default.createElement("select", {
-            className: ie,
-            value: c.masina || "",
-            onChange: S => b("masina", S.target.value)
-        }, o.default.createElement("option", { value: "" }, "Oricare"),
-            iasLista.map(S => o.default.createElement("option", {
-                key: S.id, value: S.id
-            }, S.nume + (S.cutie ? " \xB7 " + (S.cutie === "automata" ? "automat\u0103" : "manual\u0103") : "")))))),
-    o.default.createElement("p", {
-        className: "text-xs text-slate-400 -mt-2 mb-3.5"
-    }, iasLista.length
-        ? "Planul \xEEi a\u0219az\u0103 unul dup\u0103 altul pe elevii cu aceea\u0219i ma\u0219in\u0103, ca s\u0103 n-o schimbi de la o \u0219edin\u021B\u0103 la alta."
-        : "Ma\u0219inile se adaug\u0103 \xEEn Set\u0103ri \u2192 Ma\u0219inile mele.")
-
-    , o.default.createElement(xe, {
+    }, S))))),
+    o.default.createElement(xe, {
         label: "Zona de domiciliu"
     }, o.default.createElement("input", {
         className: ie,
         value: c.area || "",
         onChange: S => b("area", S.target.value),
         placeholder: "Ex: Tomis Nord, Km 5, centru"
-    })), o.default.createElement("div", {
+    })),
+    o.default.createElement("div", {
         className: "rounded-xl border border-slate-200 bg-white px-3 py-2.5 mb-3.5"
     }, o.default.createElement("div", {
         className: "flex items-center justify-between gap-2"
@@ -5380,50 +5342,102 @@ function Wk({
         }
     }, "Nu am prins semnalul."), o.default.createElement("p", {
         className: "text-xs text-slate-400 mt-1.5"
-    }, "Aproximativ e destul \u2014 strada lui, nu u\u0219a. \xCEl folose\u0219te planificatorul ca s\u0103 pun\u0103 unul dup\u0103 altul elevii care stau aproape, dar numai dac\u0103 \xEEi ceri asta din fila Plan.")), o.default.createElement(xe, {
-        label: "Loca\u021Bie de start implicit\u0103"
-    }, o.default.createElement("input", {
-        className: ie,
-        value: c.defaultLocation || "",
-        onChange: S => b("defaultLocation", S.target.value),
-        placeholder: "Punct de \xEEnt\xE2lnire obi\u0219nuit (op\u021Bional)"
-    })), o.default.createElement(nS, {
-        locations: i,
-        value: c.defaultLocation || "",
-        onPick: S => b("defaultLocation", S)
-    }), o.default.createElement("p", {
-        className: "text-xs text-slate-400 -mt-2 mb-3.5"
-    }, "Zona te ajut\u0103 s\u0103 grupezi elevii apropia\u021Bi \xEEn aceea\u0219i zi. \xCEn lista de elevi po\u021Bi sorta dup\u0103 oricare dintre cele dou\u0103."), o.default.createElement("div", {
+    }, "Aproximativ e destul \u2014 strada lui, nu u\u0219a. \xCEl folose\u0219te planificatorul ca s\u0103 pun\u0103 unul dup\u0103 altul elevii care stau aproape, dar numai dac\u0103 \xEEi ceri asta din fila Plan.")),
+    o.default.createElement(IasInfo, {
+        text: "Zona te ajut\u0103 s\u0103 grupezi elevii apropia\u021Bi \xEEn aceea\u0219i zi. \xCEn lista de elevi po\u021Bi sorta dup\u0103 oricare dintre cele dou\u0103."
+    })),
+    o.default.createElement(Jn, {
+        title: "Dosar",
+        summary: `${c.regNumber ? "nr. " + c.regNumber : "f\u0103r\u0103 num\u0103r"}${c.group ? " \xB7 gr. " + c.group : ""}`
+    }, o.default.createElement("div", {
         className: "grid grid-cols-2 gap-3"
     }, o.default.createElement(xe, {
-        label: "Ore incluse"
+        label: "Nr. \xEEnregistrare"
     }, o.default.createElement("input", {
-        type: "number",
-        min: "0",
         className: ie,
-        value: c.includedHours,
-        onChange: S => b("includedHours", S.target.value)
+        inputMode: "numeric",
+        value: c.regNumber,
+        onChange: S => b("regNumber", S.target.value)
     })), o.default.createElement(xe, {
-        label: "Ore suplimentare"
+        label: "Grupa"
     }, o.default.createElement("input", {
-        type: "number",
-        min: "0",
         className: ie,
-        value: c.extraHours,
-        onChange: S => b("extraHours", S.target.value)
-    }))), o.default.createElement(xe, {
-        label: "Limba \u0219edin\u021Belor"
+        inputMode: "numeric",
+        value: c.group || "",
+        onChange: S => b("group", S.target.value),
+        placeholder: "2 cifre"
+    }))),
+    (() => {
+        let S = String(c.group || "").trim().toUpperCase() === "OS";
+        return o.default.createElement("button", {
+            type: "button",
+            onClick: () => b("group", S ? "" : "OS"),
+            className: "w-full flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 mb-3.5 text-left",
+            style: S ? {
+                borderColor: "var(--accent-line)",
+                background: "var(--accent-soft)"
+            } : {
+                borderColor: "var(--line)",
+                background: "var(--surface)"
+            }
+        }, o.default.createElement("span", {
+            className: "flex items-center justify-center rounded-md shrink-0",
+            style: {
+                width: 18,
+                height: 18,
+                border: `1.5px solid ${S?"var(--accent)":"var(--line-2)"}`,
+                background: S ? "var(--accent)" : "transparent",
+                color: "#3a2100",
+                fontSize: 12,
+                fontWeight: 900,
+                lineHeight: 1
+            }
+        }, S ? "\u2713" : ""), o.default.createElement("span", {
+            className: "text-sm font-medium text-slate-800 flex-1"
+        }, "OS \xB7 ore suplimentare"))
+    })(),
+    o.default.createElement("div", {
+        className: "grid grid-cols-2 gap-3"
+    }, o.default.createElement(xe, {
+        label: "Categoria de permis"
     }, o.default.createElement("select", {
         className: ie,
-        value: c.english ? "en" : "ro",
-        onChange: S => b("english", S.target.value === "en")
+        value: c.licenseCategory || "B",
+        onChange: S => b("licenseCategory", S.target.value)
+    }, NA.map(S => o.default.createElement("option", {
+        key: S,
+        value: S
+    }, S)))), o.default.createElement(xe, {
+        label: "Data \xEEnscrierii"
+    }, o.default.createElement("input", {
+        type: "date",
+        className: ie,
+        value: c.enrollDate,
+        onChange: S => b("enrollDate", S.target.value)
+    }))),
+    o.default.createElement(xe, {
+        label: "Situa\u021Bie"
+    }, o.default.createElement("select", {
+        className: ie,
+        value: c.withdrawn ? "withdrawn" : c.asteptare ? "asteptare" : "active",
+        onChange: S => {
+            let k = S.target.value;
+            b("withdrawn", k === "withdrawn"), b("asteptare", k === "asteptare"), k === "asteptare" && !c.asteptareDin && b("asteptareDin", Be())
+        }
     }, o.default.createElement("option", {
-        value: "ro"
-    }, "Rom\xE2n\u0103"), o.default.createElement("option", {
-        value: "en"
-    }, "Englez\u0103"))), o.default.createElement("p", {
-        className: "text-xs text-slate-400 -mt-2 mb-3.5"
-    }, "Toate \u0219edin\u021Bele lui pornesc \xEEn limba asta. La salariu se aplic\u0103 tarifele corespunz\u0103toare, iar la fiecare \u0219edin\u021B\u0103 po\u021Bi schimba punctual."), (() => {
+        value: "active"
+    }, "\xCEn curs"), o.default.createElement("option", {
+        value: "asteptare"
+    }, "\xCEn a\u0219teptare dup\u0103 examen"), o.default.createElement("option", {
+        value: "withdrawn"
+    }, "Retras"))),
+    o.default.createElement(IasInfo, {
+        text: "Un elev retras trece la sf\xE2r\u0219itul listei, nu mai apare la programare \u0219i nu mai intr\u0103 \xEEn plan. Datele lui r\u0103m\xE2n neatinse."
+    })),
+    o.default.createElement(Jn, {
+        title: "Ore \u0219i plat\u0103",
+        summary: `${(Number(c.includedHours) || 0) + (Number(c.extraHours) || 0)} ore`
+    }, (() => {
         let S = ii(s).filter(E => Number(E.hours) > 0);
         if (!S.length) return null;
         let k = S.find(E => E.id === c.pachet);
@@ -5442,119 +5456,82 @@ function Wk({
             className: "text-xs text-slate-400 -mt-2 mb-3.5"
         }, k ? k.laScoala ? `\xCEi adaug\u0103 ${Number(k.hours)} ${hu(ur(k))} \u0219i trece cei ${(Number(k.price)||0).toLocaleString("ro-RO")} ${l} ca plat\u0103 f\u0103cut\u0103 direct la \u0219coal\u0103 \u2014 nu r\u0103m\xE2ne datorie la tine.` : `\xCEi adaug\u0103 ${Number(k.hours)} ${hu(ur(k))} \u0219i ${(Number(k.price)||0).toLocaleString("ro-RO")} ${l} la datorie. Pl\u0103\u021Bile le treci pe fi\u0219a lui, pe m\u0103sur\u0103 ce le \xEEncasezi.` : "Pachetele se stabilesc \xEEn Finan\u021Be \u2192 Taxe. Po\u021Bi alege \u0219i mai t\xE2rziu, de pe fi\u0219a lui."))
     })(),
-
-    /* Plecat o perioadă: vacanță, deplasare, orice. Bifa deschide intervalul.
-       Perioada se dă fie ca dată de întoarcere, fie ca număr de zile — cum îți
-       spune elevul: „plec de mâine patru zile" sau „lipsesc până pe 14". */
-    o.default.createElement("button", {
-        type: "button",
-        onClick: () => {
-            if (c.plecatPana) { b("plecatDin", ""), b("plecatPana", "") }
-            else { b("plecatDin", Be()), b("plecatPana", ft(pn(Ue(Be()), 6))) }
-        },
-        className: "w-full flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 mb-3.5 text-left",
-        style: c.plecatPana
-            ? { borderColor: "var(--accent-line)", background: "var(--accent-soft)" }
-            : { borderColor: "var(--line)", background: "var(--surface)" }
-    }, o.default.createElement("span", {
-        className: "flex items-center justify-center rounded-md shrink-0",
-        style: {
-            width: 18, height: 18,
-            border: `1.5px solid ${c.plecatPana ? "var(--accent)" : "var(--line-2)"}`,
-            background: c.plecatPana ? "var(--accent)" : "transparent",
-            color: "#3a2100", fontSize: 12, fontWeight: 900, lineHeight: 1
-        }
-    }, c.plecatPana ? "\u2713" : ""), o.default.createElement("span", {
-        className: "flex-1 min-w-0"
-    }, o.default.createElement("span", {
-        className: "block text-sm font-medium text-slate-800"
-    }, "Indisponibil o perioad\u0103"), o.default.createElement("span", {
-        className: "block text-xs text-slate-400"
-    }, "Nu apare la programare \u0219i nici \xEEn plan c\xE2t lipse\u0219te."))),
-
-    c.plecatPana ? o.default.createElement(o.default.Fragment, null,
-        o.default.createElement("div", { className: "grid grid-cols-2 gap-3" },
-            o.default.createElement(xe, { label: "Pleac\u0103 de pe" },
-                o.default.createElement("input", {
-                    type: "date", className: ie,
-                    value: c.plecatDin || Be(),
-                    onChange: S => {
-                        let k = S.target.value || Be();
-                        b("plecatDin", k);
-                        if ((c.plecatPana || "") < k) b("plecatPana", k)
-                    }
-                })),
-            o.default.createElement(xe, { label: "Ultima zi lips\u0103" },
-                o.default.createElement("input", {
-                    type: "date", className: ie,
-                    value: c.plecatPana || "",
-                    min: c.plecatDin || Be(),
-                    onChange: S => b("plecatPana", S.target.value)
-                }))),
-        o.default.createElement("span", {
-            className: "block text-xs font-medium text-slate-500 mb-1.5"
-        }, "sau c\xE2te zile lipse\u0219te"),
-        o.default.createElement("div", { className: "flex gap-1.5 mb-2" },
-            [2, 3, 4, 7, 14].map(zile => {
-                let din = c.plecatDin || Be(),
-                    pana = ft(pn(Ue(din), zile - 1)),
-                    ales = c.plecatPana === pana;
-                return o.default.createElement("button", {
-                    key: zile, type: "button",
-                    onClick: () => b("plecatPana", pana),
-                    className: `flex-1 py-2 rounded-xl text-xs font-medium border ${ales ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-500 border-slate-200"}`
-                }, zile, " zile")
-            })),
-        o.default.createElement("p", {
-            className: "text-xs mb-3.5",
-            style: { color: "var(--accent-ink)" }
-        }, `Revine \u0219i reapare \xEEn liste pe ${qe(ft(pn(Ue(c.plecatPana), 1)))}.`)
-    ) : null,
-
-    o.default.createElement(xe, {
-        label: "Situa\u021Bie"
-    }, o.default.createElement("select", {
-        className: ie,
-        value: c.withdrawn ? "withdrawn" : c.asteptare ? "asteptare" : "active",
-        onChange: S => {
-            let k = S.target.value;
-            b("withdrawn", k === "withdrawn"), b("asteptare", k === "asteptare"), k === "asteptare" && !c.asteptareDin && b("asteptareDin", Be())
-        }
-    }, o.default.createElement("option", {
-        value: "active"
-    }, "\xCEn curs"), o.default.createElement("option", {
-        value: "asteptare"
-    }, "\xCEn a\u0219teptare dup\u0103 examen"), o.default.createElement("option", {
-        value: "withdrawn"
-    }, "Retras"))), o.default.createElement("p", {
-        className: "text-xs text-slate-400 -mt-2 mb-3.5"
-    }, "Un elev retras trece la sf\xE2r\u0219itul listei, nu mai apare la programare \u0219i nu mai intr\u0103 \xEEn plan. Datele lui r\u0103m\xE2n neatinse."), o.default.createElement("div", {
+    o.default.createElement("div", {
         className: "grid grid-cols-2 gap-3"
     }, o.default.createElement(xe, {
-        label: "Data na\u0219terii"
+        label: "Ore incluse"
     }, o.default.createElement("input", {
-        type: "date",
+        type: "number",
+        min: "0",
         className: ie,
-        value: c.birthDate || "",
-        onChange: S => b("birthDate", S.target.value)
+        value: c.includedHours,
+        onChange: S => b("includedHours", S.target.value)
     })), o.default.createElement(xe, {
-        label: "Data \xEEnscrierii"
+        label: "Ore suplimentare"
     }, o.default.createElement("input", {
-        type: "date",
+        type: "number",
+        min: "0",
         className: ie,
-        value: c.enrollDate,
-        onChange: S => b("enrollDate", S.target.value)
-    }))), c.birthDate && (() => {
-        let S = vu(c.birthDate);
-        if (S == null) return null;
-        let k = xf(c.birthDate);
-        return o.default.createElement("p", {
-            className: "text-xs -mt-2 mb-3.5",
-            style: {
-                color: k ? "var(--accent-ink)" : "var(--muted-2)"
-            }
-        }, k ? `Are ${S} ani \u2014 \xEEmpline\u0219te 18 pe ${qe(k)}.` : `Are ${S} ani.`)
-    })(), o.default.createElement(xe, {
+        value: c.extraHours,
+        onChange: S => b("extraHours", S.target.value)
+    })))),
+    o.default.createElement(Jn, {
+        title: "Cum \xEEl programezi",
+        summary: `${c.masina ? (iasLista.filter(iasM => iasM.id === c.masina)[0] || {}).nume || "" : "orice ma\u0219in\u0103"} \xB7 ${Number(c.weeklyLimit) || a}/s\u0103pt.`
+    }, o.default.createElement("div", {
+        className: "grid grid-cols-2 gap-3"
+    }, o.default.createElement(xe, {
+        label: "Cutie de viteze"
+    }, o.default.createElement("select", {
+        className: ie,
+        value: c.cutie || "",
+        onChange: S => b("cutie", S.target.value)
+    }, o.default.createElement("option", { value: "" }, "Nespecificat\u0103"),
+        o.default.createElement("option", { value: "manuala" }, "Manual\u0103"),
+        o.default.createElement("option", { value: "automata" }, "Automat\u0103"))),
+        o.default.createElement(xe, {
+            label: "Ma\u0219ina lui"
+        }, o.default.createElement("select", {
+            className: ie,
+            value: c.masina || "",
+            onChange: S => b("masina", S.target.value)
+        }, o.default.createElement("option", { value: "" }, "Oricare"),
+            iasLista.map(S => o.default.createElement("option", {
+                key: S.id, value: S.id
+            }, S.nume + (S.cutie ? " \xB7 " + (S.cutie === "automata" ? "automat\u0103" : "manual\u0103") : "")))))),
+    o.default.createElement(IasInfo, {
+        text: iasLista.length
+        ? "Planul \xEEi a\u0219az\u0103 unul dup\u0103 altul pe elevii cu aceea\u0219i ma\u0219in\u0103, ca s\u0103 n-o schimbi de la o \u0219edin\u021B\u0103 la alta."
+        : "Ma\u0219inile se adaug\u0103 \xEEn Set\u0103ri \u2192 Ma\u0219inile mele."
+    }),
+    o.default.createElement(xe, {
+        label: "Loca\u021Bie de start implicit\u0103"
+    }, o.default.createElement("input", {
+        className: ie,
+        value: c.defaultLocation || "",
+        onChange: S => b("defaultLocation", S.target.value),
+        placeholder: "Punct de \xEEnt\xE2lnire obi\u0219nuit (op\u021Bional)"
+    })),
+    o.default.createElement(nS, {
+        locations: i,
+        value: c.defaultLocation || "",
+        onPick: S => b("defaultLocation", S)
+    }),
+    o.default.createElement(xe, {
+        label: "Limba \u0219edin\u021Belor"
+    }, o.default.createElement("select", {
+        className: ie,
+        value: c.english ? "en" : "ro",
+        onChange: S => b("english", S.target.value === "en")
+    }, o.default.createElement("option", {
+        value: "ro"
+    }, "Rom\xE2n\u0103"), o.default.createElement("option", {
+        value: "en"
+    }, "Englez\u0103"))),
+    o.default.createElement(IasInfo, {
+        text: "Toate \u0219edin\u021Bele lui pornesc \xEEn limba asta. La salariu se aplic\u0103 tarifele corespunz\u0103toare, iar la fiecare \u0219edin\u021B\u0103 po\u021Bi schimba punctual."
+    }),
+    o.default.createElement(xe, {
         label: "Limit\u0103 \u0219edin\u021Be/s\u0103pt."
     }, o.default.createElement("input", {
         type: "number",
@@ -5563,9 +5540,10 @@ function Wk({
         className: ie,
         value: c.weeklyLimit,
         onChange: S => b("weeklyLimit", S.target.value)
-    })), o.default.createElement(Jn, {
-        title: "Disponibilitate",
-        summary: c.availFrom !== "" && c.availTo !== "" && c.availFrom != null && c.availTo != null ? `${Se(Number(c.availFrom))}\u2013${Se(Number(c.availTo))}` : "oric\xE2nd"
+    }))),
+    o.default.createElement(Jn, {
+        title: "C\xE2nd poate veni",
+        summary: c.plecatPana ? `plecat p\xE2n\u0103 pe ${qe(c.plecatPana)}` : (c.availDays || []).length ? `${c.availDays.length} zile alese` : "oric\xE2nd"
     }, o.default.createElement("div", {
         className: "grid grid-cols-2 gap-3"
     }, o.default.createElement(xe, {
@@ -5718,39 +5696,78 @@ function Wk({
         value: 7
     }, "O dat\u0103 pe s\u0103pt\u0103m\xE2n\u0103")))), o.default.createElement("p", {
         className: "text-xs text-slate-400 -mt-2"
-    }, 'Planificatorul respect\u0103 toate condi\u021Biile de aici. \u201ERitm minim" p\u0103streaz\u0103 distan\u021Ba dintre dou\u0103 \u0219edin\u021Be ale aceluia\u0219i elev.')), o.default.createElement(Jn, {
-        title: "Examen teoretic",
-        summary: c.theoryExamResult || (c.theoryExamDate ? qe(c.theoryExamDate) : "nesus\u021Binut")
-    }, o.default.createElement("div", {
-        className: "grid grid-cols-2 gap-3"
-    }, o.default.createElement(xe, {
-        label: "Data"
-    }, o.default.createElement("input", {
-        type: "date",
-        className: ie,
-        value: c.theoryExamDate || "",
-        onChange: S => b("theoryExamDate", S.target.value)
-    })), o.default.createElement(xe, {
-        label: "Nr. sus\u021Bineri"
-    }, o.default.createElement("input", {
-        type: "number",
-        min: "0",
-        className: ie,
-        value: c.theoryExamAttempts,
-        onChange: S => b("theoryExamAttempts", S.target.value)
-    }))), o.default.createElement(xe, {
-        label: "Rezultat"
-    }, o.default.createElement("select", {
-        className: ie,
-        value: c.theoryExamResult || "",
-        onChange: S => b("theoryExamResult", S.target.value)
-    }, o.default.createElement("option", {
-        value: ""
-    }, "Nesus\u021Binut / \xEEn a\u0219teptare"), o.default.createElement("option", {
-        value: "promovat"
-    }, "Promovat"), o.default.createElement("option", {
-        value: "respins"
-    }, "Respins")))), o.default.createElement(Jn, {
+    }, 'Planificatorul respect\u0103 toate condi\u021Biile de aici. \u201ERitm minim" p\u0103streaz\u0103 distan\u021Ba dintre dou\u0103 \u0219edin\u021Be ale aceluia\u0219i elev.'),
+    /* Plecat o perioadă: vacanță, deplasare, orice. Bifa deschide intervalul.
+       Perioada se dă fie ca dată de întoarcere,
+    fie ca număr de zile — cum îți
+       spune elevul: „plec de mâine patru zile" sau „lipsesc până pe 14". */
+    o.default.createElement("button", {
+        type: "button",
+        onClick: () => {
+            if (c.plecatPana) { b("plecatDin", ""), b("plecatPana", "") }
+            else { b("plecatDin", Be()), b("plecatPana", ft(pn(Ue(Be()), 6))) }
+        },
+        className: "w-full flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 mb-3.5 text-left",
+        style: c.plecatPana
+            ? { borderColor: "var(--accent-line)", background: "var(--accent-soft)" }
+            : { borderColor: "var(--line)", background: "var(--surface)" }
+    }, o.default.createElement("span", {
+        className: "flex items-center justify-center rounded-md shrink-0",
+        style: {
+            width: 18, height: 18,
+            border: `1.5px solid ${c.plecatPana ? "var(--accent)" : "var(--line-2)"}`,
+            background: c.plecatPana ? "var(--accent)" : "transparent",
+            color: "#3a2100", fontSize: 12, fontWeight: 900, lineHeight: 1
+        }
+    }, c.plecatPana ? "\u2713" : ""), o.default.createElement("span", {
+        className: "flex-1 min-w-0"
+    }, o.default.createElement("span", {
+        className: "block text-sm font-medium text-slate-800"
+    }, "Indisponibil o perioad\u0103"), o.default.createElement("span", {
+        className: "block text-xs text-slate-400"
+    }, "Nu apare la programare \u0219i nici \xEEn plan c\xE2t lipse\u0219te."))),
+    c.plecatPana ? o.default.createElement(o.default.Fragment, null,
+        o.default.createElement("div", { className: "grid grid-cols-2 gap-3" },
+            o.default.createElement(xe, { label: "Pleac\u0103 de pe" },
+                o.default.createElement("input", {
+                    type: "date", className: ie,
+                    value: c.plecatDin || Be(),
+                    onChange: S => {
+                        let k = S.target.value || Be();
+                        b("plecatDin", k);
+                        if ((c.plecatPana || "") < k) b("plecatPana", k)
+                    }
+                })),
+            o.default.createElement(xe, { label: "Ultima zi lips\u0103" },
+                o.default.createElement("input", {
+                    type: "date", className: ie,
+                    value: c.plecatPana || "",
+                    min: c.plecatDin || Be(),
+                    onChange: S => b("plecatPana", S.target.value)
+                }))),
+        o.default.createElement("span", {
+            className: "block text-xs font-medium text-slate-500 mb-1.5"
+        }, "sau c\xE2te zile lipse\u0219te"),
+        o.default.createElement("div", { className: "flex gap-1.5 mb-2" },
+            [2, 3, 4, 7, 14].map(zile => {
+                let din = c.plecatDin || Be(),
+                    pana = ft(pn(Ue(din), zile - 1)),
+                    ales = c.plecatPana === pana;
+                return o.default.createElement("button", {
+                    key: zile, type: "button",
+                    onClick: () => b("plecatPana", pana),
+                    className: `flex-1 py-2 rounded-xl text-xs font-medium border ${ales ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-500 border-slate-200"}`
+                }, zile, " zile")
+            })),
+        o.default.createElement("p", {
+            className: "text-xs mb-3.5",
+            style: { color: "var(--accent-ink)" }
+        }, `Revine \u0219i reapare \xEEn liste pe ${qe(ft(pn(Ue(c.plecatPana), 1)))}.`)
+    ) : null),
+    o.default.createElement(Jn, {
+        title: "Examene",
+        summary: c.examDate ? qe(c.examDate) : "neprogramat"
+    }, o.default.createElement(Jn, {
         title: "Examen practic",
         summary: c.examResult || (c.examDate ? qe(c.examDate) : "nesus\u021Binut")
     }, o.default.createElement("div", {
@@ -5798,15 +5815,41 @@ function Wk({
         value: "respins"
     }, "Respins"))), o.default.createElement("p", {
         className: "text-xs text-slate-400 -mt-2"
-    }, "Aici treci situa\u021Bia de p\xE2n\u0103 acum, exact cum e \u2014 nimic nu se calculeaz\u0103 automat. Rezultatul unui examen nou se noteaz\u0103 de pe fi\u0219a elevului.")), o.default.createElement(xe, {
-        label: "Noti\u021Be"
-    }, o.default.createElement("textarea", {
-        rows: 2,
+    }, "Aici treci situa\u021Bia de p\xE2n\u0103 acum, exact cum e \u2014 nimic nu se calculeaz\u0103 automat. Rezultatul unui examen nou se noteaz\u0103 de pe fi\u0219a elevului.")),
+    o.default.createElement(Jn, {
+        title: "Examen teoretic",
+        summary: c.theoryExamResult || (c.theoryExamDate ? qe(c.theoryExamDate) : "nesus\u021Binut")
+    }, o.default.createElement("div", {
+        className: "grid grid-cols-2 gap-3"
+    }, o.default.createElement(xe, {
+        label: "Data"
+    }, o.default.createElement("input", {
+        type: "date",
         className: ie,
-        value: c.notes,
-        onChange: S => b("notes", S.target.value),
-        placeholder: "Op\u021Bional"
-    })), o.default.createElement(Jn, {
+        value: c.theoryExamDate || "",
+        onChange: S => b("theoryExamDate", S.target.value)
+    })), o.default.createElement(xe, {
+        label: "Nr. sus\u021Bineri"
+    }, o.default.createElement("input", {
+        type: "number",
+        min: "0",
+        className: ie,
+        value: c.theoryExamAttempts,
+        onChange: S => b("theoryExamAttempts", S.target.value)
+    }))), o.default.createElement(xe, {
+        label: "Rezultat"
+    }, o.default.createElement("select", {
+        className: ie,
+        value: c.theoryExamResult || "",
+        onChange: S => b("theoryExamResult", S.target.value)
+    }, o.default.createElement("option", {
+        value: ""
+    }, "Nesus\u021Binut / \xEEn a\u0219teptare"), o.default.createElement("option", {
+        value: "promovat"
+    }, "Promovat"), o.default.createElement("option", {
+        value: "respins"
+    }, "Respins"))))),
+    o.default.createElement(Jn, {
         title: "Mementouri",
         summary: (c.reminders || []).length ? `${(c.reminders||[]).length}` : "niciunul"
     }, o.default.createElement("div", {
@@ -5864,10 +5907,21 @@ function Wk({
         size: 14
     }), "Memento nou"), o.default.createElement("p", {
         className: "text-xs text-slate-400 mt-1.5"
-    }, "Alegi a c\xE2ta \u0219edin\u021B\u0103 a elevului \u0219i scrii mesajul. \xCE\u021Bi apare pe Acas\u0103 \xEEn ziua acelei \u0219edin\u021Be \u0219i r\u0103m\xE2ne p\xE2n\u0103 o marchezi ca efectuat\u0103.")), e === "edit" && o.default.createElement("button", {
+    }, "Alegi a c\xE2ta \u0219edin\u021B\u0103 a elevului \u0219i scrii mesajul. \xCE\u021Bi apare pe Acas\u0103 \xEEn ziua acelei \u0219edin\u021Be \u0219i r\u0103m\xE2ne p\xE2n\u0103 o marchezi ca efectuat\u0103.")),
+    o.default.createElement(xe, {
+        label: "Noti\u021Be"
+    }, o.default.createElement("textarea", {
+        rows: 2,
+        className: ie,
+        value: c.notes,
+        onChange: S => b("notes", S.target.value),
+        placeholder: "Op\u021Bional"
+    })),
+    e === "edit" && o.default.createElement("button", {
         onClick: () => x(!0),
         className: "w-full text-center text-xs text-red-500 py-2"
-    }, "\u0218terge elevul"), o.default.createElement(Ri, {
+    }, "\u0218terge elevul"),
+    o.default.createElement(Ri, {
         open: w,
         title: "\u0218tergi elevul?",
         message: "Se vor \u0219terge \u0219i toate \u0219edin\u021Bele acestui elev. Ac\u021Biunea nu poate fi anulat\u0103.",
@@ -8780,6 +8834,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.34.46",
+    titlu: "Fi\u0219a elevului, str\xE2ns\u0103 pe grupuri",
+    puncte: ["Formularul e \xEEmp\u0103r\u021Bit \xEEn \u0219apte grupuri care se pliaz\u0103: Persoana, Dosar, Ore \u0219i plat\u0103, Cum \xEEl programezi, C\xE2nd poate veni, Examene, Mementouri.", "Fiecare grup arat\u0103 pe r\xE2nd un rezumat, ca s\u0103 \u0219tii ce e \xEEn\u0103untru f\u0103r\u0103 s\u0103-l deschizi.", "Indisponibilitatea a intrat l\xE2ng\u0103 disponibilitate, unde \xEEi e locul.", "Explica\u021Biile nu mai stau la vedere: sunt \xEEntr-un \u201Ei\u201D \xEEncercuit, cu buton de \xEEnchidere."]
+}, {
     v: "v2.34.45",
     titlu: "Tortul peste tot \u0219i calendar mai curat",
     puncte: ["Tortul apare acum l\xE2ng\u0103 numele elevului oriunde \xEEl vezi: Acas\u0103, \xEEn calendar, la sugestii, \xEEn rapoarte.", "Elevii pleca\u021Bi o perioad\u0103 nu mai sunt propu\u0219i nici la ad\u0103ugarea rapid\u0103 din calendar.", "Butonul \u201ETraseul zilei\u201D a fost scos \u2014 drumul care conteaz\u0103 e cel p\xE2n\u0103 la urm\u0103toarea \u0219edin\u021B\u0103, iar butonul acela a r\u0103mas."]
