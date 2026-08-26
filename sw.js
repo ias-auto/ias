@@ -1,7 +1,7 @@
 /* IAS — lucrătorul care ține aplicația pornită și fără internet.
    La fiecare versiune nouă se schimbă numele depozitului de mai jos, vechiul
    depozit se șterge, iar telefonul preia noua versiune la următoarea pornire. */
-const CACHE = 'ias-v2.34.46';
+const CACHE = 'ias-v2.34.47';
 const ASSETS = ['./', './index.html', './manifest.json', './icon.png', './icon-192.png'];
 
 self.addEventListener('install', (e) => {
