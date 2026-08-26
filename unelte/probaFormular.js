@@ -34,7 +34,7 @@ const inchide = () => [...doc().querySelectorAll('.ecran-peste')].forEach(f =>
     || f.querySelector('button[aria-label="Închide"]')));
 const pauza = (ms) => new Promise(r => setTimeout(r, ms));
 
-const GRUPURI = ['Persoana', 'Dosar', 'Ore și plată', 'Cum îl programezi', 'Când poate veni', 'Examene', 'Mementouri'];
+const GRUPURI = ['Persoana', 'Dosar', 'Școlarizare', 'Setări programare', 'Disponibilitate', 'Examene', 'Agendă'];
 
 (async () => {
   await pauza(3000);
@@ -81,9 +81,10 @@ const GRUPURI = ['Persoana', 'Dosar', 'Ore și plată', 'Cum îl programezi', 'C
   const tot = foi()[foi().length - 1].textContent;
   const trebuie = ['Nume de familie', 'Prenume', 'Sex', 'Telefon', 'Data nașterii', 'Județ',
     'Zona de domiciliu', 'Nr. înregistrare', 'Grupa', 'OS', 'Categoria de permis',
-    'Data înscrierii', 'Situație', 'Școlarizare', 'Ore incluse', 'Ore suplimentare',
+    'Data înscrierii', 'Situație', 'Alege pachet', 'Ședințe incluse', 'Ședințe suplimentare',
     'Cutie de viteze', 'Mașina lui', 'Locație de start', 'Limba ședințelor',
-    'Limită ședințe', 'Tură de lucru', 'Indisponibil o perioadă', 'Notițe'];
+    'Limită ședințe', 'Tură de lucru', 'Indisponibil o perioadă', 'Notițe',
+    'Mementouri', 'Practic', 'Teoretic'];
   const lipsa = trebuie.filter(x => !tot.includes(x));
   cer('niciun câmp nu s-a pierdut', lipsa.length === 0,
     lipsa.length ? 'lipsesc: ' + lipsa.join(', ') : `${trebuie.length} câmpuri verificate pe nume`);
