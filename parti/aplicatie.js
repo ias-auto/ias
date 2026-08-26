@@ -3440,6 +3440,115 @@ function IasInfo({ text: iasT }) {
         }, "\xD7 \xEEnchide")) : null)
 }
 
+/* Două file una lângă alta, din care se vede o singură dată. Folosit la examene:
+   deschideai un grup și înăuntru dădeai peste alte două care se pliau, ceea ce
+   se citea greu. Acum alegi practicul sau teoreticul, ca la un comutator. */
+/* Notițele elevului. Erau una singură, un text lung în care se amestecau toate.
+   Acum sunt mai multe, fiecare cu ziua ei, ca la un carnet: le adaugi pe rând,
+   le schimbi, le ștergi. Textul vechi se păstrează ca primă notiță. */
+function iasNotite(elev) {
+    if (!elev) return [];
+    if (Array.isArray(elev.notite)) return elev.notite;
+    let vechi = (elev.notes || "").trim();
+    return vechi ? [{ id: "veche", text: vechi, data: elev.enrollDate || "" }] : [];
+}
+
+function IasNotite({ notite: lista, onChange: schimba }) {
+    let [ciorna, pune] = (0, o.useState)(null);
+    function salveaza() {
+        let t = (ciorna.text || "").trim();
+        if (!t) { pune(null); return }
+        if (ciorna.id) schimba(lista.map(x => x.id === ciorna.id ? { ...x, text: t } : x));
+        else schimba([...lista, { id: Vt("nota"), text: t, data: Be() }]);
+        pune(null);
+    }
+    return o.default.createElement(o.default.Fragment, null,
+        o.default.createElement("div", { className: "space-y-1.5 mb-2" },
+            lista.length === 0 && !ciorna
+                ? o.default.createElement("div", { className: "text-sm text-slate-400 py-1" }, "Nicio noti\u021B\u0103 \xEEnc\u0103.")
+                : null,
+            lista.map(nt => o.default.createElement("div", {
+                key: nt.id,
+                className: "flex items-start gap-2 px-3.5 py-2.5 rounded-xl bg-white border border-slate-200"
+            },
+                o.default.createElement("button", {
+                    type: "button", onClick: () => pune({ ...nt }),
+                    className: "text-left flex-1 min-w-0"
+                },
+                    o.default.createElement("span", {
+                        className: "block text-sm text-slate-800",
+                        style: { whiteSpace: "pre-wrap" }
+                    }, nt.text),
+                    nt.data ? o.default.createElement("span", {
+                        className: "block text-xs text-slate-400 mt-0.5"
+                    }, qe(nt.data)) : null),
+                o.default.createElement("button", {
+                    type: "button",
+                    onClick: () => schimba(lista.filter(x => x.id !== nt.id)),
+                    className: "p-1.5 text-slate-400 shrink-0"
+                }, o.default.createElement(pa, { size: 15 }))))),
+        ciorna
+            ? o.default.createElement("div", { className: "bg-slate-50 rounded-xl p-3" },
+                o.default.createElement("textarea", {
+                    rows: 3, className: ie, autoFocus: !0,
+                    placeholder: "Ce vrei s\u0103 \u021Bii minte despre el",
+                    value: ciorna.text || "",
+                    onChange: ev => pune({ ...ciorna, text: ev.target.value })
+                }),
+                o.default.createElement("div", { className: "flex gap-2 mt-2" },
+                    o.default.createElement("button", {
+                        type: "button", onClick: () => pune(null),
+                        className: "flex-1 py-2 rounded-lg border border-slate-200 text-sm text-slate-600"
+                    }, "Renun\u021B\u0103"),
+                    o.default.createElement("button", {
+                        type: "button", onClick: salveaza,
+                        className: "flex-1 py-2 rounded-lg bg-slate-900 text-white text-sm"
+                    }, "Salveaz\u0103")))
+            : o.default.createElement("button", {
+                type: "button", onClick: () => pune({ text: "" }),
+                className: "w-full py-2.5 rounded-xl border border-dashed border-slate-300 text-slate-500 text-sm flex items-center justify-center gap-1.5"
+            }, o.default.createElement(cn, { size: 14 }), "Noti\u021B\u0103 nou\u0103"))
+}
+
+/* O schimbare din „Ce e nou". Pe ecran stă doar titlul; amănuntele se deschid
+   dacă le ceri. Altfel lista devine un perete de text pe care nimeni nu-l
+   citește, iar ce e important se pierde printre mărunțișuri. */
+function IasNoutate({ intrare: iasN }) {
+    let [deschis, arata] = (0, o.useState)(!1);
+    return o.default.createElement("div", { className: "mb-2" },
+        o.default.createElement("button", {
+            type: "button", onClick: () => arata(!deschis),
+            className: "w-full flex items-baseline gap-2 py-1.5 text-left"
+        },
+            o.default.createElement("span", {
+                className: "text-sm font-semibold text-slate-900 flex-1"
+            }, iasN.titlu),
+            o.default.createElement("span", {
+                className: "font-mono-time text-xs text-slate-400"
+            }, iasN.eticheta || iasN.v),
+            o.default.createElement("span", {
+                className: "text-xs shrink-0",
+                style: { color: "var(--accent)" }
+            }, deschis ? "\u2212" : "+")),
+        deschis ? o.default.createElement("ul", { className: "mt-1 mb-2 space-y-1.5" },
+            iasN.puncte.map((pct, k) => o.default.createElement("li", {
+                key: k, className: "flex gap-2 text-xs text-slate-600"
+            }, o.default.createElement("span", {
+                className: "shrink-0", style: { color: "var(--accent)" }
+            }, "\u2022"), o.default.createElement("span", null, pct)))) : null)
+}
+
+function IasFile({ etichete: iasEt, copii: iasCp }) {
+    let [ales, alege] = (0, o.useState)(0);
+    return o.default.createElement("div", null,
+        o.default.createElement("div", { className: "flex gap-1.5 mb-3" },
+            iasEt.map((e, n) => o.default.createElement("button", {
+                key: n, type: "button", onClick: () => alege(n),
+                className: `flex-1 py-2 rounded-xl text-xs font-medium border ${n === ales ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-500 border-slate-200"}`
+            }, e))),
+        iasCp[ales])
+}
+
 function Jn({
     title: n,
     summary: e,
@@ -3540,7 +3649,14 @@ function zk({
             date: z.theoryExamDate,
             kind: "teoretic"
         })
-    }), S.sort((z, q) => z.date.localeCompare(q.date));
+    }), S.sort((z, q) => {
+        /* Practicele sus, teoreticele jos — practicul e cel care-ți umple ziua
+           cu ședințe, teoreticul e doar de ținut minte. În fiecare grup,
+           ordinea rămâne calendaristică. */
+        let iasA = z.kind === "teoretic" ? 1 : 0,
+            iasB = q.kind === "teoretic" ? 1 : 0;
+        return iasA !== iasB ? iasA - iasB : z.date.localeCompare(q.date)
+    });
     let E = n.students.length,
         B = n.students.filter(z => z.examResult === "promovat").length,
         $ = E ? Math.round(B / E * 100) : 0,
@@ -3665,7 +3781,26 @@ function zk({
     }, y, " \u0219edin\u021Be a\u0219teapt\u0103 confirmare"), o.default.createElement(un, {
         size: 15,
         className: "text-amber-600 shrink-0"
-    })), h > 0 && o.default.createElement("button", {
+    })), (() => {
+        /* Cine dă teoreticul azi. Stă lângă anunțul de confirmări, ca să-l vezi
+           dimineața odată cu restul, nu pierdut printre examenele viitoare. */
+        let iasAzi = S.filter(x => x.kind === "teoretic" && x.date === Be());
+        if (!iasAzi.length) return null;
+        return o.default.createElement("button", {
+            onClick: () => i(iasAzi[0].student.id),
+            className: "w-full flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-left",
+            style: { background: "var(--info-soft)", border: "1px solid var(--info-line)" }
+        }, o.default.createElement(Xn, {
+            size: 15, className: "shrink-0", style: { color: "var(--info)" }
+        }), o.default.createElement("span", {
+            className: "text-sm flex-1", style: { color: "var(--info)" }
+        }, iasAzi.length === 1
+            ? `${iasAzi[0].student.name} d\u0103 azi examenul teoretic`
+            : `${iasAzi.length} elevi dau azi examenul teoretic`),
+        o.default.createElement(un, {
+            size: 15, className: "shrink-0", style: { color: "var(--info)" }
+        }))
+    })(), h > 0 && o.default.createElement("button", {
         onClick: () => e("edit", _),
         className: "w-full flex items-center gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5 text-left"
     }, o.default.createElement(Xn, {
@@ -5435,14 +5570,14 @@ function Wk({
         text: "Un elev retras trece la sf\xE2r\u0219itul listei, nu mai apare la programare \u0219i nu mai intr\u0103 \xEEn plan. Datele lui r\u0103m\xE2n neatinse."
     })),
     o.default.createElement(Jn, {
-        title: "Ore \u0219i plat\u0103",
-        summary: `${(Number(c.includedHours) || 0) + (Number(c.extraHours) || 0)} ore`
+        title: "\u0218colarizare",
+        summary: `${(Number(c.includedHours) || 0) + (Number(c.extraHours) || 0)} \u0219edin\u021Be`
     }, (() => {
         let S = ii(s).filter(E => Number(E.hours) > 0);
         if (!S.length) return null;
         let k = S.find(E => E.id === c.pachet);
         return o.default.createElement(o.default.Fragment, null, o.default.createElement(xe, {
-            label: "\u0218colarizare"
+            label: "Alege pachet"
         }, o.default.createElement("select", {
             className: ie,
             value: c.pachet || "",
@@ -5459,7 +5594,7 @@ function Wk({
     o.default.createElement("div", {
         className: "grid grid-cols-2 gap-3"
     }, o.default.createElement(xe, {
-        label: "Ore incluse"
+        label: "\u0218edin\u021Be incluse"
     }, o.default.createElement("input", {
         type: "number",
         min: "0",
@@ -5467,7 +5602,7 @@ function Wk({
         value: c.includedHours,
         onChange: S => b("includedHours", S.target.value)
     })), o.default.createElement(xe, {
-        label: "Ore suplimentare"
+        label: "\u0218edin\u021Be suplimentare"
     }, o.default.createElement("input", {
         type: "number",
         min: "0",
@@ -5476,9 +5611,32 @@ function Wk({
         onChange: S => b("extraHours", S.target.value)
     })))),
     o.default.createElement(Jn, {
-        title: "Cum \xEEl programezi",
-        summary: `${c.masina ? (iasLista.filter(iasM => iasM.id === c.masina)[0] || {}).nume || "" : "orice ma\u0219in\u0103"} \xB7 ${Number(c.weeklyLimit) || a}/s\u0103pt.`
-    }, o.default.createElement("div", {
+        title: "Set\u0103ri programare",
+        summary: `${c.defaultLocation || "f\u0103r\u0103 loc fix"} \xB7 ${Number(c.weeklyLimit) || a}/s\u0103pt.`
+    }, o.default.createElement(xe, {
+        label: "Loca\u021Bie de start implicit\u0103"
+    }, o.default.createElement("input", {
+        className: ie,
+        value: c.defaultLocation || "",
+        onChange: S => b("defaultLocation", S.target.value),
+        placeholder: "Punct de \xEEnt\xE2lnire obi\u0219nuit (op\u021Bional)"
+    })),
+    o.default.createElement(nS, {
+        locations: i,
+        value: c.defaultLocation || "",
+        onPick: S => b("defaultLocation", S)
+    }),
+    o.default.createElement(xe, {
+        label: "Limit\u0103 \u0219edin\u021Be/s\u0103pt."
+    }, o.default.createElement("input", {
+        type: "number",
+        min: "1",
+        max: "7",
+        className: ie,
+        value: c.weeklyLimit,
+        onChange: S => b("weeklyLimit", S.target.value)
+    })),
+    o.default.createElement("div", {
         className: "grid grid-cols-2 gap-3"
     }, o.default.createElement(xe, {
         label: "Cutie de viteze"
@@ -5505,19 +5663,6 @@ function Wk({
         : "Ma\u0219inile se adaug\u0103 \xEEn Set\u0103ri \u2192 Ma\u0219inile mele."
     }),
     o.default.createElement(xe, {
-        label: "Loca\u021Bie de start implicit\u0103"
-    }, o.default.createElement("input", {
-        className: ie,
-        value: c.defaultLocation || "",
-        onChange: S => b("defaultLocation", S.target.value),
-        placeholder: "Punct de \xEEnt\xE2lnire obi\u0219nuit (op\u021Bional)"
-    })),
-    o.default.createElement(nS, {
-        locations: i,
-        value: c.defaultLocation || "",
-        onPick: S => b("defaultLocation", S)
-    }),
-    o.default.createElement(xe, {
         label: "Limba \u0219edin\u021Belor"
     }, o.default.createElement("select", {
         className: ie,
@@ -5530,19 +5675,9 @@ function Wk({
     }, "Englez\u0103"))),
     o.default.createElement(IasInfo, {
         text: "Toate \u0219edin\u021Bele lui pornesc \xEEn limba asta. La salariu se aplic\u0103 tarifele corespunz\u0103toare, iar la fiecare \u0219edin\u021B\u0103 po\u021Bi schimba punctual."
-    }),
-    o.default.createElement(xe, {
-        label: "Limit\u0103 \u0219edin\u021Be/s\u0103pt."
-    }, o.default.createElement("input", {
-        type: "number",
-        min: "1",
-        max: "7",
-        className: ie,
-        value: c.weeklyLimit,
-        onChange: S => b("weeklyLimit", S.target.value)
-    }))),
+    })),
     o.default.createElement(Jn, {
-        title: "C\xE2nd poate veni",
+        title: "Disponibilitate",
         summary: c.plecatPana ? `plecat p\xE2n\u0103 pe ${qe(c.plecatPana)}` : (c.availDays || []).length ? `${c.availDays.length} zile alese` : "oric\xE2nd"
     }, o.default.createElement("div", {
         className: "grid grid-cols-2 gap-3"
@@ -5767,10 +5902,9 @@ function Wk({
     o.default.createElement(Jn, {
         title: "Examene",
         summary: c.examDate ? qe(c.examDate) : "neprogramat"
-    }, o.default.createElement(Jn, {
-        title: "Examen practic",
-        summary: c.examResult || (c.examDate ? qe(c.examDate) : "nesus\u021Binut")
-    }, o.default.createElement("div", {
+    }, o.default.createElement(IasFile, {
+        etichete: ["Practic", "Teoretic"],
+        copii: [o.default.createElement("div", null, o.default.createElement("div", {
         className: "grid grid-cols-2 gap-3"
     }, o.default.createElement(xe, {
         label: "Data"
@@ -5815,11 +5949,7 @@ function Wk({
         value: "respins"
     }, "Respins"))), o.default.createElement("p", {
         className: "text-xs text-slate-400 -mt-2"
-    }, "Aici treci situa\u021Bia de p\xE2n\u0103 acum, exact cum e \u2014 nimic nu se calculeaz\u0103 automat. Rezultatul unui examen nou se noteaz\u0103 de pe fi\u0219a elevului.")),
-    o.default.createElement(Jn, {
-        title: "Examen teoretic",
-        summary: c.theoryExamResult || (c.theoryExamDate ? qe(c.theoryExamDate) : "nesus\u021Binut")
-    }, o.default.createElement("div", {
+    }, "Aici treci situa\u021Bia de p\xE2n\u0103 acum, exact cum e \u2014 nimic nu se calculeaz\u0103 automat. Rezultatul unui examen nou se noteaz\u0103 de pe fi\u0219a elevului.")), o.default.createElement("div", null, o.default.createElement("div", {
         className: "grid grid-cols-2 gap-3"
     }, o.default.createElement(xe, {
         label: "Data"
@@ -5848,11 +5978,14 @@ function Wk({
         value: "promovat"
     }, "Promovat"), o.default.createElement("option", {
         value: "respins"
-    }, "Respins"))))),
+    }, "Respins"))))]
+    })),
     o.default.createElement(Jn, {
-        title: "Mementouri",
-        summary: (c.reminders || []).length ? `${(c.reminders||[]).length}` : "niciunul"
-    }, o.default.createElement("div", {
+        title: "Agend\u0103",
+        summary: `${(c.reminders || []).length} memento \xB7 ${iasNotite(c).length} noti\u021Be`
+    }, o.default.createElement("span", {
+        className: "block text-xs font-medium text-slate-500 mb-1.5"
+    }, "Mementouri"), o.default.createElement("div", {
         className: "space-y-2 mb-2"
     }, (c.reminders || []).map((S, k) => o.default.createElement("div", {
         key: S.id || k,
@@ -5905,18 +6038,15 @@ function Wk({
         className: "w-full py-2.5 rounded-xl border border-dashed border-slate-300 text-slate-500 text-sm flex items-center justify-center gap-1.5"
     }, o.default.createElement(cn, {
         size: 14
-    }), "Memento nou"), o.default.createElement("p", {
-        className: "text-xs text-slate-400 mt-1.5"
-    }, "Alegi a c\xE2ta \u0219edin\u021B\u0103 a elevului \u0219i scrii mesajul. \xCE\u021Bi apare pe Acas\u0103 \xEEn ziua acelei \u0219edin\u021Be \u0219i r\u0103m\xE2ne p\xE2n\u0103 o marchezi ca efectuat\u0103.")),
-    o.default.createElement(xe, {
-        label: "Noti\u021Be"
-    }, o.default.createElement("textarea", {
-        rows: 2,
-        className: ie,
-        value: c.notes,
-        onChange: S => b("notes", S.target.value),
-        placeholder: "Op\u021Bional"
-    })),
+    }), "Memento nou"), o.default.createElement(IasInfo, {
+        text: "Alegi a c\xE2ta \u0219edin\u021B\u0103 a elevului \u0219i scrii mesajul. \xCE\u021Bi apare pe Acas\u0103 \xEEn ziua acelei \u0219edin\u021Be \u0219i r\u0103m\xE2ne p\xE2n\u0103 o marchezi ca efectuat\u0103."
+    }),
+    o.default.createElement("div", { className: "mt-3" }, o.default.createElement("span", {
+        className: "block text-xs font-medium text-slate-500 mb-1.5"
+    }, "Noti\u021Be"), o.default.createElement(IasNotite, {
+        notite: iasNotite(c),
+        onChange: iasL => b("notite", iasL)
+    }))),
     e === "edit" && o.default.createElement("button", {
         onClick: () => x(!0),
         className: "w-full text-center text-xs text-red-500 py-2"
@@ -6273,20 +6403,45 @@ Te rog confirm\u0103. Mul\u021Bumesc!`;
         size: 14
     }), "Trimite programul elevului"), !(e.phone && N.length > 0) && o.default.createElement("div", {
         className: "mb-2.5"
-    }), e.notes && e.notes.trim() && o.default.createElement("div", {
-        className: "rounded-xl px-3.5 py-3 mb-4",
-        style: {
-            background: "var(--surface-2)",
-            border: "1px solid var(--line)"
+    }), (() => {
+        /* Notițele și mementourile, pe cardul elevului. Una singură se citește
+           pe loc; mai multe se strâng într-o listă, ca să nu umple cardul. */
+        let iasN = iasNotite(e),
+            iasM = (e.reminders || []).filter(x => (x.text || "").trim()),
+            iasTot = iasN.length + iasM.length;
+        if (!iasTot) return null;
+        let iasCutie = (titlu, copii) => o.default.createElement("div", {
+            className: "rounded-xl px-3.5 py-3 mb-4",
+            style: { background: "var(--surface-2)", border: "1px solid var(--line)" }
+        }, o.default.createElement("div", {
+            className: "text-xs font-medium text-slate-400 uppercase tracking-wide mb-1"
+        }, titlu), copii);
+        let iasRandNota = (nt) => o.default.createElement("div", {
+            key: nt.id, className: "text-sm text-slate-700 mb-1 last:mb-0",
+            style: { whiteSpace: "pre-wrap" }
+        }, nt.text, nt.data ? o.default.createElement("span", {
+            className: "block text-xs text-slate-400"
+        }, qe(nt.data)) : null);
+        let iasRandMem = (m) => o.default.createElement("div", {
+            key: m.id, className: "text-sm mb-1 last:mb-0",
+            style: { color: "var(--accent-ink)" }
+        }, m.text, o.default.createElement("span", {
+            className: "text-xs text-slate-400"
+        }, " \xB7 la \u0219edin\u021Ba ", m.atSession || "?"));
+
+        if (iasTot === 1) {
+            return iasN.length
+                ? iasCutie("Noti\u021B\u0103", iasRandNota(iasN[0]))
+                : iasCutie("Memento", iasRandMem(iasM[0]));
         }
-    }, o.default.createElement("div", {
-        className: "text-xs font-medium text-slate-400 uppercase tracking-wide mb-1"
-    }, "Noti\u021Be"), o.default.createElement("div", {
-        className: "text-sm text-slate-700",
-        style: {
-            whiteSpace: "pre-wrap"
-        }
-    }, e.notes)), o.default.createElement(Jn, {
+        return iasCutie("Agend\u0103 \xB7 " + iasTot,
+            o.default.createElement("div", null,
+                iasM.map(iasRandMem),
+                iasM.length && iasN.length ? o.default.createElement("div", {
+                    className: "my-2", style: { borderTop: "1px solid var(--line)" }
+                }) : null,
+                iasN.map(iasRandNota)));
+    })(), o.default.createElement(Jn, {
         title: "Istoric \u0219edin\u021Be",
         summary: O.length ? `${O.length}` : "gol"
     }, o.default.createElement("div", {
@@ -8834,6 +8989,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.34.47",
+    titlu: "Agenda elevului \u0219i denumiri mai limpezi",
+    puncte: ["Grup nou \u201EAgend\u0103\u201D pe fi\u0219a elevului: mementouri \u0219i noti\u021Be la un loc. Noti\u021Bele pot fi mai multe, fiecare cu ziua ei, \u0219i se pot schimba sau \u0219terge.", "Pe cardul elevului apare noti\u021Ba sau mementoul; dac\u0103 sunt mai multe, se str\xE2ng \xEEntr-o list\u0103.", "Se scrie \u201E\u0219edin\u021Be\u201D, nu \u201Eore\u201D, ca s\u0103 nu se \xEEn\u021Beleag\u0103 gre\u0219it.", "Examenele nu mai deschid alte dou\u0103 liste: alegi practic sau teoretic dintr-un comutator.", "Pe Acas\u0103, examenele teoretice au cobor\xEEt la coada listei, iar cine d\u0103 teoreticul azi are anun\u021Bul lui.", "\u201ECe e nou\u201D arat\u0103 doar titlurile; am\u0103nuntele se deschid la atingere."]
+}, {
     v: "v2.34.46",
     titlu: "Fi\u0219a elevului, str\xE2ns\u0103 pe grupuri",
     puncte: ["Formularul e \xEEmp\u0103r\u021Bit \xEEn \u0219apte grupuri care se pliaz\u0103: Persoana, Dosar, Ore \u0219i plat\u0103, Cum \xEEl programezi, C\xE2nd poate veni, Examene, Mementouri.", "Fiecare grup arat\u0103 pe r\xE2nd un rezumat, ca s\u0103 \u0219tii ce e \xEEn\u0103untru f\u0103r\u0103 s\u0103-l deschizi.", "Indisponibilitatea a intrat l\xE2ng\u0103 disponibilitate, unde \xEEi e locul.", "Explica\u021Biile nu mai stau la vedere: sunt \xEEntr-un \u201Ei\u201D \xEEncercuit, cu buton de \xEEnchidere."]
@@ -9011,26 +9170,10 @@ function c3({
         className: "text-xs text-slate-400 mb-3"
     }, "Schimb\u0103rile de la versiunea ", e, " \xEEncoace."), a.length === 0 && o.default.createElement("p", {
         className: "text-sm text-slate-400 py-4 text-center"
-    }, "Nimic nou de la ultima deschidere."), a.map(r => o.default.createElement("div", {
+    }, "Nimic nou de la ultima deschidere."), a.map(r => o.default.createElement(IasNoutate, {
         key: r.v,
-        className: "mb-4"
-    }, o.default.createElement("div", {
-        className: "flex items-baseline gap-2"
-    }, o.default.createElement("span", {
-        className: "text-sm font-semibold text-slate-900"
-    }, r.titlu), o.default.createElement("span", {
-        className: "font-mono-time text-xs text-slate-400"
-    }, r.eticheta || r.v)), o.default.createElement("ul", {
-        className: "mt-1.5 space-y-1.5"
-    }, r.puncte.map((i, s) => o.default.createElement("li", {
-        key: s,
-        className: "flex gap-2 text-xs text-slate-600"
-    }, o.default.createElement("span", {
-        className: "shrink-0",
-        style: {
-            color: "var(--accent)"
-        }
-    }, "\u2022"), o.default.createElement("span", null, i)))))))
+        intrare: r
+    })))
 }
 var f3 = "https://github.com/ias-auto/ias/edit/main/licente.json",
     p3 = "https://ias-auto.github.io/ias/";
