@@ -656,6 +656,30 @@ function $A({
     }), "Tax\u0103 nou\u0103"))
 }
 
+/* Un câmp numeric care se lasă scris. Cele legate direct de setare săreau
+   înapoi la o valoare validă în clipa în care goleai câmpul, așa că nu puteai
+   șterge ca să scrii altceva. Aici textul stă pe loc cât scrii, iar limitele se
+   pun abia la ieșirea din câmp. */
+function IasNumar({ value: iasV, min: iasMin = 0, max: iasMax = 999, onCommit: iasC, className: iasCls }) {
+    let [text, pune] = (0, o.useState)(String(iasV));
+    (0, o.useEffect)(() => { pune(String(iasV)) }, [iasV]);
+    let limita = (n) => Math.max(iasMin, Math.min(iasMax, n));
+    return o.default.createElement("input", {
+        type: "text", inputMode: "numeric", value: text,
+        onFocus: ev => ev.target.select(),
+        onChange: ev => {
+            let brut = ev.target.value.replace(/[^0-9]/g, "").slice(0, 3);
+            pune(brut);
+            if (brut !== "") iasC(limita(Number(brut)))
+        },
+        onBlur: () => {
+            let n = limita(Number(text) || iasMin || 1);
+            pune(String(n)), iasC(n)
+        },
+        className: iasCls
+    })
+}
+
 function xw({
     value: n,
     onCommit: e
@@ -669,11 +693,15 @@ function xw({
         value: t,
         onFocus: r => r.target.select(),
         onChange: r => {
-            let i = r.target.value.replace(/[^0-9]/g, "").slice(-1);
-            a(i), i !== "" && e(Number(i))
+            /* Se putea scrie doar ultima cifră tastată, așa că ștergeai un 2 ca
+               să pui 4 și rămâneai cu 1. Acum câmpul se scrie normal: îl poți
+               goli, poți scrie două cifre, iar limitele se pun la ieșire. */
+            let i = r.target.value.replace(/[^0-9]/g, "").slice(0, 2);
+            a(i), i !== "" && e(Math.max(1, Math.min(7, Number(i))))
         },
         onBlur: () => {
-            t === "" && (a("0"), e(0))
+            let i = Math.max(1, Math.min(7, Number(t) || 1));
+            a(String(i)), e(i)
         },
         className: "w-12 text-center text-sm border border-slate-200 rounded-lg py-1 bg-white"
     })
@@ -735,14 +763,33 @@ function Uw(n) {
 }
 var Rw = "ias-student";
 
-function XA(n, e) {
+/* Indicativul tău: inițialele numelui, ca să se știe în aplicația colegului cine
+   a ținut ședințele de până acum. Fără nume completat, rămâne marca aplicației. */
+function iasIndicativ(setari) {
+    let nume = ((setari && setari.numeleTau) || "").trim();
+    if (!nume) return AA;
+    // și numele legate cu cratimă dau inițiale: „Ioan-Adrian Stancu" → IAS
+    let ini = nume.split(/[\s-]+/).filter(Boolean).map(x => x[0]).join("").toUpperCase();
+    return ini.slice(0, 4) || AA;
+}
+
+function XA(n, e, iasSetari) {
+    let semn = iasIndicativ(iasSetari);
     return JSON.stringify({
         kind: Rw,
         schemaVersion: f0,
         appVersion: ri,
         exportedAt: Yn(),
+        instructor: semn,
         student: n,
-        sessions: e.filter(t => t.studentId === n.id)
+        /* Ședințele plecate cu elevul poartă indicativul tău: la colegul care-l
+           primește ele sunt ore făcute cu altcineva, deci se trec ca atare, cu
+           numele tău scris în dreptul lor. */
+        sessions: e.filter(t => t.studentId === n.id).map(t => t.otherInstructor ? t : {
+            ...t,
+            otherInstructor: !0,
+            instructorName: semn
+        })
     }, null, 2)
 }
 
@@ -2913,8 +2960,10 @@ function oi({
             zIndex: i
         }
     }, o.default.createElement("div", {
-        className: "absolute inset-0 bg-slate-900/70 fade-anim",
-        onClick: e
+        /* Fundalul nu mai închide fereastra. Se închidea din greșeală, cu tot cu
+           ce scriseseși în ea. Închiderea se face doar de la „×" sau de la
+           butoanele din josul ferestrei. */
+        className: "absolute inset-0 bg-slate-900/70 fade-anim"
     }), o.default.createElement("div", {
         className: "relative w-full max-w-lg bg-white rounded-2xl flex flex-col sheet-anim",
         style: {
@@ -2943,6 +2992,39 @@ function oi({
     }, r))) : null
 }
 
+/* Întrebarea de la închiderea unei ferestre în care ai scris ceva. Trei ieșiri
+   limpezi: păstrezi, arunci, sau te întorci la ce făceai. */
+function IasIntrebare({ open: iasO, onSalveaza: iasS, onRenunta: iasR, onInapoi: iasI }) {
+    if (!iasO) return null;
+    return o.default.createElement("div", {
+        className: "fixed inset-0 flex items-center justify-center px-6 ecran-peste",
+        style: { zIndex: Wt.dialog }
+    }, o.default.createElement("div", {
+        className: "absolute inset-0 bg-slate-900/50 fade-anim"
+    }), o.default.createElement("div", {
+        className: "relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm fade-anim"
+    },
+        o.default.createElement("h3", {
+            className: "font-semibold text-slate-900 mb-1"
+        }, "Ai modific\u0103ri nesalvate"),
+        o.default.createElement("p", {
+            className: "text-sm text-slate-500 mb-4"
+        }, "Ce faci cu ele?"),
+        o.default.createElement("button", {
+            onClick: iasS,
+            className: "w-full py-2.5 mb-2 rounded-xl bg-slate-900 text-white text-sm font-medium"
+        }, "P\u0103streaz\u0103 modific\u0103rile"),
+        o.default.createElement("button", {
+            onClick: iasR,
+            className: "w-full py-2.5 mb-2 rounded-xl border text-sm font-medium",
+            style: { borderColor: "var(--bad-line)", color: "var(--bad)" }
+        }, "Renun\u021B\u0103 la modific\u0103ri"),
+        o.default.createElement("button", {
+            onClick: iasI,
+            className: "w-full py-2 text-sm text-slate-500"
+        }, "\xCEnapoi la fi\u0219\u0103")))
+}
+
 function Ri({
     open: n,
     title: e,
@@ -2958,8 +3040,7 @@ function Ri({
             zIndex: Wt.dialog
         }
     }, o.default.createElement("div", {
-        className: "absolute inset-0 bg-slate-900/50 fade-anim",
-        onClick: s
+        className: "absolute inset-0 bg-slate-900/50 fade-anim"
     }), o.default.createElement("div", {
         className: "relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm fade-anim"
     }, o.default.createElement("h3", {
@@ -2996,8 +3077,7 @@ function Nk({
             zIndex: Wt.notify
         }
     }, o.default.createElement("div", {
-        className: "absolute inset-0 bg-slate-900/50 fade-anim",
-        onClick: e
+        className: "absolute inset-0 bg-slate-900/50 fade-anim"
     }), o.default.createElement("div", {
         className: "relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm fade-anim"
     }, o.default.createElement("h3", {
@@ -3066,8 +3146,7 @@ function Pk({
             zIndex: Wt.dialog
         }
     }, o.default.createElement("div", {
-        className: "absolute inset-0 bg-slate-900/50 fade-anim",
-        onClick: r
+        className: "absolute inset-0 bg-slate-900/50 fade-anim"
     }), o.default.createElement("div", {
         className: "relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm fade-anim"
     }, o.default.createElement("h3", {
@@ -3130,8 +3209,7 @@ function Dk({
             zIndex: Wt.dialog
         }
     }, o.default.createElement("div", {
-        className: "absolute inset-0 bg-slate-900/50 fade-anim",
-        onClick: r
+        className: "absolute inset-0 bg-slate-900/50 fade-anim"
     }), o.default.createElement("div", {
         className: "relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm fade-anim"
     }, o.default.createElement("h3", {
@@ -3574,7 +3652,7 @@ function Jn({
             transition: "transform .2s"
         }
     })), r && o.default.createElement("div", {
-        className: "mt-1"
+        className: "mt-1 ias-derulare"
     }, t))
 }
 
@@ -3958,8 +4036,7 @@ function Ok({
             zIndex: Wt.dialog
         }
     }, o.default.createElement("div", {
-        className: "absolute inset-0 bg-slate-900/50 fade-anim",
-        onClick: s
+        className: "absolute inset-0 bg-slate-900/50 fade-anim"
     }), o.default.createElement("div", {
         className: "relative bg-white rounded-2xl shadow-2xl p-4 w-full max-w-sm fade-anim"
     }, o.default.createElement("h3", {
@@ -4481,7 +4558,8 @@ function Rk({
     onDelete: l,
     onTrimiteConfirmare: u
 }) {
-    let [d, f] = (0, o.useState)(null), [p, c] = (0, o.useState)(""), [m, g] = (0, o.useState)(Be()), [v, w] = (0, o.useState)(a.settings.startMin), [x, h] = (0, o.useState)("included"), [y, _] = (0, o.useState)("scheduled"), [b, M] = (0, o.useState)(""), [S, k] = (0, o.useState)(""), [E, B] = (0, o.useState)(!1), [$, G] = (0, o.useState)(""), [A, O] = (0, o.useState)(!1), [N, C] = (0, o.useState)(""), [W, X] = (0, o.useState)(!1), [R, K] = (0, o.useState)(null), ne = (0, o.useMemo)(() => {
+    let [iasInit, iasPuneInit] = (0, o.useState)(""), [iasIntreb, iasIntreaba] = (0, o.useState)(!1),
+        [d, f] = (0, o.useState)(null), [p, c] = (0, o.useState)(""), [m, g] = (0, o.useState)(Be()), [v, w] = (0, o.useState)(a.settings.startMin), [x, h] = (0, o.useState)("included"), [y, _] = (0, o.useState)("scheduled"), [b, M] = (0, o.useState)(""), [S, k] = (0, o.useState)(""), [E, B] = (0, o.useState)(!1), [$, G] = (0, o.useState)(""), [A, O] = (0, o.useState)(!1), [N, C] = (0, o.useState)(""), [W, X] = (0, o.useState)(!1), [R, K] = (0, o.useState)(null), ne = (0, o.useMemo)(() => {
         if (e !== "edit" || !t || !t.id) return null;
         let L = Be();
         return t.status === "pending" && t.date >= L ? "pending" : (t.status === "scheduled" || t.status === "pending") && t.date < L ? "unmarked" : null
@@ -4511,7 +4589,10 @@ function Rk({
                 }
                 c(L), g(j || Be()), w(Q), h(T ? gw(T, a.sessions) : "included"), _("scheduled"), M(""), k(t?.location || T?.defaultLocation || ""), B(!1), G(""), O(!!(T && T.english))
             }
-        }, [n, e, t]), !n) return null;
+        }, [n, e, t]), (0, o.useEffect)(() => {
+        // reținem cum arăta fișa imediat după deschidere
+        if (n) { let iasT = setTimeout(() => { iasPuneInit(JSON.stringify([p, m, v, x, y, b, S, E, $, A])), iasIntreaba(!1) }, 0); return () => clearTimeout(iasT) }
+    }, [n, e, t]), !n) return null;
     let q = e === "edit" ? d || t : null,
         de = q ? q.id : null,
         ge = a.students.find(L => L.id === p),
@@ -4587,9 +4668,12 @@ function Rk({
             english: A
         }, e, q || t)
     }
+    /* Ca la fișa elevului: dacă ai schimbat ceva, închiderea întreabă întâi. */
+    let iasAcum = JSON.stringify([p, m, v, x, y, b, S, E, $, A]),
+        iasInchide = () => { iasInit && iasAcum !== iasInit ? iasIntreaba(!0) : i() };
     return o.default.createElement(oi, {
         open: n,
-        onClose: i,
+        onClose: iasInchide,
         title: e === "edit" ? "Editeaz\u0103 \u0219edin\u021Ba" : "\u0218edin\u021B\u0103 nou\u0103",
         layer: Wt.form,
         footer: o.default.createElement("div", null, N && o.default.createElement("p", {
@@ -4763,7 +4847,12 @@ function Rk({
     }), "Trimite confirmarea elevului"), e === "edit" && o.default.createElement("button", {
         onClick: () => X(!0),
         className: "w-full text-center text-xs text-red-500 py-2"
-    }, "\u0218terge definitiv \u0219edin\u021Ba"), o.default.createElement(Ri, {
+    }, "\u0218terge definitiv \u0219edin\u021Ba"), o.default.createElement(IasIntrebare, {
+        open: iasIntreb,
+        onSalveaza: () => { iasIntreaba(!1), he() },
+        onRenunta: () => { iasIntreaba(!1), i() },
+        onInapoi: () => iasIntreaba(!1)
+    }), o.default.createElement(Ri, {
         open: W,
         title: "\u0218tergi \u0219edin\u021Ba?",
         message: "Pentru o anulare obi\u0219nuit\u0103, mai bine schimb\u0103 statusul \xEEn \u201EAnulat\u0103\u201D ca s\u0103 p\u0103strezi istoricul. \u0218tergerea definitiv\u0103 elimin\u0103 \u0219edin\u021Ba complet.",
@@ -5260,6 +5349,9 @@ function Wk({
             notes: ""
         }),
         [c, m] = (0, o.useState)(p()),
+        // cum arăta fișa la deschidere, ca să știm dacă s-a schimbat ceva
+        [iasInitial, iasPuneInitial] = (0, o.useState)(""),
+        [iasIntreb, iasIntreaba] = (0, o.useState)(!1),
         [g, v] = (0, o.useState)(""),
         [w, x] = (0, o.useState)(!1),
         [h, y] = (0, o.useState)("");
@@ -5287,9 +5379,15 @@ function Wk({
                         let k = S.name.trim().split(/\s+/);
                         S.lastName = k[0] || "", S.firstName = k.slice(1).join(" ")
                     }
-                    m(S)
-                } else m(p())
+                    m(S), iasPuneInitial(JSON.stringify(S)), iasIntreaba(!1)
+                } else {
+                    let iasG = p();
+                    m(iasG), iasPuneInitial(JSON.stringify(iasG)), iasIntreaba(!1)
+                }
         }, [n, e, t]), !n) return null;
+    /* Închiderea nu mai pierde ce ai scris: dacă s-a schimbat ceva, întreabă. */
+    let iasSchimbat = () => iasInitial !== "" && JSON.stringify(c) !== iasInitial,
+        iasInchide = () => { iasSchimbat() ? iasIntreaba(!0) : u() };
     let b = (S, k) => m(E => ({
         ...E,
         [S]: k
@@ -5316,7 +5414,7 @@ function Wk({
     }
     return o.default.createElement(oi, {
         open: n,
-        onClose: u,
+        onClose: iasInchide,
         title: e === "edit" ? "Editeaz\u0103 elev" : "Elev nou",
         layer: Wt.form,
         footer: o.default.createElement("div", null, g && o.default.createElement("p", {
@@ -6051,7 +6149,12 @@ function Wk({
         onClick: () => x(!0),
         className: "w-full text-center text-xs text-red-500 py-2"
     }, "\u0218terge elevul"),
-    o.default.createElement(Ri, {
+    o.default.createElement(IasIntrebare, {
+        open: iasIntreb,
+        onSalveaza: () => { iasIntreaba(!1), M() },
+        onRenunta: () => { iasIntreaba(!1), u() },
+        onInapoi: () => iasIntreaba(!1)
+    }), o.default.createElement(Ri, {
         open: w,
         title: "\u0218tergi elevul?",
         message: "Se vor \u0219terge \u0219i toate \u0219edin\u021Bele acestui elev. Ac\u021Biunea nu poate fi anulat\u0103.",
@@ -6207,7 +6310,30 @@ Te rog confirm\u0103. Mul\u021Bumesc!`;
     }, "Promovat"), o.default.createElement("button", {
         onClick: () => c(e.id, "respins"),
         className: "flex-1 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-medium"
-    }, "Respins"))), o.default.createElement("div", {
+    }, "Respins"))), (() => {
+        /* Teoreticul se notează la fel ca practicul, cu contorul lui de
+           susțineri. Apare doar după ce a trecut ziua examenului. */
+        if (!e.theoryExamDate || e.theoryExamDate > Be() || e.theoryExamResult === "promovat") return null;
+        return o.default.createElement("div", {
+            className: "rounded-xl px-3.5 py-3 mb-4",
+            style: { border: "1px solid var(--info-line)", background: "var(--info-soft)" }
+        }, o.default.createElement("div", {
+            className: "text-sm font-medium", style: { color: "var(--info)" }
+        }, "Examen teoretic \xB7 ", qe(e.theoryExamDate)), o.default.createElement("div", {
+            className: "text-xs text-slate-500 mt-0.5 mb-2.5"
+        }, "Noteaz\u0103 rezultatul. Se adaug\u0103 o sus\u021Binere la contor (",
+            Number(e.theoryExamAttempts) || 0,
+            " p\xE2n\u0103 acum), iar la respins data r\u0103m\xE2ne liber\u0103 pentru reexaminare."),
+        o.default.createElement("div", { className: "flex gap-2" },
+            o.default.createElement("button", {
+                onClick: () => c(e.id, "promovat", "teoretic"),
+                className: "flex-1 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-medium"
+            }, "Promovat"),
+            o.default.createElement("button", {
+                onClick: () => c(e.id, "respins", "teoretic"),
+                className: "flex-1 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-medium"
+            }, "Respins")))
+    })(), o.default.createElement("div", {
         className: "grid grid-cols-3 gap-2 mb-3"
     }, o.default.createElement("div", {
         className: "bg-slate-50 rounded-xl px-3 py-2.5 text-center"
@@ -8239,15 +8365,12 @@ function e3({
                 className: "text-xs text-slate-400 -mt-2"
             }, "\u0218edin\u021Bele deja programate \xEE\u0219i p\u0103streaz\u0103 durata cu care au fost create. Sub 30 de minute, calendarul arat\u0103 orele \xEEntregi, iar minutul \xEEl alegi la atingere.")) : ne === "elevi" ? o.default.createElement(o.default.Fragment, null, o.default.createElement(xe, {
                 label: "Limit\u0103 implicit\u0103 \u0219edin\u021Be/s\u0103pt\u0103m\xE2n\u0103 pentru elevi noi"
-            }, o.default.createElement("input", {
-                type: "number",
-                min: "1",
-                max: "7",
-                className: ie,
+            }, o.default.createElement(IasNumar, {
                 value: J.defaultWeeklyLimit,
-                onChange: H => e({
-                    defaultWeeklyLimit: Number(H.target.value) || 1
-                })
+                min: 1,
+                max: 7,
+                className: ie,
+                onCommit: H => e({ defaultWeeklyLimit: H })
             })), o.default.createElement(xe, {
                 label: "Jude\u021B implicit pentru elevi noi"
             }, o.default.createElement("select", {
@@ -8989,6 +9112,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.34.48",
+    titlu: "Ferestre care nu se \xEEnchid din gre\u0219eal\u0103",
+    puncte: ["Ferestrele nu se mai \xEEnchid c\xE2nd atingi pe l\xE2ng\u0103 ele. Se \xEEnchid de la \u201E\xD7\u201D sau de la butoanele din josul lor.", "Dac\u0103 ai schimbat ceva \u0219i \xEEnchizi, e\u0219ti \xEEntrebat: p\u0103strezi modific\u0103rile, renun\u021Bi la ele, sau te \xEEntorci la fi\u0219\u0103.", "Listele se deruleaz\u0103 de sub titlul lor, ca s\u0103 se vad\u0103 de unde s-au deschis.", "Examenul teoretic are butoane de promovat \u0219i respins, cu contorul lui de sus\u021Bineri.", "Elevul trimis altui instructor \xEE\u021Bi p\u0103streaz\u0103 indicativul pe \u0219edin\u021Bele f\u0103cute cu tine.", "C\xE2mpul de \u0219edin\u021Be pe s\u0103pt\u0103m\xE2n\u0103 se las\u0103 golit \u0219i rescris."]
+}, {
     v: "v2.34.47",
     titlu: "Agenda elevului \u0219i denumiri mai limpezi",
     puncte: ["Grup nou \u201EAgend\u0103\u201D pe fi\u0219a elevului: mementouri \u0219i noti\u021Be la un loc. Noti\u021Bele pot fi mai multe, fiecare cu ziua ei, \u0219i se pot schimba sau \u0219terge.", "Pe cardul elevului apare noti\u021Ba sau mementoul; dac\u0103 sunt mai multe, se str\xE2ng \xEEntr-o list\u0103.", "Se scrie \u201E\u0219edin\u021Be\u201D, nu \u201Eore\u201D, ca s\u0103 nu se \xEEn\u021Beleag\u0103 gre\u0219it.", "Examenele nu mai deschid alte dou\u0103 liste: alegi practic sau teoretic dintr-un comutator.", "Pe Acas\u0103, examenele teoretice au cobor\xEEt la coada listei, iar cine d\u0103 teoreticul azi are anun\u021Bul lui.", "\u201ECe e nou\u201D arat\u0103 doar titlurile; am\u0103nuntele se deschid la atingere."]
@@ -9952,7 +10079,21 @@ function y3() {
         })
     }
 
-    function we(I, F) {
+    function we(I, F, iasFel) {
+        // teoreticul se notează la fel ca practicul, cu contorul lui de susțineri
+        if (iasFel === "teoretic") {
+            ce(V => ({
+                ...V,
+                students: V.students.map(ee => ee.id !== I ? ee : {
+                    ...ee,
+                    theoryExamResult: F,
+                    theoryExamAttempts: (Number(ee.theoryExamAttempts) || 0) + 1,
+                    theoryExamDate: F === "promovat" ? ee.theoryExamDate : ""
+                })
+            }));
+            Y(F === "promovat" ? "Teoretic promovat \u2014 felicit\u0103ri!" : "Teoretic respins. Programeaz\u0103-l din nou c\xE2nd are dat\u0103.");
+            return
+        }
         ce(V => ({
             ...V,
             students: V.students.map(ee => {
@@ -10211,7 +10352,7 @@ function y3() {
     }
 
     function ut(I) {
-        let F = XA(I, n.sessions),
+        let F = XA(I, n.sessions, n.settings),
             V = new Blob([F], {
                 type: "application/json"
             }),
@@ -10362,6 +10503,19 @@ function y3() {
         }
     }, o.default.createElement("style", null, `
         @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
+        /* Listele nu mai apar dintr-o dată, ci se derulează de sub titlul lor:
+           altfel îți ia o clipă să înțelegi ce s-a deschis și de unde. */
+        @keyframes iasDerulare {
+          from { opacity: 0; transform: translateY(-6px) scaleY(.96); max-height: 0 }
+          to   { opacity: 1; transform: none; max-height: 1400px }
+        }
+        .ias-derulare {
+          animation: iasDerulare .26s cubic-bezier(.22,.9,.3,1);
+          transform-origin: top center;
+          overflow: hidden;
+        }
+        @media (prefers-reduced-motion: reduce) { .ias-derulare { animation: none } }
+
         @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .sheet-anim { animation: slideUp 0.22s ease-out; }
