@@ -10,8 +10,11 @@ const rez = [];
 const cer = (n, ok, d) => rez.push([ok ? '✓' : '✕', n, d || '']);
 
 /* ---- verificări pe cod, fără browser ---- */
+/* Fundalul are acum o atingere, dar una care cere închiderea, nu una care
+   închide: nicăieri nu mai cheamă funcția de închidere a ferestrei. */
 cer('fundalul nu mai închide ferestrele',
-  !/bg-slate-900\/\d+ fade-anim",\s*\n\s*onClick:/.test(html));
+  !/bg-slate-900\/\d+ fade-anim",\s*\n\s*onClick: [a-z]\b/.test(html)
+  && /bg-slate-900\/\d+ fade-anim",\s*\n\s*onClick: PA/.test(html));
 // în fișierul construit diacriticele sunt scrise cu coduri, nu cu litere
 cer('există întrebarea pentru modificări',
   html.includes('Ai modific\\u0103ri nesalvate') && html.includes('Renun\\u021B\\u0103 la modific\\u0103ri'));
