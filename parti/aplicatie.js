@@ -89,6 +89,9 @@ function PA() {
             e.classList.remove("cere-inchidere"), setTimeout(() => t(a - 1), 130)
         }, 200)
     };
+    /* Pe lângă conturul roșu, cerem și un cuvânt: altfel omul vede o clipire și
+       nu știe ce i se cere. Mesajul îl scrie aplicația, care are toastul. */
+    try { window.dispatchEvent(new CustomEvent("ias-cere-inchidere")) } catch (a) {}
     return t(2), !0
 }
 var sr = {
@@ -1172,6 +1175,19 @@ function sk(n, e, t) {
     }
 }
 
+/* Ritmul minim dintre ședințe, aceeași regulă pe care o ține și planul: dacă
+   elevul a cerut o pauză de câteva zile, nu i se propune o ședință prea aproape
+   de una pe care o are deja. Fără asta, sugestiile din calendar propuneau
+   oameni pe care planul nu i-ar fi programat niciodată în ziua aceea. */
+function iasRitmOk(sesiuni, elev, zi) {
+    let pauza = Number(elev && elev.minGapDays) || 0;
+    if (pauza < 2) return !0;
+    let tinta = Ue(zi).getTime();
+    return !(sesiuni || []).some(x => x.studentId === elev.id
+        && x.status !== "cancelled"
+        && Math.abs(Math.round((tinta - Ue(x.date).getTime()) / 864e5)) < pauza)
+}
+
 function ok(n, e) {
     return n.students.map(t => ({
         s: t,
@@ -1180,7 +1196,7 @@ function ok(n, e) {
         s: t,
         free: a
         // elevul plecat o perioadă nu se propune în ziua în care lipsește
-    }) => a > 0 && Pf(t) && !iasLipseste(t, e) && Qw(t, e) && !Nw(n.sessions, t.id, e, null) && Pw(n.sessions, t.id, e, null) < (Number(t.weeklyLimit) || n.settings.defaultWeeklyLimit)).sort((t, a) => {
+    }) => a > 0 && Pf(t) && !iasLipseste(t, e) && Qw(t, e) && iasRitmOk(n.sessions, t, e) && !Nw(n.sessions, t.id, e, null) && Pw(n.sessions, t.id, e, null) < (Number(t.weeklyLimit) || n.settings.defaultWeeklyLimit)).sort((t, a) => {
         let r = t.s.examDate ? Sf(e, t.s.examDate) : 9999,
             i = a.s.examDate ? Sf(e, a.s.examDate) : 9999,
             s = Mf(t.s, e) ? 0 : 1,
@@ -2963,7 +2979,8 @@ function oi({
         /* Fundalul nu mai închide fereastra. Se închidea din greșeală, cu tot cu
            ce scriseseși în ea. Închiderea se face doar de la „×" sau de la
            butoanele din josul ferestrei. */
-        className: "absolute inset-0 bg-slate-900/70 fade-anim"
+        className: "absolute inset-0 bg-slate-900/70 fade-anim",
+        onClick: PA
     }), o.default.createElement("div", {
         className: "relative w-full max-w-lg bg-white rounded-2xl flex flex-col sheet-anim",
         style: {
@@ -3000,7 +3017,8 @@ function IasIntrebare({ open: iasO, onSalveaza: iasS, onRenunta: iasR, onInapoi:
         className: "fixed inset-0 flex items-center justify-center px-6 ecran-peste",
         style: { zIndex: Wt.dialog }
     }, o.default.createElement("div", {
-        className: "absolute inset-0 bg-slate-900/50 fade-anim"
+        className: "absolute inset-0 bg-slate-900/50 fade-anim",
+        onClick: PA
     }), o.default.createElement("div", {
         className: "relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm fade-anim"
     },
@@ -3040,7 +3058,8 @@ function Ri({
             zIndex: Wt.dialog
         }
     }, o.default.createElement("div", {
-        className: "absolute inset-0 bg-slate-900/50 fade-anim"
+        className: "absolute inset-0 bg-slate-900/50 fade-anim",
+        onClick: PA
     }), o.default.createElement("div", {
         className: "relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm fade-anim"
     }, o.default.createElement("h3", {
@@ -3077,7 +3096,8 @@ function Nk({
             zIndex: Wt.notify
         }
     }, o.default.createElement("div", {
-        className: "absolute inset-0 bg-slate-900/50 fade-anim"
+        className: "absolute inset-0 bg-slate-900/50 fade-anim",
+        onClick: PA
     }), o.default.createElement("div", {
         className: "relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm fade-anim"
     }, o.default.createElement("h3", {
@@ -3146,7 +3166,8 @@ function Pk({
             zIndex: Wt.dialog
         }
     }, o.default.createElement("div", {
-        className: "absolute inset-0 bg-slate-900/50 fade-anim"
+        className: "absolute inset-0 bg-slate-900/50 fade-anim",
+        onClick: PA
     }), o.default.createElement("div", {
         className: "relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm fade-anim"
     }, o.default.createElement("h3", {
@@ -3209,7 +3230,8 @@ function Dk({
             zIndex: Wt.dialog
         }
     }, o.default.createElement("div", {
-        className: "absolute inset-0 bg-slate-900/50 fade-anim"
+        className: "absolute inset-0 bg-slate-900/50 fade-anim",
+        onClick: PA
     }), o.default.createElement("div", {
         className: "relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm fade-anim"
     }, o.default.createElement("h3", {
@@ -4036,7 +4058,8 @@ function Ok({
             zIndex: Wt.dialog
         }
     }, o.default.createElement("div", {
-        className: "absolute inset-0 bg-slate-900/50 fade-anim"
+        className: "absolute inset-0 bg-slate-900/50 fade-anim",
+        onClick: PA
     }), o.default.createElement("div", {
         className: "relative bg-white rounded-2xl shadow-2xl p-4 w-full max-w-sm fade-anim"
     }, o.default.createElement("h3", {
@@ -9112,6 +9135,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.34.49",
+    titlu: "Sugestii mai cur\u0103\u021Bite \u0219i un semnal la \xEEnchidere",
+    puncte: ["C\xE2nd atingi pe l\xE2ng\u0103 o fereastr\u0103, conturul ei clipe\u0219te ro\u0219u \u0219i \u021Bi se spune s-o \xEEnchizi \u2014 la fel ca la ap\u0103sarea unei file.", "La sugestiile din calendar nu mai apar elevii pe care planul nu i-ar programa: cei pleca\u021Bi, cei din zile nepotrivite \u0219i cei care au cerut o pauz\u0103 \xEEntre \u0219edin\u021Be."]
+}, {
     v: "v2.34.48",
     titlu: "Ferestre care nu se \xEEnchid din gre\u0219eal\u0103",
     puncte: ["Ferestrele nu se mai \xEEnchid c\xE2nd atingi pe l\xE2ng\u0103 ele. Se \xEEnchid de la \u201E\xD7\u201D sau de la butoanele din josul lor.", "Dac\u0103 ai schimbat ceva \u0219i \xEEnchizi, e\u0219ti \xEEntrebat: p\u0103strezi modific\u0103rile, renun\u021Bi la ele, sau te \xEEntorci la fi\u0219\u0103.", "Listele se deruleaz\u0103 de sub titlul lor, ca s\u0103 se vad\u0103 de unde s-au deschis.", "Examenul teoretic are butoane de promovat \u0219i respins, cu contorul lui de sus\u021Bineri.", "Elevul trimis altui instructor \xEE\u021Bi p\u0103streaz\u0103 indicativul pe \u0219edin\u021Bele f\u0103cute cu tine.", "C\xE2mpul de \u0219edin\u021Be pe s\u0103pt\u0103m\xE2n\u0103 se las\u0103 golit \u0219i rescris."]
@@ -9738,10 +9765,7 @@ function y3() {
     }), [c, m] = (0, o.useState)(null), [g, v] = (0, o.useState)(null), [w, x] = (0, o.useState)(null), [h, y] = (0, o.useState)(!1), [_, b] = (0, o.useState)(void 0), [M, S] = (0, o.useState)(!1), [k, E] = (0, o.useState)(""), B = (0, o.useRef)(!1), [$, G] = (0, o.useState)(!1), [A, O] = (0, o.useState)(0), [N, C] = (0, o.useState)(null), [W, X] = (0, o.useState)(null), [R, K] = (0, o.useState)(!1);
 
     function ne(I) {
-        if (PA()) {
-            Y("\xCEnchide mai \xEEnt\xE2i fereastra deschis\u0103.", "error");
-            return
-        }
+        if (PA()) return;
         i(I)
     }
     let Y = (0, o.useCallback)((I, F) => {
@@ -9750,6 +9774,12 @@ function y3() {
             type: F
         }), setTimeout(() => l(null), 2600)
     }, []);
+    (0, o.useEffect)(() => {
+        // când se cere închiderea unei ferestre, spunem și de ce
+        let I = () => Y("\xCEnchide mai \xEEnt\xE2i fereastra deschis\u0103.", "error");
+        window.addEventListener("ias-cere-inchidere", I);
+        return () => window.removeEventListener("ias-cere-inchidere", I)
+    }, [Y]);
     (0, o.useEffect)(() => {
         if (typeof window > "u" || !window.matchMedia) return;
         let I = window.matchMedia("(prefers-color-scheme: dark)");
