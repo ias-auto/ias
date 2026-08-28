@@ -1,5 +1,5 @@
 {
-  "actualizat": "2026-08-20",
+  "actualizat": "2026-08-28",
   "tipuri": {
     "vip": {
       "nume": "VIP",
@@ -42,6 +42,13 @@
       "tip": "completa",
       "pana": "2026-09-30",
       "dispozitiv": "TC83FEQJ1"
+    },
+    {
+      "cod": "IAS-TTWN-G8F2",
+      "nume": "OE-CO-SPXK",
+      "tip": "completa",
+      "pana": "2026-09-30",
+      "dispozitiv": "T7GOBKAED"
     }
   ]
 }
