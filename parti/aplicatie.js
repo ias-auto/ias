@@ -3638,6 +3638,141 @@ function IasNoutate({ intrare: iasN }) {
             }, "\u2022"), o.default.createElement("span", null, pct)))) : null)
 }
 
+/* ===================== REARANJAREA UNEI ZILE =========================
+   Ziua are un șir de ore la care sunt puse ședințele. Cele confirmate stau
+   țintuite la ora lor și nu se clintesc — sunt vorbe date elevului. Se mută
+   doar cele care așteaptă confirmarea, iar ele se așază, în ordinea în care le
+   pui tu, pe orele rămase libere între cele fixe.
+
+   De aici vine și „sare peste": dacă tragi una peste ora unei ședințe
+   confirmate, aceea nu se clatină, iar cea trasă merge la următoarea oră
+   liberă. Nu trebuie să te ferești de ele — trec singure. */
+
+var IAS_RAND = 58;   // înălțimea unui rând, în puncte de ecran
+
+function iasOrdineNoua(lista, din, la) {
+    var copie = lista.slice(), luat = copie.splice(din, 1)[0];
+    copie.splice(la, 0, luat);
+    return copie
+}
+
+function IasRearanjare({ open: iasO, data: iasZi, sesiuni: iasSes, elevi: iasEl, settings: iasSet, onClose: iasX, onAplica: iasA }) {
+    let mobile = (iasSes || []).filter(x => x.status === "pending"),
+        fixe = (iasSes || []).filter(x => x.status !== "pending"),
+        [ordine, pune] = (0, o.useState)([]),
+        [prins, prinde] = (0, o.useState)(null),
+        [mutat, muta] = (0, o.useState)(0);
+
+    (0, o.useEffect)(() => {
+        if (iasO) pune(mobile.map(x => x.id)), prinde(null), muta(0)
+    }, [iasO, iasSes]);
+
+    if (!iasO) return null;
+
+    let numele = (id) => (iasEl.find(x => x.id === id) || {}).name || "Elev \u0219ters",
+        // orele rămase libere după ce ședințele confirmate și-au păstrat locul
+        oreLibere = mobile.map(x => x.startMin).sort((a, b) => a - b),
+        deId = (id) => mobile.find(x => x.id === id),
+        indexPrins = prins ? ordine.indexOf(prins) : -1,
+        tinta = indexPrins < 0 ? -1 : Math.max(0, Math.min(ordine.length - 1, indexPrins + Math.round(mutat / IAS_RAND))),
+        previzualizare = indexPrins < 0 ? ordine : iasOrdineNoua(ordine, indexPrins, tinta);
+
+    function apuca(ev, id) {
+        ev.preventDefault();
+        try { ev.currentTarget.setPointerCapture(ev.pointerId) } catch (e) {}
+        prinde(id), muta(0);
+        let y0 = ev.clientY;
+        ev.currentTarget.__iasY = y0
+    }
+    function trage(ev) {
+        if (!prins) return;
+        let y0 = ev.currentTarget.__iasY;
+        if (y0 == null) return;
+        muta(ev.clientY - y0)
+    }
+    function lasa() {
+        if (!prins) return;
+        pune(previzualizare), prinde(null), muta(0)
+    }
+
+    /* Toate ședințele zilei, așezate la ora lor: cele fixe rămân unde erau, cele
+       mutabile primesc orele libere în ordinea aleasă de tine. */
+    let rezultat = () => {
+        let out = [];
+        ordine.forEach((id, k) => {
+            let ses = deId(id);
+            if (ses && oreLibere[k] != null) out.push({ id: id, startMin: oreLibere[k] })
+        });
+        return out
+    };
+    let seSchimba = rezultat().some(x => (deId(x.id) || {}).startMin !== x.startMin);
+
+    let randuri = [];
+    let toate = fixe.concat(mobile).slice();
+    // rândurile se desenează la ora lor, ca să se vadă ziua întreagă
+    let perechi = {};
+    previzualizare.forEach((id, k) => { if (oreLibere[k] != null) perechi[id] = oreLibere[k] });
+    fixe.forEach(x => { perechi[x.id] = x.startMin });
+    toate.sort((a, b) => (perechi[a.id] || 0) - (perechi[b.id] || 0));
+
+    toate.forEach(ses => {
+        let eMobil = ses.status === "pending",
+            eSelectat = prins === ses.id,
+            ora = perechi[ses.id];
+        randuri.push(o.default.createElement("div", {
+            key: ses.id,
+            style: {
+                height: IAS_RAND - 8, marginBottom: 8, borderRadius: 14,
+                display: "flex", alignItems: "center", gap: 10, padding: "0 12px",
+                background: eMobil ? "var(--accent-soft)" : "var(--surface-2)",
+                border: `1px solid ${eMobil ? "var(--accent-line)" : "var(--line)"}`,
+                opacity: eSelectat ? .65 : 1,
+                transform: eSelectat ? `translateY(${mutat}px)` : "none",
+                transition: eSelectat ? "none" : "transform .18s ease",
+                touchAction: "none", userSelect: "none"
+            },
+            onPointerDown: eMobil ? (ev => apuca(ev, ses.id)) : void 0,
+            onPointerMove: eMobil ? trage : void 0,
+            onPointerUp: eMobil ? lasa : void 0,
+            onPointerCancel: eMobil ? lasa : void 0
+        },
+            o.default.createElement("span", {
+                className: "font-mono-time text-xs shrink-0",
+                style: { color: eMobil ? "var(--accent-ink)" : "var(--muted-2)", width: 42 }
+            }, Se(ora)),
+            o.default.createElement("span", {
+                className: "text-sm flex-1 min-w-0 truncate",
+                style: { color: eMobil ? "var(--accent-ink)" : "var(--muted)" }
+            }, numele(ses.studentId)),
+            eMobil
+                ? o.default.createElement("span", {
+                    className: "shrink-0 text-xs", style: { color: "var(--accent)" }
+                }, "\u2261")
+                : o.default.createElement("span", {
+                    className: "shrink-0 text-xs", style: { color: "var(--muted-2)" }
+                }, "fix\u0103")))
+    });
+
+    return o.default.createElement(oi, {
+        open: iasO, onClose: iasX, title: "Rearanjeaz\u0103 ziua", layer: Wt.dialog,
+        footer: o.default.createElement("div", { className: "flex gap-2" },
+            o.default.createElement("button", {
+                onClick: iasX,
+                className: "flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 text-sm"
+            }, "Renun\u021B\u0103"),
+            o.default.createElement("button", {
+                onClick: () => iasA(rezultat()),
+                disabled: !seSchimba,
+                className: "flex-1 py-3 rounded-xl bg-slate-900 text-white text-sm font-medium disabled:opacity-40"
+            }, "P\u0103streaz\u0103 ordinea"))
+    },
+        o.default.createElement("p", { className: "text-xs text-slate-400 mb-3" },
+            mobile.length === 0
+                ? "Nicio \u0219edin\u021B\u0103 \xEEn a\u0219teptare \xEEn ziua asta. Cele confirmate r\u0103m\xE2n unde sunt."
+                : "\u021Aine ap\u0103sat pe o \u0219edin\u021B\u0103 \xEEn a\u0219teptare \u0219i trage-o. Cele confirmate stau pe loc \u0219i sunt s\u0103rite."),
+        randuri)
+}
+
 function IasFile({ etichete: iasEt, copii: iasCp }) {
     let [ales, alege] = (0, o.useState)(0);
     return o.default.createElement("div", null,
@@ -3962,20 +4097,7 @@ function zk({
         }
     }, z.reminder.text || "Memento"), o.default.createElement("span", {
         className: "block text-xs text-slate-500 truncate"
-    }, z.student.name, " \xB7 \u0219edin\u021Ba ", z.reminder.atSession, " \xB7 ", qe(z.session.date))))), M.length > 0 && o.default.createElement("div", {
-        className: "bg-white border border-slate-200 rounded-xl px-3.5 py-2.5"
-    }, o.default.createElement("div", {
-        className: "text-sm text-slate-700 mb-1.5"
-    }, "Toate orele programate sau efectuate:"), o.default.createElement("div", {
-        className: "flex flex-wrap gap-1.5"
-    }, M.map(z => o.default.createElement("button", {
-        key: z.id,
-        onClick: () => i(z.id),
-        className: "text-xs px-2 py-1 rounded-full bg-slate-50 border border-slate-200 text-slate-600"
-    }, z.name, o.default.createElement(Lf, {
-        student: z,
-        size: 12
-    }))))))), o.default.createElement("div", {
+    }, z.student.name, " \xB7 \u0219edin\u021Ba ", z.reminder.atSession, " \xB7 ", qe(z.session.date))))))), o.default.createElement("div", {
         className: "px-4 mt-5"
     }, o.default.createElement("div", {
         className: "text-xs font-medium text-slate-400 uppercase tracking-wide mb-2"
@@ -4006,7 +4128,20 @@ function zk({
         pass: O,
         fail: N,
         attempts: W
-    }))), o.default.createElement("div", {
+    })), M.length > 0 && o.default.createElement("div", {
+        className: "bg-white border border-slate-200 rounded-xl px-3.5 py-2.5"
+    }, o.default.createElement("div", {
+        className: "text-sm text-slate-700 mb-1.5"
+    }, "Toate orele programate sau efectuate:"), o.default.createElement("div", {
+        className: "flex flex-wrap gap-1.5"
+    }, M.map(z => o.default.createElement("button", {
+        key: z.id,
+        onClick: () => i(z.id),
+        className: "text-xs px-2 py-1 rounded-full bg-slate-50 border border-slate-200 text-slate-600"
+    }, z.name, o.default.createElement(Lf, {
+        student: z,
+        size: 12
+    })))))), o.default.createElement("div", {
         className: "px-4 mt-5"
     }, o.default.createElement("div", {
         className: "text-xs font-medium text-slate-400 uppercase tracking-wide mb-2"
@@ -4091,9 +4226,11 @@ function Hk({
     data: n,
     onOpenSession: e,
     onUpdateSettings: t,
-    onRecordExam: a
+    onRecordExam: a,
+    onMutaSedinte: iasMuta
 }) {
-    let [r, i] = (0, o.useState)(Be()), [s, l] = (0, o.useState)(null), [u, d] = (0, o.useState)(0), [f, p] = (0, o.useState)(null), c = b0(n.settings, r), m = () => {
+    let [iasRearDeschis, iasRear] = (0, o.useState)(!1),
+        [r, i] = (0, o.useState)(Be()), [s, l] = (0, o.useState)(null), [u, d] = (0, o.useState)(0), [f, p] = (0, o.useState)(null), c = b0(n.settings, r), m = () => {
         let A = s;
         if (!A) return;
         let O = (A.note || "").trim(),
@@ -4315,7 +4452,24 @@ function Hk({
         className: "w-full py-2.5 rounded-xl border border-dashed border-slate-300 text-slate-500 text-sm flex items-center justify-center gap-1.5"
     }, o.default.createElement(Xn, {
         size: 14
-    }), "Marcheaz\u0103 indisponibil")), (() => {
+    }), "Marcheaz\u0103 indisponibil")),
+    /* Rearanjarea zilei: se deschide doar dacă e ceva de mutat. */
+    x.filter(N => N.status === "pending").length > 1
+        ? o.default.createElement("div", { className: "px-4 mb-3" },
+            o.default.createElement("button", {
+                onClick: () => iasRear(!0),
+                className: "w-full py-2.5 rounded-xl border border-dashed border-slate-300 text-slate-500 text-sm flex items-center justify-center gap-1.5"
+            }, o.default.createElement(Kr, { size: 14 }), "Rearanjeaz\u0103 ziua"))
+        : null,
+    o.default.createElement(IasRearanjare, {
+        open: iasRearDeschis,
+        data: r,
+        sesiuni: x,
+        elevi: n.students,
+        settings: n.settings,
+        onClose: () => iasRear(!1),
+        onAplica: (iasNoi) => { iasRear(!1), iasMuta(iasNoi) }
+    }), (() => {
         let A = KA(x, n.settings),
             O = x.filter(N => (N.status === "scheduled" || N.status === "pending") && N.location).sort((N, C) => N.startMin - C.startMin)[0];
         /* Traseul zilei a fost scos: presupunea un drum de făcut între toate
@@ -4352,10 +4506,14 @@ function Hk({
                     emerald: "bg-emerald-500",
                     red: "bg-red-500"
                 } [J.c];
+            /* Ședința programată peste un interval barat se vede normal, dar
+               poartă hașura peste ea, transparentă: se citește tot, și se știe
+               că e pusă într-un interval pe care l-ai marcat indisponibil. */
+            let iasPesteBlocaj = !!bf(b0(n.settings, r), Y.startMin, or(Y, n.settings));
             return o.default.createElement("button", {
                 key: Y.id,
                 onClick: () => e("edit", Y),
-                className: "w-full flex items-stretch bg-white rounded-xl border overflow-hidden text-left active:bg-slate-50",
+                className: "w-full flex items-stretch bg-white rounded-xl border overflow-hidden text-left active:bg-slate-50" + (iasPesteBlocaj ? " ias-peste-blocaj" : ""),
                 style: O ? {
                     borderColor: "var(--violet)"
                 } : void 0
@@ -4644,6 +4802,13 @@ function Rk({
         }
         if (Nw(a.sessions, p, m, de)) {
             C("Acest elev are deja o \u0219edin\u021B\u0103 \xEEn aceast\u0103 zi.");
+            return
+        }
+        /* Peste un interval marcat indisponibil se poate programa, dar nu din
+           greșeală: te avertizează o dată, iar a doua atingere trece peste. */
+        let iasBl = bf(b0(a.settings, m), v, ye);
+        if (iasBl && !L.startsWith("Aten\u021Bie")) {
+            C(`Aten\u021Bie: intervalul e marcat indisponibil${iasBl.reason ? ` (${iasBl.reason})` : ""}. Apas\u0103 din nou \u201ESalveaz\u0103" ca s\u0103 programezi oricum.`);
             return
         }
         let T = y0(v0(a.students, m), v, ye);
@@ -7107,9 +7272,15 @@ function jk({
             y(!1), a()
         },
         onCancel: () => y(!1)
-    }), f && o.default.createElement("div", {
-        className: "px-4 mt-5"
-    }, o.default.createElement("div", {
+    }), o.default.createElement(oi, {
+        /* Planul propus se deschide ca fereastră, nu se desface în josul paginii:
+           altfel trebuia derulat ca să vezi ce ți-a ieșit. Gardul de la conținut
+           e necesar — fără el se evalua și când planul e gol. */
+        open: !!f,
+        onClose: () => p(null),
+        title: "Plan propus",
+        layer: Wt.dialog
+    }, f ? o.default.createElement("div", null, o.default.createElement("div", {
         className: "flex items-center justify-between mb-2"
     }, o.default.createElement("h2", {
         className: "font-display text-sm font-semibold text-slate-900 uppercase tracking-wide"
@@ -7143,7 +7314,7 @@ function jk({
     }, "Aplic\u0103 planul \xEEn calendar"), o.default.createElement("button", {
         onClick: () => p(null),
         className: "w-full py-2 text-xs text-slate-400 text-center"
-    }, "Renun\u021B\u0103 la propunere")))
+    }, "Renun\u021B\u0103 la propunere")) : null))
 }
 
 function aS(n, e) {
@@ -9135,6 +9306,14 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.34.51",
+    titlu: "Rearanjarea zilei prin tragere",
+    puncte: ["\xCEn Calendar ai \u201ERearanjeaz\u0103 ziua\u201D: \u021Bii ap\u0103sat pe o \u0219edin\u021B\u0103 \xEEn a\u0219teptare \u0219i o tragi unde vrei, iar celelalte se \xEEmping.", "\u0218edin\u021Bele confirmate r\u0103m\xE2n la ora lor \u0219i sunt s\u0103rite \u2014 sunt vorbe date elevului, nu se clatin\u0103.", "Ordinea se p\u0103streaz\u0103 doar dac\u0103 o confirmi; p\xE2n\u0103 atunci po\u021Bi renun\u021Ba."]
+}, {
+    v: "v2.34.50",
+    titlu: "Ferestre \u0219i intervale indisponibile",
+    puncte: ["\u201EPublic\u0103 acum\u201D \u0219i \u201EGenereaz\u0103 plan\u201D se deschid ca ferestre adev\u0103rate, cu acelea\u0219i reguli ca toate celelalte. Nu mai derulezi pagina dup\u0103 ele.", "Deschiderile s-au domolit: ferestrele \u0219i listele se desf\u0103\u0219oar\u0103 \xEEntr-o secund\u0103, ca s\u0103 se vad\u0103 de unde vin.", "Peste un interval marcat indisponibil po\u021Bi programa, dar e\u0219ti avertizat \xEEnt\xE2i, cu tot cu motiv. \u0218edin\u021Ba se vede apoi normal, cu ha\u0219ura peste ea.", "Lista cu elevii care au toate orele programate a trecut de la \u201ENecesit\u0103 aten\u021Bie\u201D la Statistici, unde \xEEi e locul."]
+}, {
     v: "v2.34.49",
     titlu: "Sugestii mai cur\u0103\u021Bite \u0219i un semnal la \xEEnchidere",
     puncte: ["C\xE2nd atingi pe l\xE2ng\u0103 o fereastr\u0103, conturul ei clipe\u0219te ro\u0219u \u0219i \u021Bi se spune s-o \xEEnchizi \u2014 la fel ca la ap\u0103sarea unei file.", "La sugestiile din calendar nu mai apar elevii pe care planul nu i-ar programa: cei pleca\u021Bi, cei din zile nepotrivite \u0219i cei care au cerut o pauz\u0103 \xEEntre \u0219edin\u021Be."]
@@ -9659,9 +9838,15 @@ Spor la treab\u0103!`;
                 color: "var(--bad)"
             }
         }, b.revocata ? "Reactiveaz\u0103" : "Revoc\u0103 accesul")))
-    })), u && o.default.createElement("div", {
-        className: "mt-4 rounded-xl bg-slate-50 border border-slate-200 p-3.5"
-    }, o.default.createElement("div", {
+    })), o.default.createElement(oi, {
+        /* Publicarea se deschide ca fereastră, ca tot restul: fundal propriu,
+           „×" de închidere, și pe stratul de dialog ca să stea deasupra ferestrei
+           de licențe. Înainte se desfăcea în josul paginii și trebuia derulat. */
+        open: !!u,
+        onClose: () => d(!1),
+        title: "Public\u0103 fi\u0219ierul",
+        layer: Wt.dialog
+    }, u ? o.default.createElement("div", null, o.default.createElement("div", {
         className: "text-sm font-medium text-slate-800 mb-1"
     }, "Public\u0103 fi\u0219ierul"), o.default.createElement("p", {
         className: "text-xs text-slate-500 mb-2"
@@ -9695,7 +9880,7 @@ Spor la treab\u0103!`;
             borderColor: "var(--ok-line)",
             color: "var(--ok)"
         }
-    }, "Am publicat")), !u && c.length > 0 && o.default.createElement("button", {
+    }, "Am publicat")) : null), !u && c.length > 0 && o.default.createElement("button", {
         onClick: () => d(!0),
         className: "w-full py-3 mt-4 rounded-xl border border-slate-200 text-slate-700 text-sm font-medium"
     }, "Public\u0103 fi\u0219ierul de licen\u021Be"), o.default.createElement("button", {
@@ -10535,12 +10720,23 @@ function y3() {
         @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
         /* Listele nu mai apar dintr-o dată, ci se derulează de sub titlul lor:
            altfel îți ia o clipă să înțelegi ce s-a deschis și de unde. */
+        /* Hașura pentru ședințele puse peste un interval marcat indisponibil.
+           Stă deasupra, dar transparentă: nu acoperă nimic din ce scrie. */
+        .ias-peste-blocaj { position: relative }
+        .ias-peste-blocaj::after {
+          content: ""; position: absolute; inset: 0; pointer-events: none;
+          border-radius: inherit;
+          background: repeating-linear-gradient(135deg,
+            var(--line-2) 0 2px, transparent 2px 9px);
+          opacity: .5;
+        }
+
         @keyframes iasDerulare {
           from { opacity: 0; transform: translateY(-6px) scaleY(.96); max-height: 0 }
           to   { opacity: 1; transform: none; max-height: 1400px }
         }
         .ias-derulare {
-          animation: iasDerulare .26s cubic-bezier(.22,.9,.3,1);
+          animation: iasDerulare 1s cubic-bezier(.16,1,.3,1);
           transform-origin: top center;
           overflow: hidden;
         }
@@ -10548,8 +10744,8 @@ function y3() {
 
         @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .sheet-anim { animation: slideUp 0.22s ease-out; }
-        .fade-anim { animation: fadeIn 0.15s ease-out; }
+        .sheet-anim { animation: slideUp 1.05s cubic-bezier(.16,1,.3,1) ease-out; }
+        .fade-anim { animation: fadeIn .55s ease-out ease-out; }
         .font-display { font-family: 'Oswald', sans-serif; }
         .font-mono-time { font-family: 'IBM Plex Mono', monospace; }
 
@@ -10902,6 +11098,16 @@ function y3() {
         data: n,
         onUpdateSettings: hn,
         onRecordExam: we,
+        onMutaSedinte: (iasNoi) => {
+            // rearanjarea zilei: fiecare ședință mutată își primește ora nouă
+            ce(V => ({
+                ...V,
+                sessions: V.sessions.map(x => {
+                    let g = iasNoi.find(y => y.id === x.id);
+                    return g ? { ...x, startMin: g.startMin } : x
+                })
+            })), Y("Ziua a fost rearanjat\u0103.")
+        },
         onOpenSession: (I, F) => d({
             open: !0,
             mode: I,
