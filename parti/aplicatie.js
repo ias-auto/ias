@@ -6110,7 +6110,11 @@ function Wk({
         className: `${ie} mt-2`,
         placeholder: "link de hart\u0103, coordonate sau Plus Code",
         onChange: S => {
-            let iasR = iasReper(a && a.settings ? a.settings : settings), k = Xw(S.target.value, iasR[0], iasR[1]);
+            /* Reperul pentru codurile scurte vine din locațiile fișei — formularul de
+               elev primește lista, nu setările întregi. Scrisesem aici un nume
+               care nu există în componenta asta, iar câmpul se oprea la fiecare
+               tastă: nu mai primea nici coordonate, nici link, nici Plus Code. */
+            let iasR = iasReper({ locations: i }), k = Xw(S.target.value, iasR[0], iasR[1]);
             k && (b("lat", k.lat), b("lng", k.lng), S.target.value = "", y(""))
         }
     }), h === "refuzat" && o.default.createElement("p", {
@@ -9741,6 +9745,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.35.4",
+    titlu: "Reparat: punctul de domiciliu",
+    puncte: ["C\xE2mpul de punct de pe fi\u0219a elevului nu mai primea nimic \u2014 nici coordonate, nici link, nici Plus Code. A fost o gre\u0219eal\u0103 strecurat\u0103 odat\u0103 cu Plus Code-urile; acum merg toate trei."]
+}, {
     v: "v2.35.3",
     titlu: "Ferestrele nu mai fug sub tastatur\u0103",
     puncte: ["C\xE2nd se ridic\u0103 tastatura, fereastra se a\u0219az\u0103 \xEEn zona r\u0103mas\u0103 vizibil\u0103 \u0219i urc\u0103 \xEEn capul ei.", "C\xE2mpurile de c\u0103utare \u2014 la locuri \u0219i la elevi \u2014 se aduc singure \xEEn dreptul ochiului c\xE2nd le atingi."]
