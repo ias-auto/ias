@@ -1,3 +1,36 @@
+/* Unde ai atins ultima oară. Fereastra pornește din punctul acela, nu din
+   mijlocul ecranului: se vede din ce ai deschis-o. */
+var IAS_ATINS = { x: 50, y: 50 };
+
+/* Când se ridică tastatura, ecranul nu se micșorează pe toate telefoanele —
+   pe unele rămâne la fel, iar tastatura doar acoperă partea de jos. O fereastră
+   așezată pe mijloc ajunge atunci pe jumătate sub taste, iar câmpul de căutare
+   nu se mai vede.
+
+   Măsurăm cât a rămas cu adevărat vizibil și legăm fereastra de zona aceea. */
+if (typeof window < "u" && window.visualViewport) {
+    var iasVV = window.visualViewport;
+    var iasMasoara = function () {
+        var r = document.documentElement;
+        r.style.setProperty("--ias-vazut", iasVV.height + "px");
+        r.style.setProperty("--ias-sus", (iasVV.offsetTop || 0) + "px");
+        // peste 120 de puncte pierdute înseamnă tastatură, nu bara browserului
+        r.classList.toggle("ias-tastatura", (window.innerHeight - iasVV.height) > 120)
+    };
+    iasVV.addEventListener("resize", iasMasoara);
+    iasVV.addEventListener("scroll", iasMasoara);
+    iasMasoara()
+}
+if (typeof document < "u") {
+    document.addEventListener("pointerdown", function (ev) {
+        var w = window.innerWidth || 1, h = window.innerHeight || 1;
+        IAS_ATINS = {
+            x: Math.round(Math.max(0, Math.min(100, ev.clientX / w * 100))),
+            y: Math.round(Math.max(0, Math.min(100, ev.clientY / h * 100)))
+        }
+    }, { capture: !0, passive: !0 })
+}
+
 var yo = ["ianuarie", "februarie", "martie", "aprilie", "mai", "iunie", "iulie", "august", "septembrie", "octombrie", "noiembrie", "decembrie"],
     xu = ["Dum", "Lun", "Mar", "Mie", "Joi", "Vin", "S\xE2m"],
     Tw = ["Duminic\u0103", "Luni", "Mar\u021Bi", "Miercuri", "Joi", "Vineri", "S\xE2mb\u0103t\u0103"],
@@ -1006,7 +1039,74 @@ function jw() {
     })
 }
 
-function Xw(n) {
+/* Plus Code — codul scurt pe care ți-l dă Google Maps la orice punct, de pildă
+   „8GP7XQR5+8V". E o adresă în sine: fiecare pereche de semne taie pătratul de
+   dinainte în douăzeci pe fiecare latură, așa că din cod se scoate direct locul.
+   Îl descifrăm aici, fără internet și fără vreo bibliotecă.
+
+   Codul lung se descifrează singur. Cel scurt, cu numele orașului după el —
+   „XQR5+8V Constanța" — are primele patru semne lipsă; le completăm de la un
+   punct cunoscut din apropiere și alegem pătratul cel mai apropiat de el.     */
+var IAS_PLUS_ALFABET = "23456789CFGHJMPQRVWX";
+
+function iasPlusDescifra(cod) {
+    var lat = -90, lng = -180, pas = 20;
+    for (var i = 0; i + 1 < cod.length; i += 2) {
+        var a = IAS_PLUS_ALFABET.indexOf(cod[i]), b = IAS_PLUS_ALFABET.indexOf(cod[i + 1]);
+        if (a < 0 || b < 0) return null;
+        lat += a * pas; lng += b * pas;
+        pas /= 20
+    }
+    return { lat: lat + pas / 2, lng: lng + pas / 2, pas: pas }
+}
+
+function iasPlusScrie(lat, lng, semne) {
+    var l = Math.min(89.999999, Math.max(-90, lat)) + 90,
+        g = ((lng + 180) % 360 + 360) % 360,
+        pas = 20, out = "";
+    for (var i = 0; i < semne / 2; i++) {
+        var a = Math.floor(l / pas), b = Math.floor(g / pas);
+        out += IAS_PLUS_ALFABET[Math.min(19, a)] + IAS_PLUS_ALFABET[Math.min(19, b)];
+        l -= a * pas; g -= b * pas; pas /= 20
+    }
+    return out
+}
+
+function iasPlusCod(text, langaLat, langaLng) {
+    var brut = String(text || "").trim().toUpperCase(),
+        potr = brut.match(/([23456789CFGHJMPQRVWX]{2,8})\+([23456789CFGHJMPQRVWX]{2,3})/);
+    if (!potr) return null;
+    var inainte = potr[1], dupa = potr[2], cod = inainte + dupa;
+
+    if (inainte.length === 8) {
+        var p = iasPlusDescifra(cod);
+        return p && Math.abs(p.lat) <= 90 && Math.abs(p.lng) <= 180 ? { lat: p.lat, lng: p.lng } : null
+    }
+
+    // cod scurt: îi punem începutul de la punctul cunoscut din apropiere
+    if (langaLat == null || langaLng == null) return null;
+    var lipsa = 8 - inainte.length,
+        intreg = iasPlusScrie(langaLat, langaLng, lipsa) + cod,
+        q = iasPlusDescifra(intreg);
+    if (!q) return null;
+    // pătratul poate cădea alături; îl aducem pe cel mai apropiat de reper
+    var lat = q.lat, lng = q.lng, latura = Math.pow(20, 2 - lipsa / 2);
+    while (lat - langaLat > latura / 2) lat -= latura;
+    while (langaLat - lat > latura / 2) lat += latura;
+    while (lng - langaLng > latura / 2) lng -= latura;
+    while (langaLng - lng > latura / 2) lng += latura;
+    return Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat: lat, lng: lng } : null
+}
+
+/* Reperul pentru codurile scurte: primul loc cu punct pe hartă din Setări.
+   Codul scurt spune „unde, în ultimii patruzeci de kilometri" — restul se ia
+   de aici. Fără niciun loc salvat, doar codurile lungi se pot citi. */
+function iasReper(setari) {
+    var l = ((setari || {}).locations || []).filter(x => Fn(x))[0];
+    return l ? [l.lat, l.lng] : [null, null]
+}
+
+function Xw(n, iasLangaLat, iasLangaLng) {
     let e = String(n || ""),
         t = [/@(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/, /[?&]q=(-?\d{1,3}\.\d+),\s*(-?\d{1,3}\.\d+)/, /!3d(-?\d{1,3}\.\d+)!4d(-?\d{1,3}\.\d+)/, /^\s*(-?\d{1,3}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)\s*$/];
     for (let a of t) {
@@ -1020,7 +1120,8 @@ function Xw(n) {
             }
         }
     }
-    return null
+    // dacă nu erau coordonate, poate e un Plus Code
+    return iasPlusCod(e, iasLangaLat, iasLangaLng)
 }
 
 function QA(n, e) {
@@ -2984,7 +3085,8 @@ function oi({
     }), o.default.createElement("div", {
         className: "relative w-full max-w-lg bg-white rounded-2xl flex flex-col sheet-anim",
         style: {
-            maxHeight: "100%"
+            maxHeight: "100%",
+            transformOrigin: `${IAS_ATINS.x}% ${IAS_ATINS.y}%`
         }
     }, o.default.createElement("div", {
         className: "flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0"
@@ -3871,6 +3973,16 @@ function IasStare({ value: iasV, onChange: iasC, edit: iasE }) {
 /* Locul de întâlnire, într-un singur rând. Lista din Setări poate crește
    oricât — se deschide într-o fereastră cu căutare, deci formularul rămâne la
    fel de scurt și cu cinci locuri, și cu treizeci. */
+/* La atingerea unui câmp dintr-o fereastră, îl aducem în dreptul ochiului după
+   ce tastatura a apucat să urce. Fără pasul ăsta, câmpul de căutare rămâne sub
+   taste chiar dacă fereastra s-a așezat cum trebuie. */
+function iasAdu(ev) {
+    var camp = ev.currentTarget;
+    setTimeout(function () {
+        try { camp.scrollIntoView({ block: "center", behavior: "smooth" }) } catch (e) {}
+    }, 320)
+}
+
 function IasLoc({ value: iasV, onChange: iasC, locations: iasL, harta: iasH }) {
     var [deschis, arata] = (0, o.useState)(!1), [caut, pune] = (0, o.useState)("");
     var lista = (iasL || []).filter(x => {
@@ -3907,6 +4019,7 @@ function IasLoc({ value: iasV, onChange: iasC, locations: iasL, harta: iasH }) {
             o.default.createElement("input", {
                 className: ie + " mb-3", autoFocus: !0,
                 placeholder: "Caut\u0103 sau scrie un loc nou",
+                onFocus: iasAdu,
                 value: caut, onChange: ev => pune(ev.target.value)
             }),
             caut.trim() && !lista.some(x => x.name === caut.trim())
@@ -4459,11 +4572,20 @@ function Hk({
         let O = Ue(A),
             N = n.sessions.filter(X => X.date === A && X.status !== "cancelled").length,
             C = A === r,
-            W = A === Be();
+            W = A === Be(),
+            // ziua cu examen practic poartă chenar mov, aceeași culoare cu
+            // intervalul de examen din grila orei
+            iasEx = v0(n.students, A).length > 0;
         return o.default.createElement("button", {
             key: A,
             onClick: () => i(A),
-            className: `flex-1 flex flex-col items-center py-2 rounded-xl border transition-colors ${C?"bg-slate-900 border-slate-900":"bg-white border-slate-200"}`
+            className: `flex-1 flex flex-col items-center py-2 rounded-xl border transition-colors ${C?"bg-slate-900 border-slate-900":"bg-white border-slate-200"}`,
+            style: iasEx ? {
+                borderColor: "var(--violet)",
+                borderWidth: 2,
+                boxShadow: C ? "none" : "0 0 0 2px color-mix(in srgb, var(--violet) 18%, transparent)"
+            } : void 0,
+            title: iasEx ? "Examen practic \xEEn ziua asta" : void 0
         }, o.default.createElement("span", {
             className: `text-xs font-medium uppercase ${C?"text-white":"text-slate-400"}`
         }, xu[O.getDay()]), o.default.createElement("span", {
@@ -4851,6 +4973,7 @@ function Uk({
         value: i,
         onChange: f => s(f.target.value),
         placeholder: "Caut\u0103 dup\u0103 nume, grup\u0103 sau telefon",
+        onFocus: iasAdu,
         className: `${ie} pl-10 pr-10`
     }), o.default.createElement("button", {
         type: "button",
@@ -5826,7 +5949,7 @@ function Wk({
     return o.default.createElement(oi, {
         open: n,
         onClose: iasInchide,
-        title: e === "edit" ? "Editeaz\u0103 elev" : "Elev nou",
+        title: e === "edit" ? "Editeaz\u0103 elev" : "Adaug\u0103 elev",
         layer: Wt.form,
         footer: o.default.createElement("div", null, g && o.default.createElement("p", {
             className: "text-xs text-red-600 mb-2"
@@ -5838,8 +5961,11 @@ function Wk({
         }, "Renun\u021B\u0103"), o.default.createElement("button", {
             onClick: M,
             className: "flex-1 py-3 rounded-xl bg-slate-900 text-white font-medium text-sm"
-        }, "Salveaz\u0103")))
-    }, o.default.createElement("div", {
+        }, e === "edit" ? "Salveaz\u0103 modific\u0103rile" : "Adaug\u0103 elev")))
+    }, o.default.createElement("p", {
+        className: "text-xs text-slate-400 -mt-1 mb-3 text-center"
+    }, e === "edit" ? "Actualizezi fi\u0219a unui cursant" : "Creezi fi\u0219a unui nou cursant"),
+    o.default.createElement("div", {
         className: "flex justify-center mb-4"
     }, o.default.createElement(Bf, {
         student: {
@@ -5853,25 +5979,38 @@ function Wk({
         title: "Persoana",
         summary: `${(c.lastName || "") + " " + (c.firstName || "")}`.trim() || "necompletat",
         defaultOpen: !0
-    }, o.default.createElement("div", {
-        className: "grid grid-cols-2 gap-3"
-    }, o.default.createElement(xe, {
+    },
+    /* Numele e câmpul cel mai important din fișă, deci stă pe toată lățimea și
+       scrie mai mare. Rămân două câmpuri, nu unul: aplicația folosește separat
+       prenumele la mesaje („Salut, Ana!"), iar dintr-un singur câmp ar trebui
+       ghicit unde se termină numele de familie — la nume compuse s-ar greși. */
+    o.default.createElement(xe, {
         label: "Nume de familie",
         required: !0
     }, o.default.createElement("input", {
         className: ie,
+        style: { fontSize: 16.5, paddingTop: 13, paddingBottom: 13 },
+        autoCapitalize: "words",
         value: c.lastName || "",
         onChange: S => b("lastName", S.target.value),
         placeholder: "Popescu"
-    })), o.default.createElement(xe, {
+    })),
+    o.default.createElement(xe, {
         label: "Prenume",
         required: !0
     }, o.default.createElement("input", {
         className: ie,
+        style: { fontSize: 16.5, paddingTop: 13, paddingBottom: 13 },
+        autoCapitalize: "words",
         value: c.firstName || "",
         onChange: S => b("firstName", S.target.value),
         placeholder: "Ana Maria"
-    }))),
+    })),
+    /* Mesajul de eroare stă lângă câmpul care lipsește, nu sus, în footer. */
+    g && /nume/i.test(g) ? o.default.createElement("p", {
+        className: "text-xs -mt-2 mb-3.5",
+        style: { color: "var(--bad)" }
+    }, g) : null,
     o.default.createElement(xe, {
         label: "Sex"
     }, o.default.createElement("select", {
@@ -5969,9 +6108,9 @@ function Wk({
         size: 13
     }), h === "caut" ? "Caut\u2026" : "Sunt acum acolo")), o.default.createElement("input", {
         className: `${ie} mt-2`,
-        placeholder: "sau lipe\u0219te un link de hart\u0103 / coordonate",
+        placeholder: "link de hart\u0103, coordonate sau Plus Code",
         onChange: S => {
-            let k = Xw(S.target.value);
+            let iasR = iasReper(a && a.settings ? a.settings : settings), k = Xw(S.target.value, iasR[0], iasR[1]);
             k && (b("lat", k.lat), b("lng", k.lng), S.target.value = "", y(""))
         }
     }), h === "refuzat" && o.default.createElement("p", {
@@ -6085,20 +6224,54 @@ function Wk({
         let S = ii(s).filter(E => Number(E.hours) > 0);
         if (!S.length) return null;
         let k = S.find(E => E.id === c.pachet);
-        return o.default.createElement(o.default.Fragment, null, o.default.createElement(xe, {
-            label: "Alege pachet"
-        }, o.default.createElement("select", {
-            className: ie,
-            value: c.pachet || "",
-            onChange: E => b("pachet", E.target.value)
-        }, o.default.createElement("option", {
-            value: ""
-        }, "Nu acum"), S.map(E => o.default.createElement("option", {
-            key: E.id,
-            value: E.id
-        }, E.name, " \xB7 ", (Number(E.price) || 0).toLocaleString("ro-RO"), " \xB7 ", Number(E.hours), " ", hu(ur(E)))))), o.default.createElement("p", {
-            className: "text-xs text-slate-400 -mt-2 mb-3.5"
-        }, k ? k.laScoala ? `\xCEi adaug\u0103 ${Number(k.hours)} ${hu(ur(k))} \u0219i trece cei ${(Number(k.price)||0).toLocaleString("ro-RO")} ${l} ca plat\u0103 f\u0103cut\u0103 direct la \u0219coal\u0103 \u2014 nu r\u0103m\xE2ne datorie la tine.` : `\xCEi adaug\u0103 ${Number(k.hours)} ${hu(ur(k))} \u0219i ${(Number(k.price)||0).toLocaleString("ro-RO")} ${l} la datorie. Pl\u0103\u021Bile le treci pe fi\u0219a lui, pe m\u0103sur\u0103 ce le \xEEncasezi.` : "Pachetele se stabilesc \xEEn Finan\u021Be \u2192 Taxe. Po\u021Bi alege \u0219i mai t\xE2rziu, de pe fi\u0219a lui."))
+        return o.default.createElement(o.default.Fragment, null,
+            o.default.createElement("span", {
+                className: "block text-xs font-medium text-slate-500 mb-1.5"
+            }, "Alege pachet"),
+            /* Pachetele se aleg din carduri, nu dintr-o listă derulantă: se văd
+               deodată prețul, câte ședințe aduc și dacă se achită la școală, așa
+               că se pot cântări unul lângă altul. Datele sunt cele din Setări —
+               nimic scris de mână aici. */
+            o.default.createElement("div", { className: "space-y-1.5 mb-3.5" },
+                S.map(E => {
+                    let ales = c.pachet === E.id,
+                        ore = Number(E.hours) || 0,
+                        pret = Number(E.price) || 0;
+                    return o.default.createElement("button", {
+                        key: E.id, type: "button",
+                        onClick: () => b("pachet", ales ? "" : E.id),
+                        className: "w-full text-left rounded-2xl px-3.5 py-3",
+                        style: {
+                            background: ales ? "var(--accent-soft)" : "var(--surface)",
+                            border: `${ales ? 2 : 1}px solid ${ales ? "var(--accent)" : "var(--line)"}`,
+                            boxShadow: ales ? "0 2px 12px -6px var(--accent)" : "var(--shadow)"
+                        }
+                    },
+                        o.default.createElement("div", { className: "flex items-baseline gap-2" },
+                            o.default.createElement("span", {
+                                className: "text-sm font-semibold flex-1 min-w-0 truncate",
+                                style: { color: ales ? "var(--accent-ink)" : "var(--text)" }
+                            }, E.name),
+                            o.default.createElement("span", {
+                                className: "font-mono-time text-sm shrink-0",
+                                style: { color: ales ? "var(--accent-ink)" : "var(--muted)" }
+                            }, pret.toLocaleString("ro-RO"), " ", l)),
+                        o.default.createElement("div", {
+                            className: "text-xs mt-1", style: { color: "var(--muted-2)" }
+                        }, "+", ore, " ", hu(ur(E)),
+                            E.laScoala ? " \xB7 achitat la \u0219coal\u0103" : " \xB7 intr\u0103 la datorie"),
+                        ales ? o.default.createElement("div", {
+                            className: "text-xs font-medium mt-1.5",
+                            style: { color: "var(--accent-ink)" }
+                        }, "\u2713 ales") : null)
+                }),
+                c.pachet ? o.default.createElement("button", {
+                    type: "button", onClick: () => b("pachet", ""),
+                    className: "w-full py-2 text-xs", style: { color: "var(--muted-2)" }
+                }, "F\u0103r\u0103 pachet acum") : null),
+            o.default.createElement("p", {
+                className: "text-xs text-slate-400 -mt-2 mb-3.5"
+            }, k ? k.laScoala ? `Cei ${(Number(k.price)||0).toLocaleString("ro-RO")} ${l} se trec ca plat\u0103 f\u0103cut\u0103 direct la \u0219coal\u0103 \u2014 nu r\u0103m\xE2ne datorie la tine.` : `Cei ${(Number(k.price)||0).toLocaleString("ro-RO")} ${l} intr\u0103 la datoria lui. Pl\u0103\u021Bile le treci pe fi\u0219a lui, pe m\u0103sur\u0103 ce le \xEEncasezi.` : "Pachetele se stabilesc \xEEn Finan\u021Be \u2192 Taxe. Po\u021Bi alege \u0219i mai t\xE2rziu, de pe fi\u0219a lui."))
     })(),
     o.default.createElement("div", {
         className: "grid grid-cols-2 gap-3"
@@ -6556,6 +6729,45 @@ function Wk({
         notite: iasNotite(c),
         onChange: iasL => b("notite", iasL)
     }))),
+    /* Rezumatul cursului, împrospătat pe măsură ce completezi. Numerele nu sunt
+       scrise de mână nicăieri: ședințele incluse și cele suplimentare vin din
+       câmpurile de mai sus, iar cele din pachet se adaugă la salvare, exact cum
+       face aplicația de când există — de aceea le arătăm separat, ca să se vadă
+       cu ce rămâne elevul. */
+    (() => {
+        let iasP = ii(s).filter(x => Number(x.hours) > 0).find(x => x.id === c.pachet),
+            iasInc = Number(c.includedHours) || 0,
+            iasSup = Number(c.extraHours) || 0,
+            iasDin = iasP ? Number(iasP.hours) || 0 : 0,
+            iasTotal = iasInc + iasSup + iasDin;
+        if (!iasTotal && !iasP) return null;
+        let iasRand = (et, val, tare) => o.default.createElement("div", {
+            key: et, className: "flex items-baseline justify-between py-1"
+        }, o.default.createElement("span", {
+            className: "text-xs", style: { color: "var(--muted-2)" }
+        }, et), o.default.createElement("span", {
+            className: tare ? "font-mono-time text-base font-semibold" : "font-mono-time text-sm",
+            style: { color: tare ? "var(--accent-ink)" : "var(--text)" }
+        }, val));
+        return o.default.createElement("div", {
+            className: "rounded-2xl px-4 py-3.5 mb-3.5",
+            style: { background: "var(--accent-soft)", border: "1px solid var(--accent-line)" }
+        },
+            o.default.createElement("div", {
+                className: "text-xs font-medium uppercase tracking-wide mb-1.5",
+                style: { color: "var(--accent-ink)" }
+            }, "Rezumat curs"),
+            iasP ? iasRand("Pachet", iasP.name) : null,
+            iasInc ? iasRand("\u0218edin\u021Be incluse", iasInc) : null,
+            iasSup ? iasRand("\u0218edin\u021Be suplimentare", iasSup) : null,
+            iasDin ? iasRand("Din pachet", "+" + iasDin) : null,
+            o.default.createElement("div", {
+                style: { borderTop: "1px solid var(--accent-line)", marginTop: 6, paddingTop: 4 }
+            }, iasRand("Total", iasTotal + " \u0219edin\u021Be", !0)),
+            c.enrollDate ? o.default.createElement("div", {
+                className: "text-xs mt-1.5", style: { color: "var(--muted-2)" }
+            }, "\xCEnscris pe ", qe(c.enrollDate)) : null)
+    })(),
     e === "edit" && o.default.createElement("button", {
         onClick: () => x(!0),
         className: "w-full text-center text-xs text-red-500 py-2"
@@ -8945,9 +9157,9 @@ function e3({
                 }
             }, "Nu am prins semnalul. \xCEncearc\u0103 afar\u0103, sub cer liber."), o.default.createElement("input", {
                 className: `${ie} mt-2`,
-                placeholder: "sau lipe\u0219te un link de hart\u0103 / coordonate",
+                placeholder: "link de hart\u0103, coordonate sau Plus Code",
                 onChange: H => {
-                    let L = Xw(H.target.value);
+                    let iasR = iasReper(J), L = Xw(H.target.value, iasR[0], iasR[1]);
                     L && (b({
                         ..._,
                         ...L
@@ -8955,7 +9167,7 @@ function e3({
                 }
             }), o.default.createElement("p", {
                 className: "text-xs text-slate-400 mt-1.5"
-            }, "Cel mai exact e s\u0103 iei punctul chiar de la fa\u021Ba locului, o singur\u0103 dat\u0103. Linkurile scurte (maps.app.goo.gl) nu merg \u2014 deschide-l \xEEnt\xE2i \xEEn hart\u0103 \u0219i copiaz\u0103 adresa lung\u0103.")), o.default.createElement("div", {
+            }, "Cel mai exact e s\u0103 iei punctul chiar de la fa\u021Ba locului, o singur\u0103 dat\u0103. Merge \u0219i Plus Code-ul din Google Maps (de pild\u0103 8GPC5J5M+WV, sau doar 5J5M+WV cu ora\u0219ul dup\u0103 el). Linkurile scurte (maps.app.goo.gl) nu merg \u2014 deschide-l \xEEnt\xE2i \xEEn hart\u0103 \u0219i copiaz\u0103 adresa lung\u0103.")), o.default.createElement("div", {
                 className: "flex gap-2"
             }, o.default.createElement("button", {
                 onClick: () => {
@@ -9529,6 +9741,18 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.35.3",
+    titlu: "Ferestrele nu mai fug sub tastatur\u0103",
+    puncte: ["C\xE2nd se ridic\u0103 tastatura, fereastra se a\u0219az\u0103 \xEEn zona r\u0103mas\u0103 vizibil\u0103 \u0219i urc\u0103 \xEEn capul ei.", "C\xE2mpurile de c\u0103utare \u2014 la locuri \u0219i la elevi \u2014 se aduc singure \xEEn dreptul ochiului c\xE2nd le atingi."]
+}, {
+    v: "v2.35.2",
+    titlu: "Fi\u0219a elevului, ref\u0103cut\u0103",
+    puncte: ["Numele \u0219i prenumele stau pe toat\u0103 l\u0103\u021Bimea \u0219i scriu mai mare \u2014 sunt primul lucru pe care \xEEl completezi.", "Pachetele se aleg din fi\u0219e, nu dintr-o list\u0103 derulant\u0103: se v\u0103d deodat\u0103 pre\u021Bul, c\xE2te \u0219edin\u021Be aduc \u0219i dac\u0103 se achit\u0103 la \u0219coal\u0103.", "Jos apare un rezumat al cursului care se \xEEmprosp\u0103teaz\u0103 pe m\u0103sur\u0103 ce completezi, cu totalul de \u0219edin\u021Be scos \xEEn fa\u021B\u0103.", "Dac\u0103 lipse\u0219te numele, ro\u0219ul apare l\xE2ng\u0103 c\xE2mp, nu jos.", "Butonul spune ce face: \u201EAdaug\u0103 elev\u201D sau \u201ESalveaz\u0103 modific\u0103rile\u201D."]
+}, {
+    v: "v2.35.1",
+    titlu: "Plus Code, zile cu examen \u0219i ferestre",
+    puncte: ["Loca\u021Biile accept\u0103 acum \u0219i Plus Code din Google Maps \u2014 \u0219i cel lung, \u0219i cel scurt cu ora\u0219ul dup\u0103 el.", "\xCEn calendar, ziua cu examen practic are chenar mov, aceea\u0219i culoare cu intervalul de examen.", "Ferestrele se deschid din punctul \xEEn care ai atins, nu din mijlocul ecranului."]
+}, {
     v: "v2.35.0",
     titlu: "Fi\u0219a \u0219edin\u021Bei, refăcut\u0103",
     puncte: ["Editorul de \u0219edin\u021B\u0103 arat\u0103 altfel: sus elevul, ziua \u0219i ora, apoi starea \u0219i locul \u2014 adic\u0103 exact ce atingi de fiecare dat\u0103.", "Starea se alege din patru indicatoare rutiere: STOP, alte pericole, drum cu prioritate, sf\xE2r\u0219itul restric\u021Biilor.", "Ora se alege dintr-o gril\u0103 de intervale, cu cele ocupate t\u0103iate.", "Locul de \xEEnt\xE2lnire st\u0103 pe un singur r\xE2nd \u0219i se alege dintr-o fereastr\u0103 cu c\u0103utare, oric\xE2te loca\u021Bii ai.", "Limba, instructorul \u0219i noti\u021Bele au trecut \xEEn \u201EDetalii avansate\u201D, iar jos apare un rezumat al \u0219edin\u021Bei.", "Nimic din felul \xEEn care func\u021Bioneaz\u0103 nu s-a schimbat."]
@@ -10969,7 +11193,11 @@ function y3() {
         }
         @media (prefers-reduced-motion: reduce) { .ias-derulare { animation: none } }
 
-        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes slideUp {
+          from { transform: scale(.8) translateY(8px); opacity: 0 }
+          55%  { opacity: 1 }
+          to   { transform: none; opacity: 1 }
+        } to { transform: translateY(0); opacity: 1; } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .sheet-anim { animation: slideUp 1.05s cubic-bezier(.16,1,.3,1) ease-out; }
         .fade-anim { animation: fadeIn .55s ease-out ease-out; }
@@ -11188,11 +11416,21 @@ function y3() {
            taburi cu glowul ei. A doua linie de padding-bottom o folosesc doar
            telefoanele care \u0219tiu de zona gestului; celelalte r\u0103m\xE2n pe prima. */
         .sheet-wrap {
+          top: var(--ias-sus, 0px);
+          height: var(--ias-vazut, 100%);
+          bottom: auto;
           padding: 0.75rem;
           padding-top: 2.5rem;
           padding-top: calc(env(safe-area-inset-top, 0px) + 2.5rem);
           padding-bottom: 5.5rem;
           padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+        }
+        /* Cu tastatura ridicată, fereastra urcă în capul zonei rămase și nu mai
+           păstrează loc pentru bara de file — oricum e sub taste. */
+        html.ias-tastatura .sheet-wrap {
+          align-items: flex-start;
+          padding-top: 0.5rem;
+          padding-bottom: 0.5rem;
         }
         [data-skin] .fixed.bottom-20 { bottom: calc(5rem + env(safe-area-inset-bottom)); }
         [data-skin] .fixed.bottom-24 { bottom: calc(6.25rem + env(safe-area-inset-bottom)); }
