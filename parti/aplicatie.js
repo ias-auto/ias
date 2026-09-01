@@ -3758,6 +3758,80 @@ function iasOrdineNoua(lista, din, la) {
     return copie
 }
 
+/* După ce ai rearanjat ziua, elevii mutați trebuie anunțați. Telefonul nu poate
+   trimite unui teanc de oameni dintr-o singură apăsare — fiecare mesaj pleacă
+   din aplicația de mesagerie, cu destinatarul lui. Ce se poate face, și facem:
+   o listă gata scrisă, în care apeși pe rând și vezi cine a rămas. */
+function IasAnunturi({ open: iasO, mutate: iasM, elevi: iasEl, settings: iasSet, onClose: iasX }) {
+    let [trimise, pune] = (0, o.useState)({});
+    (0, o.useEffect)(() => { if (iasO) pune({}) }, [iasO]);
+    if (!iasO || !iasM || !iasM.length) return null;
+
+    let cuTelefon = iasM.filter(x => {
+        let el = iasEl.filter(y => y.id === x.sesiune.studentId)[0];
+        return el && (el.phone || "").trim()
+    });
+    let cate = Object.keys(trimise).length;
+
+    return o.default.createElement(oi, {
+        open: iasO, onClose: iasX, title: "Anun\u021B\u0103 elevii muta\u021Bi", layer: Wt.dialog,
+        footer: o.default.createElement("button", {
+            onClick: iasX,
+            className: "w-full py-3 rounded-xl bg-slate-900 text-white text-sm font-medium"
+        }, cate >= cuTelefon.length && cuTelefon.length ? "Gata" : "\xCEnchide")
+    },
+        o.default.createElement("p", { className: "text-xs text-slate-400 mb-3" },
+            "Mesajele sunt gata scrise, cu ora nou\u0103. Telefonul nu le poate trimite tuturor dintr-o dat\u0103 \u2014 ape\u0219i pe r\xE2nd, iar bifa \xEE\u021Bi arat\u0103 cine a r\u0103mas."),
+        cuTelefon.length
+            ? o.default.createElement("div", {
+                className: "text-xs font-medium mb-2", style: { color: "var(--accent-ink)" }
+            }, cate, " din ", cuTelefon.length, " anun\u021Ba\u021Bi")
+            : null,
+        o.default.createElement("div", { className: "space-y-1.5" },
+            iasM.map(x => {
+                let el = iasEl.filter(y => y.id === x.sesiune.studentId)[0];
+                if (!el) return null;
+                let tel = (el.phone || "").trim(),
+                    ses = { ...x.sesiune, startMin: x.startMin },
+                    /* Mesajul cere ședința veche întreagă, nu doar ora ei — de
+                       acolo scoate și ziua de pe care a fost mutată. */
+                    text = yw("rescheduled", el, ses, x.sesiune, iasSet),
+                    gata = !!trimise[x.sesiune.id];
+                return o.default.createElement("div", {
+                    key: x.sesiune.id,
+                    className: "rounded-xl px-3.5 py-3",
+                    style: {
+                        background: gata ? "var(--ok-soft)" : "var(--surface)",
+                        border: `1px solid ${gata ? "var(--ok-line)" : "var(--line)"}`
+                    }
+                },
+                    o.default.createElement("div", { className: "flex items-baseline gap-2 mb-1" },
+                        o.default.createElement("span", {
+                            className: "text-sm font-medium flex-1 min-w-0 truncate text-slate-900"
+                        }, el.name),
+                        o.default.createElement("span", { className: "font-mono-time text-xs text-slate-400" },
+                            Se(x.veche), " \u2192 "),
+                        o.default.createElement("span", {
+                            className: "font-mono-time text-xs font-semibold", style: { color: "var(--accent-ink)" }
+                        }, Se(x.startMin))),
+                    tel
+                        ? o.default.createElement("div", { className: "flex gap-1.5 mt-2" },
+                            o.default.createElement("a", {
+                                href: ak(tel, text), target: "_blank", rel: "noopener noreferrer",
+                                onClick: () => pune(p2 => ({ ...p2, [x.sesiune.id]: !0 })),
+                                className: "flex-1 py-2 rounded-lg text-center text-xs font-medium text-white",
+                                style: { background: gata ? "var(--ok)" : "#25D366" }
+                            }, gata ? "\u2713 trimis" : "WhatsApp"),
+                            o.default.createElement("a", {
+                                href: rk(tel, text),
+                                onClick: () => pune(p2 => ({ ...p2, [x.sesiune.id]: !0 })),
+                                className: "px-3 py-2 rounded-lg text-center text-xs border border-slate-200 text-slate-600"
+                            }, "SMS"))
+                        : o.default.createElement("div", { className: "text-xs text-slate-400 mt-1" },
+                            "N-are telefon pe fi\u0219\u0103 \u2014 sun\u0103-l sau treci-i num\u0103rul."))
+            })))
+}
+
 function IasRearanjare({ open: iasO, data: iasZi, sesiuni: iasSes, elevi: iasEl, settings: iasSet, onClose: iasX, onAplica: iasA }) {
     let mobile = (iasSes || []).filter(x => x.status === "pending"),
         fixe = (iasSes || []).filter(x => x.status !== "pending"),
@@ -3766,14 +3840,31 @@ function IasRearanjare({ open: iasO, data: iasZi, sesiuni: iasSes, elevi: iasEl,
         [mutat, muta] = (0, o.useState)(0);
 
     (0, o.useEffect)(() => {
-        if (iasO) pune(mobile.map(x => x.id)), prinde(null), muta(0)
+        if (!iasO) return;
+        let iasD = Fa(iasSet), iasB = b0(iasSet, iasZi), iasA2 = mobile.map(x => x.startMin),
+            iasOre = iasA2.concat(Tf(iasSet).filter(h => iasA2.indexOf(h) < 0
+                && !bf(iasB, h, iasD)
+                && !(iasSes || []).some(x => x.status !== "cancelled" && !x.otherInstructor
+                    && bu(h, iasD, x.startMin, or(x, iasSet))))).sort((x, y) => x - y);
+        pune(iasOre.map(h => (mobile.filter(x => x.startMin === h)[0] || {}).id || null)),
+        prinde(null), muta(0)
     }, [iasO, iasSes]);
 
     if (!iasO) return null;
 
+    /* Orele în care se poate așeza o ședință în așteptare: cele pe care le țin
+       chiar ele, plus orele libere ale zilei. Înainte se puteau doar schimba
+       între ele, așa că o singură ședință în așteptare n-avea unde să se ducă,
+       deși ziua avea goluri. */
     let numele = (id) => (iasEl.find(x => x.id === id) || {}).name || "Elev \u0219ters",
-        // orele rămase libere după ce ședințele confirmate și-au păstrat locul
-        oreLibere = mobile.map(x => x.startMin).sort((a, b) => a - b),
+        iasDurata = Fa(iasSet),
+        iasBlocaje = b0(iasSet, iasZi),
+        iasAleLor = mobile.map(x => x.startMin),
+        oreLibere = iasAleLor.concat(Tf(iasSet).filter(h =>
+            iasAleLor.indexOf(h) < 0
+            && !bf(iasBlocaje, h, iasDurata)
+            && !(iasSes || []).some(x => x.status !== "cancelled" && !x.otherInstructor
+                && bu(h, iasDurata, x.startMin, or(x, iasSet))))).sort((x, y) => x - y),
         deId = (id) => mobile.find(x => x.id === id),
         indexPrins = prins ? ordine.indexOf(prins) : -1,
         tinta = indexPrins < 0 ? -1 : Math.max(0, Math.min(ordine.length - 1, indexPrins + Math.round(mutat / IAS_RAND))),
@@ -3802,23 +3893,28 @@ function IasRearanjare({ open: iasO, data: iasZi, sesiuni: iasSes, elevi: iasEl,
     let rezultat = () => {
         let out = [];
         ordine.forEach((id, k) => {
-            let ses = deId(id);
-            if (ses && oreLibere[k] != null) out.push({ id: id, startMin: oreLibere[k] })
+            if (id && oreLibere[k] != null) out.push({ id: id, startMin: oreLibere[k] })
         });
         return out
     };
     let seSchimba = rezultat().some(x => (deId(x.id) || {}).startMin !== x.startMin);
 
     let randuri = [];
-    let toate = fixe.concat(mobile).slice();
-    // rândurile se desenează la ora lor, ca să se vadă ziua întreagă
+    /* Întâi se stabilește ce oră capătă fiecare ședință, abia apoi se știe care
+       ore rămân goale. Le socoteam invers, iar codul se oprea. */
     let perechi = {};
-    previzualizare.forEach((id, k) => { if (oreLibere[k] != null) perechi[id] = oreLibere[k] });
+    previzualizare.forEach((id, k) => { if (id && oreLibere[k] != null) perechi[id] = oreLibere[k] });
     fixe.forEach(x => { perechi[x.id] = x.startMin });
+    // golurile intră și ele în listă, ca rânduri punctate
+    let goluri = oreLibere.filter(h => !Object.keys(perechi).some(id => perechi[id] === h))
+        .map(h => ({ id: "gol_" + h, gol: !0, startMin: h }));
+    goluri.forEach(x => { perechi[x.id] = x.startMin });
+    let toate = fixe.concat(mobile).concat(goluri).slice();
     toate.sort((a, b) => (perechi[a.id] || 0) - (perechi[b.id] || 0));
 
     toate.forEach(ses => {
-        let eMobil = ses.status === "pending",
+        let eGol = !!ses.gol,
+            eMobil = !eGol && ses.status === "pending",
             eSelectat = prins === ses.id,
             ora = perechi[ses.id];
         randuri.push(o.default.createElement("div", {
@@ -3826,8 +3922,8 @@ function IasRearanjare({ open: iasO, data: iasZi, sesiuni: iasSes, elevi: iasEl,
             style: {
                 height: IAS_RAND - 8, marginBottom: 8, borderRadius: 14,
                 display: "flex", alignItems: "center", gap: 10, padding: "0 12px",
-                background: eMobil ? "var(--accent-soft)" : "var(--surface-2)",
-                border: `1px solid ${eMobil ? "var(--accent-line)" : "var(--line)"}`,
+                background: eMobil ? "var(--accent-soft)" : eGol ? "transparent" : "var(--surface-2)",
+                border: `1px ${eGol ? "dashed" : "solid"} ${eMobil ? "var(--accent-line)" : "var(--line)"}`,
                 opacity: eSelectat ? .65 : 1,
                 transform: eSelectat ? `translateY(${mutat}px)` : "none",
                 transition: eSelectat ? "none" : "transform .18s ease",
@@ -3845,14 +3941,15 @@ function IasRearanjare({ open: iasO, data: iasZi, sesiuni: iasSes, elevi: iasEl,
             o.default.createElement("span", {
                 className: "text-sm flex-1 min-w-0 truncate",
                 style: { color: eMobil ? "var(--accent-ink)" : "var(--muted)" }
-            }, numele(ses.studentId)),
+            }, eGol ? "liber" : numele(ses.studentId)),
             eMobil
                 ? o.default.createElement("span", {
                     className: "shrink-0 text-xs", style: { color: "var(--accent)" }
                 }, "\u2261")
-                : o.default.createElement("span", {
-                    className: "shrink-0 text-xs", style: { color: "var(--muted-2)" }
-                }, "fix\u0103")))
+                : eGol ? null
+                    : o.default.createElement("span", {
+                        className: "shrink-0 text-xs", style: { color: "var(--muted-2)" }
+                    }, "fix\u0103")))
     });
 
     return o.default.createElement(oi, {
@@ -3871,7 +3968,7 @@ function IasRearanjare({ open: iasO, data: iasZi, sesiuni: iasSes, elevi: iasEl,
         o.default.createElement("p", { className: "text-xs text-slate-400 mb-3" },
             mobile.length === 0
                 ? "Nicio \u0219edin\u021B\u0103 \xEEn a\u0219teptare \xEEn ziua asta. Cele confirmate r\u0103m\xE2n unde sunt."
-                : "\u021Aine ap\u0103sat pe o \u0219edin\u021B\u0103 \xEEn a\u0219teptare \u0219i trage-o. Cele confirmate stau pe loc \u0219i sunt s\u0103rite."),
+                : "\u021Aine ap\u0103sat pe o \u0219edin\u021B\u0103 \xEEn a\u0219teptare \u0219i trage-o \u2014 poate merge \u0219i \xEEntr-o or\u0103 liber\u0103. Cele confirmate stau pe loc \u0219i sunt s\u0103rite."),
         randuri)
 }
 
@@ -4020,6 +4117,13 @@ function IasLoc({ value: iasV, onChange: iasC, locations: iasL, harta: iasH }) {
                 className: ie + " mb-3", autoFocus: !0,
                 placeholder: "Caut\u0103 sau scrie un loc nou",
                 onFocus: iasAdu,
+                type: "search",
+                inputMode: "search",
+                name: "cauta-loc",
+                autoComplete: "off",
+                autoCorrect: "off",
+                spellCheck: !1,
+                enterKeyHint: "search",
                 value: caut, onChange: ev => pune(ev.target.value)
             }),
             caut.trim() && !lista.some(x => x.name === caut.trim())
@@ -4030,7 +4134,10 @@ function IasLoc({ value: iasV, onChange: iasC, locations: iasL, harta: iasH }) {
                     style: { background: "var(--invert)" }
                 }, "Folose\u0219te \u201E", caut.trim(), "\u201D")
                 : null,
-            o.default.createElement("div", { className: "space-y-1.5" },
+            o.default.createElement("div", {
+                className: "space-y-1.5 overflow-y-auto",
+                style: { maxHeight: "min(320px, calc(var(--ias-vazut, 100vh) * 0.5))" }
+            },
                 lista.length === 0
                     ? o.default.createElement("div", { className: "text-sm text-slate-400 py-2" },
                         (iasL || []).length ? "Niciun loc nu se potrive\u0219te." : "Nicio loca\u021Bie \xEEn Set\u0103ri \u2014 scrie una mai sus.")
@@ -4521,6 +4628,7 @@ function Hk({
     onMutaSedinte: iasMuta
 }) {
     let [iasRearDeschis, iasRear] = (0, o.useState)(!1),
+        [iasDeAnuntat, iasAnunta] = (0, o.useState)(null),
         [r, i] = (0, o.useState)(Be()), [s, l] = (0, o.useState)(null), [u, d] = (0, o.useState)(0), [f, p] = (0, o.useState)(null), c = b0(n.settings, r), m = () => {
         let A = s;
         if (!A) return;
@@ -4754,7 +4862,10 @@ function Hk({
         size: 14
     }), "Marcheaz\u0103 indisponibil")),
     /* Rearanjarea zilei: se deschide doar dacă e ceva de mutat. */
-    x.filter(N => N.status === "pending").length > 1
+    /* Ajunge o singură ședință în așteptare, dacă ziua are unde s-o muți: până
+       acum ceream două, așa că într-o zi plină cu una singură nemarcată butonul
+       nici nu apărea, deși erau ore libere. */
+    x.filter(N => N.status === "pending").length > 0
         ? o.default.createElement("div", { className: "px-4 mb-3" },
             o.default.createElement("button", {
                 onClick: () => iasRear(!0),
@@ -4768,7 +4879,21 @@ function Hk({
         elevi: n.students,
         settings: n.settings,
         onClose: () => iasRear(!1),
-        onAplica: (iasNoi) => { iasRear(!1), iasMuta(iasNoi) }
+        onAplica: (iasNoi) => {
+            /* Reținem și ora veche a fiecărei ședințe mutate: fără ea, mesajul
+               n-ar putea spune de unde a fost mutată. */
+            let iasCu = iasNoi.map(iasN => {
+                let iasS = x.filter(y => y.id === iasN.id)[0];
+                return iasS ? { sesiune: iasS, veche: iasS.startMin, startMin: iasN.startMin } : null
+            }).filter(Boolean);
+            iasRear(!1), iasMuta(iasNoi), iasCu.length && iasAnunta(iasCu)
+        }
+    }), o.default.createElement(IasAnunturi, {
+        open: !!iasDeAnuntat,
+        mutate: iasDeAnuntat || [],
+        elevi: n.students,
+        settings: n.settings,
+        onClose: () => iasAnunta(null)
     }), (() => {
         let A = KA(x, n.settings),
             O = x.filter(N => (N.status === "scheduled" || N.status === "pending") && N.location).sort((N, C) => N.startMin - C.startMin)[0];
@@ -4974,6 +5099,17 @@ function Uk({
         onChange: f => s(f.target.value),
         placeholder: "Caut\u0103 dup\u0103 nume, grup\u0103 sau telefon",
         onFocus: iasAdu,
+        /* Fără astea, telefonul crede că e un câmp de autentificare și ridică
+           deasupra tastaturii bara lui cu cheia și cardul, care fură un rând
+           întreg tocmai când ai nevoie de el pentru listă. */
+        type: "search",
+        inputMode: "search",
+        name: "cauta-elev",
+        autoComplete: "off",
+        autoCorrect: "off",
+        autoCapitalize: "off",
+        spellCheck: !1,
+        enterKeyHint: "search",
         className: `${ie} pl-10 pr-10`
     }), o.default.createElement("button", {
         type: "button",
@@ -4987,7 +5123,11 @@ function Uk({
     }))), o.default.createElement("div", {
         className: "mt-1.5 rounded-xl border border-slate-200 bg-white overflow-y-auto",
         style: {
-            maxHeight: 220
+            /* Cu telefonul culcat și tastatura ridicată rămân vreo trei sute de
+               puncte pe înălțime; o listă de 220 nu mai încăpea deloc. Acum ia
+               jumătate din cât s-a văzut cu adevărat, dar nu mai mult de 220. */
+            maxHeight: "min(220px, calc(var(--ias-vazut, 100vh) * 0.5))",
+            minHeight: 92
         }
     }, d.length === 0 && o.default.createElement("div", {
         className: "px-3.5 py-3 text-sm text-slate-400"
@@ -5211,10 +5351,9 @@ function Rk({
                 ge ? ge.name : "Elev \u0219ters"),
             o.default.createElement("div", { className: "text-xs text-slate-500 capitalize" },
                 fo(m), " \xB7 ", Se(v), "\u2013", Se(v + ye)))) : null,
-    o.default.createElement("div", { className: "mb-1" },
-        o.default.createElement("span", {
-            className: "block text-xs font-medium text-slate-500 mb-1.5"
-        }, "Elev"), o.default.createElement(Uk, {
+    /* Alegerea elevului își poartă singură titlul, deci nu-i mai punem încă
+       unul deasupra: se scria „Elev" de două ori și mânca un rând întreg. */
+    o.default.createElement(Uk, {
         /* Elevii care au deja o ședință în ziua aleasă nu mai apar în listă: la
            programare nu te interesează decât cine mai poate veni. Cel deja ales
            rămâne, ca să nu dispară de sub deget când editezi o ședință. */
@@ -5226,7 +5365,7 @@ function Rk({
             let T = a.students.find(j => j.id === L);
             h(T ? gw(T, a.sessions) : "included"), e !== "edit" && (k(T?.defaultLocation || ""), O(!!(T && T.english)))
         }
-    })),
+    }),
     o.default.createElement(xe, {
         label: "Dat\u0103",
         required: !0
@@ -9745,6 +9884,14 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.35.6",
+    titlu: "Rearanjare \xEEn orele libere \u0219i anun\u021Buri",
+    puncte: ["Butonul de rearanjare apare acum \u0219i c\xE2nd ai o singur\u0103 \u0219edin\u021B\u0103 \xEEn a\u0219teptare \u2014 \xEEnainte cerea dou\u0103.", "\u0218edin\u021Bele \xEEn a\u0219teptare se pot muta \u0219i \xEEn orele libere ale zilei, nu doar \xEEntre ele.", "Dup\u0103 ce p\u0103strezi ordinea, se deschid mesajele gata scrise pentru fiecare elev mutat, cu ora veche \u0219i cea nou\u0103."]
+}, {
+    v: "v2.35.5",
+    titlu: "Mai mult loc c\xE2nd scrii",
+    puncte: ["\u201EElev\u201D nu se mai scrie de dou\u0103 ori \xEEn fi\u0219a \u0219edin\u021Bei.", "C\xE2mpurile de c\u0103utare nu mai cheam\u0103 bara telefonului cu cheia \u0219i cardul, care fura un r\xE2nd \xEEntreg.", "Listele \u0219i marginile ferestrei se str\xE2ng dup\u0103 c\xEEt loc a r\u0103mas cu adev\u0103rat \u2014 mai ales cu telefonul culcat."]
+}, {
     v: "v2.35.4",
     titlu: "Reparat: punctul de domiciliu",
     puncte: ["C\xE2mpul de punct de pe fi\u0219a elevului nu mai primea nimic \u2014 nici coordonate, nici link, nici Plus Code. A fost o gre\u0219eal\u0103 strecurat\u0103 odat\u0103 cu Plus Code-urile; acum merg toate trei."]
@@ -11439,6 +11586,15 @@ function y3() {
           align-items: flex-start;
           padding-top: 0.5rem;
           padding-bottom: 0.5rem;
+        }
+        /* Telefonul culcat, cu tastatura sus, lasă foarte puțin pe înălțime.
+           Atunci strângem tot ce se poate: marginile ferestrei, antetul ei și
+           spațiile dintre câmpuri, ca locul rămas să fie al listei. */
+        @media (orientation: landscape) and (max-height: 520px) {
+          html.ias-tastatura .sheet-wrap { padding: 0.25rem; }
+          html.ias-tastatura .sheet-anim > div:first-child { padding-top: .5rem; padding-bottom: .5rem }
+          html.ias-tastatura .sheet-anim h2 { font-size: 1rem }
+          html.ias-tastatura .sheet-anim .mb-3\\.5 { margin-bottom: .5rem }
         }
         [data-skin] .fixed.bottom-20 { bottom: calc(5rem + env(safe-area-inset-bottom)); }
         [data-skin] .fixed.bottom-24 { bottom: calc(6.25rem + env(safe-area-inset-bottom)); }
