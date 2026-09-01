@@ -30,10 +30,10 @@ cer('mutarea de pe 7 pe 2 le împinge în jos',
 
 /* ---- în aplicație ---- */
 const students = [
-  { id: 's1', name: 'Unu Ana', lastName: 'Unu', firstName: 'Ana', includedHours: 9, weeklyLimit: 9, payments: [] },
-  { id: 's2', name: 'Doi Barbu', lastName: 'Doi', firstName: 'Barbu', includedHours: 9, weeklyLimit: 9, payments: [] },
-  { id: 's3', name: 'Trei Cezar', lastName: 'Trei', firstName: 'Cezar', includedHours: 9, weeklyLimit: 9, payments: [] },
-  { id: 's4', name: 'Patru Dan', lastName: 'Patru', firstName: 'Dan', includedHours: 9, weeklyLimit: 9, payments: [] },
+  { id: 's1', name: 'Unu Ana', lastName: 'Unu', firstName: 'Ana', phone: '0722111001', includedHours: 9, weeklyLimit: 9, payments: [] },
+  { id: 's2', name: 'Doi Barbu', lastName: 'Doi', firstName: 'Barbu', phone: '0722111002', includedHours: 9, weeklyLimit: 9, payments: [] },
+  { id: 's3', name: 'Trei Cezar', lastName: 'Trei', firstName: 'Cezar', phone: '0722111003', includedHours: 9, weeklyLimit: 9, payments: [] },
+  { id: 's4', name: 'Patru Dan', lastName: 'Patru', firstName: 'Dan', phone: '0722111004', includedHours: 9, weeklyLimit: 9, payments: [] },
 ];
 // 08:00 în așteptare · 09:30 CONFIRMATĂ · 11:00 în așteptare · 12:30 în așteptare
 const sessions = [
@@ -83,25 +83,49 @@ const pauza = (ms) => new Promise(r => setTimeout(r, ms));
   cer('  spune cum se mută', !!f && /Cele confirmate stau pe loc și sunt sărite/.test(f.textContent));
 
   // tragem ultima ședință în așteptare peste prima
+  /* Se văd acum și orele libere ale zilei, nu doar ședințele: acolo se pot muta. */
   const randuri = [...f.querySelectorAll('div')].filter(x => /^\d\d:\d\d/.test(x.textContent.trim()));
-  cer('  toate cele patru se văd', randuri.length === 4, `${randuri.length} rânduri`);
-  const ultima = randuri[randuri.length - 1];
+  const cuElev = randuri.filter(x => /Unu|Doi|Trei|Patru/.test(x.textContent));
+  const goale = randuri.length - cuElev.length;
+  cer('  se văd ședințele și orele libere', cuElev.length === 4 && goale > 0,
+    `${cuElev.length} ședințe, ${goale} ore libere`);
+  // tragem ultima ședință în așteptare peste prima
+  const ultima = cuElev[cuElev.length - 1];
   const P = (tip, y) => new d.window.PointerEvent(tip, { bubbles: true, clientY: y, pointerId: 1 });
-  ultima.dispatchEvent(P('pointerdown', 300));
+  const pasi = randuri.indexOf(ultima);
+  ultima.dispatchEvent(P('pointerdown', 600));
   await pauza(120);
-  ultima.dispatchEvent(P('pointermove', 300 - 58 * 3));
+  ultima.dispatchEvent(P('pointermove', 600 - 58 * pasi));
   await pauza(200);
-  ultima.dispatchEvent(P('pointerup', 300 - 58 * 3));
+  ultima.dispatchEvent(P('pointerup', 600 - 58 * pasi));
   await pauza(300);
 
   const dupa = [...fata().querySelectorAll('div')].filter(x => /^\d\d:\d\d/.test(x.textContent.trim()))
-    .map(x => x.textContent.trim().slice(0, 5) + ' ' + (x.textContent.match(/(Unu|Doi|Trei|Patru) \w+/) || [''])[0]);
-  cer('ordinea s-a schimbat sub deget', dupa.length === 4 && /Patru/.test(dupa[0]), dupa.join(' | '));
+    .map(x => x.textContent.trim().slice(0, 5) + ' ' + (x.textContent.match(/(Unu|Doi|Trei|Patru) \w+/) || [''])[0])
+    .filter(x => x.trim().length > 6);
+  cer('ordinea s-a schimbat sub deget', /Patru/.test(dupa[0]), dupa.join(' | '));
   cer('  confirmata a rămas la ora ei', dupa.some(x => /^09:30 Doi/.test(x)));
 
-  const salv = [...fata().querySelectorAll('button')].find(b => /Păstrează ordinea/.test(b.textContent));
-  clic(salv); await pauza(600);
+  const salv = [...fata().querySelectorAll('button')].find(b => /Păstrează/.test(b.textContent));
+  clic(salv); await pauza(800);
   cer('se salvează', /rearanjată/.test(doc().body.textContent));
+
+  /* ---- înștiințările pentru cei mutați ---- */
+  const anunt = fata();
+  cer('se deschid mesajele pentru cei mutați',
+    !!anunt && /Anunță elevii mutați/.test(anunt.textContent));
+  cer('  arată ora veche și pe cea nouă',
+    !!anunt && /12:30\s*→\s*08:00/.test(anunt.textContent.replace(/\s+/g, ' ')),
+    (anunt.textContent.replace(/\s+/g,' ').match(/\d\d:\d\d\s*→\s*\d\d:\d\d/g) || []).join(', '));
+  const wa = [...anunt.querySelectorAll('a')].filter(a2 => /wa\.me/.test(a2.href));
+  cer('  fiecare are mesajul lui gata scris', wa.length >= 1,
+    wa.length + ' mesaje pe WhatsApp');
+  cer('  mesajul spune că s-a mutat',
+    wa.length > 0 && /mutat/.test(decodeURIComponent(wa[0].href)),
+    (decodeURIComponent(wa[0].href).match(/text=(.{0,52})/) || [])[1]);
+  cer('  ține socoteala celor anunțați', /0 din \d+ anunțați/.test(anunt.textContent));
+  clic(wa[0]); await pauza(300);
+  cer('  bifează cine a fost anunțat', /1 din \d+ anunțați/.test(fata().textContent));
 
   console.log('');
   rez.forEach(([s, n, dt]) => console.log('  ' + s + ' ' + n.padEnd(36) + (dt || '')));
