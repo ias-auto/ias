@@ -3832,124 +3832,161 @@ function IasAnunturi({ open: iasO, mutate: iasM, elevi: iasEl, settings: iasSet,
             })))
 }
 
+/* Ținut apăsat pe o ședință din calendar: după o jumătate de secundă bună se
+   cere confirmarea și se intră în rearanjare. Nu se declanșează dacă degetul
+   alunecă — atunci e derulare, nu apăsare. */
+function iasTinutApasat(cheama) {
+    var cronometru = null, pornit = null;
+    var opreste = function () {
+        if (cronometru) clearTimeout(cronometru);
+        cronometru = null, pornit = null
+    };
+    return {
+        onPointerDown: function (ev) {
+            if (ev.pointerType === "mouse" && ev.button !== 0) return;
+            pornit = { x: ev.clientX, y: ev.clientY };
+            cronometru = setTimeout(function () { cronometru = null, cheama() }, 550)
+        },
+        onPointerMove: function (ev) {
+            if (!pornit) return;
+            if (Math.abs(ev.clientY - pornit.y) > 10 || Math.abs(ev.clientX - pornit.x) > 10) opreste()
+        },
+        onPointerUp: opreste,
+        onPointerCancel: opreste,
+        onContextMenu: function (ev) { ev.preventDefault() }
+    }
+}
+
 function IasRearanjare({ open: iasO, data: iasZi, sesiuni: iasSes, elevi: iasEl, settings: iasSet, onClose: iasX, onAplica: iasA }) {
-    let mobile = (iasSes || []).filter(x => x.status === "pending"),
-        fixe = (iasSes || []).filter(x => x.status !== "pending"),
-        [ordine, pune] = (0, o.useState)([]),
+    /* Ziua, ca un șir de intervale. Fiecare ședință stă într-unul, iar tu o poți
+       duce în oricare altul: dacă e liber, se mută acolo; dacă e ocupat, cele
+       două schimbă locurile între ele. Nu se mai împing una pe alta — așa se
+       vede limpede ce ai făcut, iar o ședință poate traversa toată ziua.
+
+       Ședința programată care se mută trece singură în „așteaptă confirmare":
+       ora convenită s-a schimbat, deci elevul trebuie să spună din nou dacă
+       poate. Cea care rămâne pe loc nu se atinge. */
+    let vii = (iasSes || []).filter(x => x.status !== "cancelled"),
+        [aşezare, pune] = (0, o.useState)({}),
         [prins, prinde] = (0, o.useState)(null),
         [mutat, muta] = (0, o.useState)(0);
 
+    let durata = Fa(iasSet),
+        blocaje = b0(iasSet, iasZi),
+        aleLor = vii.map(x => x.startMin),
+        // toate intervalele zilei care nu sunt barate și nu se lovesc de o
+        // ședință a altui instructor
+        sloturi = aleLor.concat(Tf(iasSet).filter(h =>
+            aleLor.indexOf(h) < 0
+            && !bf(blocaje, h, durata)
+            && !vii.some(x => x.otherInstructor && bu(h, durata, x.startMin, or(x, iasSet)))
+        )).sort((x, y) => x - y);
+
+    /* Așezarea se reface doar când se schimbă chiar ședințele zilei, nu la
+       fiecare redesenare: lista vine ca obiect nou de fiecare dată, iar dacă ne
+       luam după el, tot ce mutaseși se ștergea sub deget. */
+    let amprenta = vii.map(x => x.id + ":" + x.startMin).join(",");
     (0, o.useEffect)(() => {
         if (!iasO) return;
-        let iasD = Fa(iasSet), iasB = b0(iasSet, iasZi), iasA2 = mobile.map(x => x.startMin),
-            iasOre = iasA2.concat(Tf(iasSet).filter(h => iasA2.indexOf(h) < 0
-                && !bf(iasB, h, iasD)
-                && !(iasSes || []).some(x => x.status !== "cancelled" && !x.otherInstructor
-                    && bu(h, iasD, x.startMin, or(x, iasSet))))).sort((x, y) => x - y);
-        pune(iasOre.map(h => (mobile.filter(x => x.startMin === h)[0] || {}).id || null)),
-        prinde(null), muta(0)
-    }, [iasO, iasSes]);
+        let start = {};
+        vii.forEach(x => { start[x.startMin] = x.id });
+        pune(start), prinde(null), muta(0)
+    }, [iasO, iasZi, amprenta]);
 
     if (!iasO) return null;
 
-    /* Orele în care se poate așeza o ședință în așteptare: cele pe care le țin
-       chiar ele, plus orele libere ale zilei. Înainte se puteau doar schimba
-       între ele, așa că o singură ședință în așteptare n-avea unde să se ducă,
-       deși ziua avea goluri. */
-    let numele = (id) => (iasEl.find(x => x.id === id) || {}).name || "Elev \u0219ters",
-        iasDurata = Fa(iasSet),
-        iasBlocaje = b0(iasSet, iasZi),
-        iasAleLor = mobile.map(x => x.startMin),
-        oreLibere = iasAleLor.concat(Tf(iasSet).filter(h =>
-            iasAleLor.indexOf(h) < 0
-            && !bf(iasBlocaje, h, iasDurata)
-            && !(iasSes || []).some(x => x.status !== "cancelled" && !x.otherInstructor
-                && bu(h, iasDurata, x.startMin, or(x, iasSet))))).sort((x, y) => x - y),
-        deId = (id) => mobile.find(x => x.id === id),
-        indexPrins = prins ? ordine.indexOf(prins) : -1,
-        tinta = indexPrins < 0 ? -1 : Math.max(0, Math.min(ordine.length - 1, indexPrins + Math.round(mutat / IAS_RAND))),
-        previzualizare = indexPrins < 0 ? ordine : iasOrdineNoua(ordine, indexPrins, tinta);
+    let deId = (id) => vii.filter(x => x.id === id)[0],
+        numele = (id) => (iasEl.filter(x => x.id === id)[0] || {}).name || "Elev \u0219ters",
+        oraLui = (id) => Number(Object.keys(aşezare).filter(h => aşezare[h] === id)[0]),
+        indexPrins = prins ? sloturi.indexOf(oraLui(prins)) : -1,
+        tinta = indexPrins < 0 ? -1
+            : Math.max(0, Math.min(sloturi.length - 1, indexPrins + Math.round(mutat / IAS_RAND)));
+
+    // cum ar arăta ziua dacă ai lăsa acum din deget
+    let asezareaNoua = () => {
+        if (indexPrins < 0 || tinta === indexPrins) return aşezare;
+        let de = sloturi[indexPrins], la = sloturi[tinta], v = { ...aşezare };
+        let acolo = v[la];
+        v[la] = prins;
+        if (acolo) v[de] = acolo; else delete v[de];
+        return v
+    };
 
     function apuca(ev, id) {
         ev.preventDefault();
         try { ev.currentTarget.setPointerCapture(ev.pointerId) } catch (e) {}
         prinde(id), muta(0);
-        let y0 = ev.clientY;
-        ev.currentTarget.__iasY = y0
+        ev.currentTarget.__iasY = ev.clientY
     }
     function trage(ev) {
         if (!prins) return;
         let y0 = ev.currentTarget.__iasY;
-        if (y0 == null) return;
-        muta(ev.clientY - y0)
+        if (y0 != null) muta(ev.clientY - y0)
     }
     function lasa() {
         if (!prins) return;
-        pune(previzualizare), prinde(null), muta(0)
+        pune(asezareaNoua()), prinde(null), muta(0)
     }
 
-    /* Toate ședințele zilei, așezate la ora lor: cele fixe rămân unde erau, cele
-       mutabile primesc orele libere în ordinea aleasă de tine. */
     let rezultat = () => {
         let out = [];
-        ordine.forEach((id, k) => {
-            if (id && oreLibere[k] != null) out.push({ id: id, startMin: oreLibere[k] })
+        Object.keys(aşezare).forEach(h => {
+            let id = aşezare[h], ses = deId(id);
+            if (ses && ses.startMin !== Number(h)) out.push({
+                id: id, startMin: Number(h),
+                // ora s-a schimbat: dacă era confirmată, cere iar confirmarea
+                status: ses.status === "scheduled" ? "pending" : ses.status
+            })
         });
-        return out
+        return out.sort((x, y) => x.startMin - y.startMin)
     };
-    let seSchimba = rezultat().some(x => (deId(x.id) || {}).startMin !== x.startMin);
+    let mutate = rezultat();
 
-    let randuri = [];
-    /* Întâi se stabilește ce oră capătă fiecare ședință, abia apoi se știe care
-       ore rămân goale. Le socoteam invers, iar codul se oprea. */
-    let perechi = {};
-    previzualizare.forEach((id, k) => { if (id && oreLibere[k] != null) perechi[id] = oreLibere[k] });
-    fixe.forEach(x => { perechi[x.id] = x.startMin });
-    // golurile intră și ele în listă, ca rânduri punctate
-    let goluri = oreLibere.filter(h => !Object.keys(perechi).some(id => perechi[id] === h))
-        .map(h => ({ id: "gol_" + h, gol: !0, startMin: h }));
-    goluri.forEach(x => { perechi[x.id] = x.startMin });
-    let toate = fixe.concat(mobile).concat(goluri).slice();
-    toate.sort((a, b) => (perechi[a.id] || 0) - (perechi[b.id] || 0));
-
-    toate.forEach(ses => {
-        let eGol = !!ses.gol,
-            eMobil = !eGol && ses.status === "pending",
-            eSelectat = prins === ses.id,
-            ora = perechi[ses.id];
-        randuri.push(o.default.createElement("div", {
-            key: ses.id,
+    /* Cât ții degetul pe ea, ședința rămâne desenată la locul ei și doar se
+       deplasează pe ecran; rândul-țintă se aprinde. Dacă am fi rearanjat
+       rândurile sub deget, elementul de sub el s-ar fi schimbat, iar ridicarea
+       degetului n-ar mai fi nimerit ședința trasă — mutarea se pierdea. */
+    let randuri = sloturi.map((h, k) => {
+        let id = aşezare[h], ses = id ? deId(id) : null,
+            eTinta = indexPrins >= 0 && k === tinta && tinta !== indexPrins,
+            eSelectat = prins && prins === id,
+            aFostMutat = ses && ses.startMin !== h,
+            devinePending = aFostMutat && ses.status === "scheduled";
+        return o.default.createElement("div", {
+            key: h,
             style: {
                 height: IAS_RAND - 8, marginBottom: 8, borderRadius: 14,
                 display: "flex", alignItems: "center", gap: 10, padding: "0 12px",
-                background: eMobil ? "var(--accent-soft)" : eGol ? "transparent" : "var(--surface-2)",
-                border: `1px ${eGol ? "dashed" : "solid"} ${eMobil ? "var(--accent-line)" : "var(--line)"}`,
-                opacity: eSelectat ? .65 : 1,
+                background: eTinta ? "var(--accent-soft)"
+                    : !ses ? "transparent"
+                        : aFostMutat ? "var(--accent-soft)" : "var(--surface-2)",
+                border: `${eTinta ? 2 : 1}px ${ses ? "solid" : "dashed"} ${eTinta || aFostMutat ? "var(--accent)" : "var(--line)"}`,
+                opacity: eSelectat ? .6 : 1,
                 transform: eSelectat ? `translateY(${mutat}px)` : "none",
                 transition: eSelectat ? "none" : "transform .18s ease",
                 touchAction: "none", userSelect: "none"
             },
-            onPointerDown: eMobil ? (ev => apuca(ev, ses.id)) : void 0,
-            onPointerMove: eMobil ? trage : void 0,
-            onPointerUp: eMobil ? lasa : void 0,
-            onPointerCancel: eMobil ? lasa : void 0
+            onPointerDown: ses ? (ev => apuca(ev, id)) : void 0,
+            onPointerMove: ses ? trage : void 0,
+            onPointerUp: ses ? lasa : void 0,
+            onPointerCancel: ses ? lasa : void 0
         },
             o.default.createElement("span", {
                 className: "font-mono-time text-xs shrink-0",
-                style: { color: eMobil ? "var(--accent-ink)" : "var(--muted-2)", width: 42 }
-            }, Se(ora)),
-            o.default.createElement("span", {
-                className: "text-sm flex-1 min-w-0 truncate",
-                style: { color: eMobil ? "var(--accent-ink)" : "var(--muted)" }
-            }, eGol ? "liber" : numele(ses.studentId)),
-            eMobil
-                ? o.default.createElement("span", {
-                    className: "shrink-0 text-xs", style: { color: "var(--accent)" }
-                }, "\u2261")
-                : eGol ? null
-                    : o.default.createElement("span", {
-                        className: "shrink-0 text-xs", style: { color: "var(--muted-2)" }
-                    }, "fix\u0103")))
+                style: { color: aFostMutat ? "var(--accent-ink)" : "var(--muted-2)", width: 42 }
+            }, Se(h)),
+            o.default.createElement("span", { className: "flex-1 min-w-0" },
+                o.default.createElement("span", {
+                    className: "block text-sm truncate",
+                    style: { color: !ses ? "var(--faint)" : aFostMutat ? "var(--accent-ink)" : "var(--muted)" }
+                }, ses ? numele(ses.studentId) : "liber"),
+                devinePending ? o.default.createElement("span", {
+                    className: "block text-xs", style: { color: "var(--accent-ink)" }
+                }, "trece \xEEn a\u0219teptare") : null),
+            ses ? o.default.createElement("span", {
+                className: "shrink-0 text-xs",
+                style: { color: aFostMutat ? "var(--accent)" : "var(--muted-2)" }
+            }, "\u2261") : null)
     });
 
     return o.default.createElement(oi, {
@@ -3960,15 +3997,15 @@ function IasRearanjare({ open: iasO, data: iasZi, sesiuni: iasSes, elevi: iasEl,
                 className: "flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 text-sm"
             }, "Renun\u021B\u0103"),
             o.default.createElement("button", {
-                onClick: () => iasA(rezultat()),
-                disabled: !seSchimba,
+                onClick: () => iasA(mutate),
+                disabled: !mutate.length,
                 className: "flex-1 py-3 rounded-xl bg-slate-900 text-white text-sm font-medium disabled:opacity-40"
-            }, "P\u0103streaz\u0103 ordinea"))
+            }, mutate.length ? `Confirm\u0103 (${mutate.length} mutate)` : "Confirm\u0103 modific\u0103rile"))
     },
         o.default.createElement("p", { className: "text-xs text-slate-400 mb-3" },
-            mobile.length === 0
-                ? "Nicio \u0219edin\u021B\u0103 \xEEn a\u0219teptare \xEEn ziua asta. Cele confirmate r\u0103m\xE2n unde sunt."
-                : "\u021Aine ap\u0103sat pe o \u0219edin\u021B\u0103 \xEEn a\u0219teptare \u0219i trage-o \u2014 poate merge \u0219i \xEEntr-o or\u0103 liber\u0103. Cele confirmate stau pe loc \u0219i sunt s\u0103rite."),
+            vii.length === 0
+                ? "Nicio \u0219edin\u021B\u0103 \xEEn ziua asta."
+                : "Trage o \u0219edin\u021B\u0103 \xEEn orice interval liber, sau peste alta ca s\u0103 schimbe locurile. Cea programat\u0103 care se mut\u0103 trece \xEEn a\u0219teptare, ca elevul s\u0103 confirme ora nou\u0103."),
         randuri)
 }
 
@@ -4628,6 +4665,7 @@ function Hk({
     onMutaSedinte: iasMuta
 }) {
     let [iasRearDeschis, iasRear] = (0, o.useState)(!1),
+        [iasIntrebRear, iasIntreabaRear] = (0, o.useState)(!1),
         [iasDeAnuntat, iasAnunta] = (0, o.useState)(null),
         [r, i] = (0, o.useState)(Be()), [s, l] = (0, o.useState)(null), [u, d] = (0, o.useState)(0), [f, p] = (0, o.useState)(null), c = b0(n.settings, r), m = () => {
         let A = s;
@@ -4865,7 +4903,9 @@ function Hk({
     /* Ajunge o singură ședință în așteptare, dacă ziua are unde s-o muți: până
        acum ceream două, așa că într-o zi plină cu una singură nemarcată butonul
        nici nu apărea, deși erau ore libere. */
-    x.filter(N => N.status === "pending").length > 0
+    /* Ajunge o singură ședință în zi, de orice fel: și cele programate se pot
+       muta acum, nu doar cele în așteptare. */
+    x.filter(N => N.status !== "cancelled").length > 0
         ? o.default.createElement("div", { className: "px-4 mb-3" },
             o.default.createElement("button", {
                 onClick: () => iasRear(!0),
@@ -4888,6 +4928,13 @@ function Hk({
             }).filter(Boolean);
             iasRear(!1), iasMuta(iasNoi), iasCu.length && iasAnunta(iasCu)
         }
+    }), o.default.createElement(Ri, {
+        open: iasIntrebRear,
+        title: "Rearanjezi ziua?",
+        message: "Tragi \u0219edin\u021Bele \xEEn alte intervale, iar la final confirmi. Nimic nu se schimb\u0103 p\xE2n\u0103 nu confirmi.",
+        confirmLabel: "Rearanjeaz\u0103",
+        onConfirm: () => { iasIntreabaRear(!1), iasRear(!0) },
+        onCancel: () => iasIntreabaRear(!1)
     }), o.default.createElement(IasAnunturi, {
         open: !!iasDeAnuntat,
         mutate: iasDeAnuntat || [],
@@ -4937,6 +4984,7 @@ function Hk({
             let iasPesteBlocaj = !!bf(b0(n.settings, r), Y.startMin, or(Y, n.settings));
             return o.default.createElement("button", {
                 key: Y.id,
+                ...iasTinutApasat(() => iasIntreabaRear(!0)),
                 onClick: () => e("edit", Y),
                 className: "w-full flex items-stretch bg-white rounded-xl border overflow-hidden text-left active:bg-slate-50" + (iasPesteBlocaj ? " ias-peste-blocaj" : ""),
                 style: O ? {
@@ -9884,6 +9932,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.35.7",
+    titlu: "Rearanjare liber\u0103, prin \u021Binut ap\u0103sat",
+    puncte: ["\u021Aii ap\u0103sat pe o \u0219edin\u021B\u0103 din calendar, \u021Bi se cere confirmarea \u0219i intri \xEEn rearanjare. Nimic nu se schimb\u0103 p\xE2n\u0103 nu confirmi la final.", "Orice \u0219edin\u021B\u0103 poate merge \xEEn orice interval liber al zilei, oric\xE2t de departe; l\u0103sat\u0103 peste alta, cele dou\u0103 schimb\u0103 locurile.", "\u0218edin\u021Ba programat\u0103 care se mut\u0103 trece singur\u0103 \xEEn \u201Ea\u0219teapt\u0103 confirmare\u201D \u2014 ora convenit\u0103 s-a schimbat, deci elevul trebuie s\u0103 spun\u0103 din nou dac\u0103 poate.", "Butonul apare de la o singur\u0103 \u0219edin\u021B\u0103 \xEEn zi, de orice fel."]
+}, {
     v: "v2.35.6",
     titlu: "Rearanjare \xEEn orele libere \u0219i anun\u021Buri",
     puncte: ["Butonul de rearanjare apare acum \u0219i c\xE2nd ai o singur\u0103 \u0219edin\u021B\u0103 \xEEn a\u0219teptare \u2014 \xEEnainte cerea dou\u0103.", "\u0218edin\u021Bele \xEEn a\u0219teptare se pot muta \u0219i \xEEn orele libere ale zilei, nu doar \xEEntre ele.", "Dup\u0103 ce p\u0103strezi ordinea, se deschid mesajele gata scrise pentru fiecare elev mutat, cu ora veche \u0219i cea nou\u0103."]
@@ -11733,7 +11785,8 @@ function y3() {
                 ...V,
                 sessions: V.sessions.map(x => {
                     let g = iasNoi.find(y => y.id === x.id);
-                    return g ? { ...x, startMin: g.startMin } : x
+                    // ora nouă, și statusul nou dacă a fost nevoie
+                    return g ? { ...x, startMin: g.startMin, status: g.status || x.status } : x
                 })
             })), Y("Ziua a fost rearanjat\u0103.")
         },
