@@ -58,7 +58,9 @@ var yo = ["ianuarie", "februarie", "martie", "aprilie", "mai", "iunie", "iulie",
     };
 
 function v0(n, e) {
-    return !e || !n ? [] : n.filter(t => t.examDate === e && ha[t.examPeriod]).map(t => ({
+    /* Elevul retras nu mai ține mașina ocupată: examenul lui iese din calendar
+       de îndată ce l-ai retras, ca intervalul să fie iar al tău. */
+    return !e || !n ? [] : n.filter(t => !t.withdrawn && t.examDate === e && ha[t.examPeriod]).map(t => ({
         student: t,
         period: t.examPeriod,
         ...ha[t.examPeriod]
@@ -380,7 +382,13 @@ function bo(n) {
 function kf(n, e) {
     return Math.max(0, bo(n) - Af(e, n.id))
 }
+/* Câte ședințe se țin deoparte pentru examen. Era o cifră scrisă în cod; acum
+   se poate schimba din Setări, fiindcă fiecare instructor lucrează altfel. */
 var Nf = 3,
+    iasRezerva = (setari) => {
+        var n = Number(setari && setari.rezervaExamen);
+        return isNaN(n) || n < 0 ? Nf : Math.min(10, n)
+    },
     wf = 14,
     vf = 3,
     ho = n => !!(n && n.asteptare);
@@ -427,7 +435,7 @@ var Pf = n => !!n && !n.withdrawn && n.examResult !== "promovat" && !ho(n),
 function GA(n, e, t) {
     let a = kf(n, e);
     if (a <= 0) return 0;
-    let r = Math.min(Nf, bo(n));
+    let r = Math.min(iasRezerva(n.__setari || null) || Nf, bo(n));
     return n.examDate ? t >= n.examDate ? 0 : Mf(n, t) ? a : Math.max(0, a - r) : Math.max(0, a - r)
 }
 
@@ -436,7 +444,7 @@ function VA(n, e, t, a) {
     let r = bo(n),
         i = e.filter(u => u.id !== a && u.studentId === n.id && u.status !== "cancelled").length,
         s = r - i,
-        l = Math.min(Nf, r);
+        l = Math.min(iasRezerva(t || null), r);
     return s > l ? null : n.examDate ? Mf(n, t) ? null : `Aten\u021Bie: e una dintre ultimele ${l} \u0219edin\u021Be. Ar trebui programat\u0103 cu 1\u20135 zile \xEEnainte de examen (${qe(n.examDate)}). Apas\u0103 din nou \u201ESalveaz\u0103" ca s\u0103 o programezi oricum.` : `Aten\u021Bie: e una dintre ultimele ${l} \u0219edin\u021Be, p\u0103strate pentru preg\u0103tirea de dinaintea examenului. ${n.name} nu are \xEEnc\u0103 dat\u0103 de examen. Apas\u0103 din nou \u201ESalveaz\u0103" ca s\u0103 o programezi oricum.`
 }
 
@@ -486,6 +494,17 @@ function iasMasini(setari) {
 function iasMasina(setari, id) {
     return iasMasini(setari).filter(function (m) { return m.id === id })[0] || null;
 }
+/* Mașina cu care pornește un elev nou. Dacă ai una singură, e limpede care.
+   Dacă ai mai multe, o alegi tu în Setări; până n-o schimbi, toți elevii noi o
+   primesc pe aceea, iar pe fișa fiecăruia poți pune altceva. */
+function iasMasinaImplicita(setari) {
+    var lista = iasMasini(setari);
+    if (!lista.length) return "";
+    if (lista.length === 1) return lista[0].id;
+    var aleasa = (setari || {}).masinaImplicita;
+    return lista.some(function (m) { return m.id === aleasa }) ? aleasa : ""
+}
+
 function iasNumeMasina(setari, id) {
     var m = iasMasina(setari, id);
     if (!m) return "";
@@ -1559,7 +1578,7 @@ function uk({
                                     } else if ((he.area || "") !== re) continue
                                 }
                                 if (C0(he, z, Ne, s)) continue;
-                                let H = he.includeRezerva ? 0 : Math.min(Nf, Number(he.remaining) || 0);
+                                let H = he.includeRezerva ? 0 : Math.min(iasRezerva(t), Number(he.remaining) || 0);
                                 if (l[he.id] <= H) {
                                     if (!he.examDate) continue;
                                     let T = Sf(z, he.examDate);
@@ -2988,7 +3007,7 @@ function IasProvenienta({ open: deschis, onClose: inchide, data: dateAp }) {
 /* Mașinile școlii. Numele e de obicei numărul de înmatriculare, dar poate fi
    orice te ajută să le deosebești. Cutia contează la planificare: elevii care
    învață pe automată nu pot fi programați pe o mașină manuală. */
-function IasMasiniEditor({ masini: lista, onChange: schimba }) {
+function IasMasiniEditor({ masini: lista, onChange: schimba, implicita: iasImp, onImplicita: iasSetImp }) {
     let [ciorna, pune] = (0, o.useState)(null);
 
     function salveaza() {
@@ -3060,7 +3079,30 @@ function IasMasiniEditor({ masini: lista, onChange: schimba }) {
             : o.default.createElement("button", {
                 onClick: function () { pune({ nume: "", cutie: "manuala", combustibil: "" }) },
                 className: "w-full py-2.5 rounded-xl border border-dashed border-slate-300 text-slate-500 text-sm flex items-center justify-center gap-1.5"
-            }, o.default.createElement(cn, { size: 14 }), "Ma\u0219in\u0103 nou\u0103"))
+            }, o.default.createElement(cn, { size: 14 }), "Ma\u0219in\u0103 nou\u0103"),
+
+        lista.length > 1 && !ciorna
+            ? o.default.createElement("div", { className: "mt-4" },
+                o.default.createElement("span", {
+                    className: "block text-xs font-medium text-slate-500 mb-1.5"
+                }, "Ma\u0219ina implicit\u0103 pentru elevii noi"),
+                o.default.createElement("select", {
+                    className: ie,
+                    value: iasImp || "",
+                    onChange: function (ev) { iasSetImp(ev.target.value) }
+                },
+                    o.default.createElement("option", { value: "" }, "F\u0103r\u0103 \u2014 o aleg de fiecare dat\u0103"),
+                    lista.map(function (m) {
+                        return o.default.createElement("option", { key: m.id, value: m.id },
+                            m.nume + " \xB7 " + (m.cutie === "automata" ? "automat\u0103" : "manual\u0103"))
+                    })),
+                o.default.createElement("p", { className: "text-xs text-slate-400 mt-1.5" },
+                    "Elevii noi o primesc pe asta. Pe fi\u0219a fiec\u0103ruia po\u021Bi pune oric\xE2nd alta."))
+            : lista.length === 1 && !ciorna
+                ? o.default.createElement("p", {
+                    className: "text-xs mt-3", style: { color: "var(--muted-2)" }
+                }, "Fiind singura ma\u0219in\u0103, o primesc to\u021Bi elevii noi.")
+                : null)
 }
 
 function oi({
@@ -4223,9 +4265,14 @@ function Jn({
     title: n,
     summary: e,
     children: t,
-    defaultOpen: a = !1
+    defaultOpen: a = !1,
+    forteaza: iasF
 }) {
     let [r, i] = (0, o.useState)(a);
+    /* Un grup pe care l-ai strâns rămâne strâns — și bine face. Dar la căutare,
+       dacă are pe cineva potrivit, se deschide singur: altfel elevul căutat
+       stătea ascuns înăuntru și părea că nu există. */
+    (0, o.useEffect)(() => { if (iasF) i(!0) }, [iasF]);
     return o.default.createElement("div", {
         className: "mb-3"
     }, o.default.createElement("button", {
@@ -4986,7 +5033,9 @@ function Hk({
                 key: Y.id,
                 ...iasTinutApasat(() => iasIntreabaRear(!0)),
                 onClick: () => e("edit", Y),
-                className: "w-full flex items-stretch bg-white rounded-xl border overflow-hidden text-left active:bg-slate-50" + (iasPesteBlocaj ? " ias-peste-blocaj" : ""),
+                /* Fără asta, ținutul apăsat ridică meniul browserului („Back,
+                   Reload, Share…") peste fereastra noastră. */
+                className: "w-full flex items-stretch bg-white rounded-xl border overflow-hidden text-left active:bg-slate-50 ias-fara-meniu" + (iasPesteBlocaj ? " ias-peste-blocaj" : ""),
                 style: O ? {
                     borderColor: "var(--violet)"
                 } : void 0
@@ -6012,11 +6061,13 @@ function Vk({
     }, o.default.createElement("div", {
         className: "space-y-2"
     }, b.map(E => k(E, !1)))), M.length > 0 && o.default.createElement(Jn, {
-        title: `Promova\u021Bi \xB7 ${M.length}`
+        title: `Promova\u021Bi \xB7 ${M.length}`,
+        forteaza: !!f && M.length > 0
     }, o.default.createElement("div", {
         className: "space-y-2"
     }, M.map(E => k(E, !1)))), S.length > 0 && o.default.createElement(Jn, {
-        title: `Retra\u0219i \xB7 ${S.length}`
+        title: `Retra\u0219i \xB7 ${S.length}`,
+        forteaza: !!f && S.length > 0
     }, o.default.createElement("div", {
         className: "space-y-2"
     }, S.map(E => k(E, !0))))), o.default.createElement("button", {
@@ -6037,11 +6088,14 @@ function Wk({
     settingsPachete: s,
     currency: l,
     masini: iasLista = [],
+    masinaImplicita: iasMasImp = "",
     onClose: u,
     onSave: d,
     onDelete: f
 }) {
     let p = () => ({
+            // elevul nou pornește cu mașina ta implicită; o poți schimba aici
+            masina: iasMasImp || "",
             name: "",
             lastName: "",
             firstName: "",
@@ -6929,7 +6983,14 @@ function Wk({
         let iasP = ii(s).filter(x => Number(x.hours) > 0).find(x => x.id === c.pachet),
             iasInc = Number(c.includedHours) || 0,
             iasSup = Number(c.extraHours) || 0,
-            iasDin = iasP ? Number(iasP.hours) || 0 : 0,
+            /* Ședințele din pachet se adaugă o singură dată, la înscriere. La
+               editare ele sunt deja în „ședințe incluse", așa că adunându-le
+               iar ieșeau de două ori — 17 deveneau 34. */
+            /* Ședințele din pachet se adaugă doar când pachetul e nou ales.
+               La un elev care îl are deja, ele sunt în „ședințe incluse", așa
+               că adunându-le iar ieșeau de două ori — 17 deveneau 34. */
+            iasPachetNou = c.pachet && c.pachet !== (t && t.pachet),
+            iasDin = (iasP && iasPachetNou) ? Number(iasP.hours) || 0 : 0,
             iasTotal = iasInc + iasSup + iasDin;
         if (!iasTotal && !iasP) return null;
         let iasRand = (et, val, tare) => o.default.createElement("div", {
@@ -7757,7 +7818,7 @@ function jk({
         className: "text-sm text-slate-600 flex-1"
     }, "Include \u0219i \u0219edin\u021Bele rezervate")), o.default.createElement("p", {
         className: "text-xs text-slate-400 px-3.5 -mt-1 mb-1"
-    }, "Ultimele ", Nf, " \u0219edin\u021Be ale fiec\u0103rui elev se p\u0103streaz\u0103 pentru preg\u0103tirea de dinaintea examenului. Bifeaz\u0103 dac\u0103 vrei s\u0103 intre \u0219i ele \xEEn plan."), i.map(N => {
+    }, "Ultimele ", iasRezerva(n.settings), " \u0219edin\u021Be ale fiec\u0103rui elev se p\u0103streaz\u0103 pentru preg\u0103tirea de dinaintea examenului. Bifeaz\u0103 dac\u0103 vrei s\u0103 intre \u0219i ele \xEEn plan."), i.map(N => {
         let C = bw(n.sessions, N.id, N, r);
         return o.default.createElement("div", {
             key: N.id,
@@ -9192,6 +9253,16 @@ function e3({
                 className: ie,
                 onCommit: H => e({ defaultWeeklyLimit: H })
             })), o.default.createElement(xe, {
+                label: "\u0218edin\u021Be p\u0103strate pentru examen"
+            }, o.default.createElement(IasNumar, {
+                value: iasRezerva(J),
+                min: 0,
+                max: 10,
+                className: ie,
+                onCommit: H => e({ rezervaExamen: H })
+            }), o.default.createElement(IasInfo, {
+                text: "Ultimele at\xE2tea \u0219edin\u021Be ale fiec\u0103rui elev sunt \u021Binute deoparte pentru perioada examenului \u2014 planul nu le programeaz\u0103 de la sine. Pune 0 dac\u0103 nu vrei rezerv\u0103."
+            })), o.default.createElement(xe, {
                 label: "Jude\u021B implicit pentru elevi noi"
             }, o.default.createElement("select", {
                 className: ie,
@@ -9379,7 +9450,9 @@ function e3({
                 size: 14
             }), "Loca\u021Bie nou\u0103")) : ne === "masini" ? o.default.createElement(IasMasiniEditor, {
                 masini: iasMasini(J),
-                onChange: (lista) => e({ masini: lista })
+                onChange: (lista) => e({ masini: lista }),
+                implicita: J.masinaImplicita || "",
+                onImplicita: (id) => e({ masinaImplicita: id })
             }) : ne === "amintiri" ? o.default.createElement(o.default.Fragment, null, o.default.createElement("p", {
                 className: "text-xs text-slate-400 mb-3"
             }, "Aplica\u021Bia nu poate suna singur\u0103 c\xE2t timp e \xEEnchis\u0103 \u2014 asta o face doar calendarul telefonului. \xCEi pred\u0103m lui \u0219edin\u021Bele viitoare, cu amintirile bifate mai jos, iar el te anun\u021B\u0103 la timp, chiar dac\u0103 aplica\u021Bia e \xEEnchis\u0103."), [
@@ -9932,6 +10005,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.35.8",
+    titlu: "\u0218ase \xEEndrept\u0103ri",
+    puncte: ["Pachetul nu se mai adun\u0103 de dou\u0103 ori \xEEn rezumat la editarea unui elev.", "Elevul retras \xEEi elibereaz\u0103 calendarul: examenul lui iese, iar \u0219edin\u021Bele viitoare trec \xEEn anulate pe loc.", "C\u0103utarea \xEEn Elevi deschide singur\u0103 grupurile str\xE2nse care au pe cineva potrivit.", "\u021Ainutul ap\u0103sat pe o \u0219edin\u021B\u0103 nu mai cheam\u0103 meniul telefonului peste fereastr\u0103.", "\xCEn Set\u0103ri po\u021Bi schimba c\xE2te \u0219edin\u021Be se p\u0103streaz\u0103 pentru examen \u2014 era o cifr\u0103 fix\u0103.", "Tot \xEEn Set\u0103ri alegi ma\u0219ina implicit\u0103 pentru elevii noi; dac\u0103 ai una singur\u0103, o primesc to\u021Bi."]
+}, {
     v: "v2.35.7",
     titlu: "Rearanjare liber\u0103, prin \u021Binut ap\u0103sat",
     puncte: ["\u021Aii ap\u0103sat pe o \u0219edin\u021B\u0103 din calendar, \u021Bi se cere confirmarea \u0219i intri \xEEn rearanjare. Nimic nu se schimb\u0103 p\xE2n\u0103 nu confirmi la final.", "Orice \u0219edin\u021B\u0103 poate merge \xEEn orice interval liber al zilei, oric\xE2t de departe; l\u0103sat\u0103 peste alta, cele dou\u0103 schimb\u0103 locurile.", "\u0218edin\u021Ba programat\u0103 care se mut\u0103 trece singur\u0103 \xEEn \u201Ea\u0219teapt\u0103 confirmare\u201D \u2014 ora convenit\u0103 s-a schimbat, deci elevul trebuie s\u0103 spun\u0103 din nou dac\u0103 poate.", "Butonul apare de la o singur\u0103 \u0219edin\u021B\u0103 \xEEn zi, de orice fel."]
@@ -10840,8 +10917,20 @@ function y3() {
                     ...I
                 };
                 return ee ? se(De, I.pachet, te.settings) : De
-            })
-        })), Y("Elev actualizat.")) : (ce(te => {
+            }),
+            /* Elevul tocmai retras nu mai are ce căuta în calendar: ședințele
+               lui de azi înainte trec în „anulată" pe loc, ca intervalele să se
+               elibereze fără să le cauți una câte una. */
+            sessions: (I.withdrawn && !(V && V.withdrawn))
+                ? te.sessions.map(iasS => (iasS.studentId === V.id
+                    && iasS.date >= Be()
+                    && iasS.status !== "completed"
+                    && iasS.status !== "cancelled")
+                    ? { ...iasS, status: "cancelled" } : iasS)
+                : te.sessions
+        })), Y(I.withdrawn && !(V && V.withdrawn)
+            ? "Elev retras. \u0218edin\u021Bele viitoare au fost anulate."
+            : "Elev actualizat.")) : (ce(te => {
             let ue = {
                 id: Vt("stu"),
                 ...I,
@@ -11380,6 +11469,15 @@ function y3() {
            altfel îți ia o clipă să înțelegi ce s-a deschis și de unde. */
         /* Hașura pentru ședințele puse peste un interval marcat indisponibil.
            Stă deasupra, dar transparentă: nu acoperă nimic din ce scrie. */
+        /* Rândurile pe care se ține apăsat nu trebuie să cheme meniul
+           browserului sau selecția de text — apăsarea lungă e a noastră. */
+        .ias-fara-meniu {
+          -webkit-touch-callout: none;
+          -webkit-user-select: none;
+          user-select: none;
+          touch-action: pan-y;
+        }
+
         .ias-peste-blocaj { position: relative }
         .ias-peste-blocaj::after {
           content: ""; position: absolute; inset: 0; pointer-events: none;
@@ -11939,6 +12037,7 @@ function y3() {
         locations: n.settings.locations,
         settingsPachete: n.settings,
         masini: iasMasini(n.settings),
+        masinaImplicita: iasMasinaImplicita(n.settings),
         currency: n.settings.currency,
         onClose: () => p({
             open: !1,
