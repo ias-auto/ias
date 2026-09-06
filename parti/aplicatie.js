@@ -4105,44 +4105,59 @@ function IasSemn({ fel: iasF, size: iasS = 34, stins: iasSt }) {
 }
 
 var IAS_STARI = [
-    { id: "scheduled", nume: "Programat\u0103" },
-    { id: "pending", nume: "A\u0219teapt\u0103 confirmare" },
-    { id: "completed", nume: "Efectuat\u0103", doarEdit: !0 },
-    { id: "cancelled", nume: "Anulat\u0103", doarEdit: !0 }
+    { id: "scheduled", nume: "Programat\u0103", scurt: "Programat\u0103" },
+    { id: "pending", nume: "A\u0219teapt\u0103 confirmare", scurt: "A\u0219teapt\u0103" },
+    { id: "completed", nume: "Efectuat\u0103", scurt: "Efectuat\u0103", doarEdit: !0 },
+    { id: "cancelled", nume: "Anulat\u0103", scurt: "Anulat\u0103", doarEdit: !0 }
 ];
 
 /* Alegerea stării: patru semne, două pe rând. Selectat nu înseamnă doar
    culoare — semnul rămâne aprins, restul se sting, iar cel ales are chenar
    gros și fundal propriu. */
 function IasStare({ value: iasV, onChange: iasC, edit: iasE }) {
+    /* Patru pătrate, într-un rând: semnul sus, numele dedesubt. Cel ales se
+       aprinde — crește, capătă chenar gros și o umbră colorată — iar celelalte
+       se retrag. Diferența se vede de la o jumătate de metru, nu doar prin
+       culoare, ca să se citească și pe soare, și de cine nu deosebește bine
+       culorile. */
     var stari = IAS_STARI.filter(x => !x.doarEdit || iasE);
     return o.default.createElement("div", { className: "mb-3.5" },
         o.default.createElement("span", {
             className: "block text-xs font-medium text-slate-500 mb-1.5"
         }, "Status"),
         o.default.createElement("div", {
-            style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }
+            style: { display: "grid", gridTemplateColumns: `repeat(${stari.length}, 1fr)`, gap: 7 }
         }, stari.map(st => {
             var ales = iasV === st.id;
             return o.default.createElement("button", {
                 key: st.id, type: "button", onClick: () => iasC(st.id),
+                "aria-pressed": ales,
                 style: {
-                    display: "flex", alignItems: "center", gap: 9,
-                    padding: "9px 10px", borderRadius: 14, textAlign: "left",
-                    minHeight: 54,
+                    display: "flex", flexDirection: "column", alignItems: "center",
+                    justifyContent: "center", gap: 5,
+                    padding: "10px 3px", borderRadius: 16, minHeight: 78,
                     background: ales ? "var(--accent-soft)" : "var(--surface)",
                     border: `${ales ? 2 : 1}px solid ${ales ? "var(--accent)" : "var(--line)"}`,
-                    boxShadow: ales ? "0 2px 10px -4px var(--accent)" : "none"
+                    boxShadow: ales ? "0 4px 16px -6px var(--accent)" : "none",
+                    transform: ales ? "scale(1.04)" : "scale(.96)",
+                    transition: "transform .18s cubic-bezier(.2,.9,.3,1), box-shadow .18s ease, background .18s ease, border-color .18s ease"
                 }
             },
-                o.default.createElement(IasSemn, { fel: st.id, size: 30, stins: !ales }),
                 o.default.createElement("span", {
                     style: {
-                        fontSize: 11.5, lineHeight: 1.25, minWidth: 0,
-                        fontWeight: ales ? 600 : 400,
-                        color: ales ? "var(--accent-ink)" : "var(--muted)"
+                        display: "block",
+                        transform: ales ? "scale(1.12)" : "scale(1)",
+                        transition: "transform .18s cubic-bezier(.2,.9,.3,1)"
                     }
-                }, st.nume))
+                }, o.default.createElement(IasSemn, { fel: st.id, size: 30, stins: !ales })),
+                o.default.createElement("span", {
+                    style: {
+                        fontSize: 10, lineHeight: 1.15, textAlign: "center",
+                        fontWeight: ales ? 700 : 400,
+                        color: ales ? "var(--accent-ink)" : "var(--muted-2)",
+                        transition: "color .18s ease"
+                    }
+                }, st.scurt || st.nume))
         })))
 }
 
@@ -4160,11 +4175,15 @@ function iasAdu(ev) {
 }
 
 function IasLoc({ value: iasV, onChange: iasC, locations: iasL, harta: iasH }) {
+    /* Lista locurilor se vede de cum deschizi — nu mai trebuie să cauți ca să
+       afli ce ai. Două atingeri: deschizi, alegi. Căutarea a rămas, dar stă pe
+       un rând subțire, folositoare abia când ai multe locuri. */
     var [deschis, arata] = (0, o.useState)(!1), [caut, pune] = (0, o.useState)("");
-    var lista = (iasL || []).filter(x => {
-        var q = pu(caut).trim();
-        return !q || pu(x.name).includes(q)
-    });
+    var toate = iasL || [];
+    var q = pu(caut).trim();
+    var lista = q ? toate.filter(x => pu(x.name).includes(q)) : toate;
+    var iasAlege = function (nume) { iasC(nume), arata(!1), pune("") };
+
     return o.default.createElement("div", { className: "mb-3.5" },
         o.default.createElement("span", {
             className: "block text-xs font-medium text-slate-500 mb-1.5"
@@ -4184,68 +4203,83 @@ function IasLoc({ value: iasV, onChange: iasC, locations: iasL, harta: iasH }) {
             o.default.createElement("span", {
                 className: "flex-1 min-w-0 truncate text-sm",
                 style: { color: iasV && iasV.trim() ? "var(--text)" : "var(--muted-2)" }
-            }, iasV && iasV.trim() ? iasV : "Alege punctul de \xEEnt\xE2lnire"),
+            }, iasV && iasV.trim() ? iasV : "Alege locul de \xEEnt\xE2lnire"),
             o.default.createElement(un, { size: 15, className: "shrink-0 text-slate-300" })),
         iasV && iasV.trim() && iasH ? iasH : null,
 
         o.default.createElement(oi, {
             open: deschis, onClose: () => arata(!1),
             title: "Punct de \xEEnt\xE2lnire", layer: Wt.dialog
-        }, deschis ? o.default.createElement("div", null,
-            o.default.createElement("input", {
-                className: ie + " mb-3", autoFocus: !0,
+        }, deschis ? o.default.createElement("div", { className: "flex flex-col", style: { minHeight: 0 } },
+            /* Căutarea, pe un rând subțire: se vede că există, dar nu fură din
+               locul listei. Apare doar când chiar ai destule locuri. */
+            toate.length > 6 ? o.default.createElement("input", {
+                className: ie + " mb-2.5",
                 placeholder: "Caut\u0103 sau scrie un loc nou",
                 onFocus: iasAdu,
-                type: "search",
-                inputMode: "search",
-                name: "cauta-loc",
-                autoComplete: "off",
-                autoCorrect: "off",
-                spellCheck: !1,
-                enterKeyHint: "search",
+                type: "search", inputMode: "search", name: "cauta-loc",
+                autoComplete: "off", autoCorrect: "off", spellCheck: !1, enterKeyHint: "search",
                 value: caut, onChange: ev => pune(ev.target.value)
-            }),
-            caut.trim() && !lista.some(x => x.name === caut.trim())
+            }) : null,
+
+            q && !toate.some(x => x.name === caut.trim())
                 ? o.default.createElement("button", {
-                    type: "button",
-                    onClick: () => { iasC(caut.trim()), arata(!1) },
-                    className: "w-full mb-3 py-2.5 rounded-xl text-white text-sm font-medium",
+                    type: "button", onClick: () => iasAlege(caut.trim()),
+                    className: "w-full mb-2.5 py-2.5 rounded-xl text-white text-sm font-medium",
                     style: { background: "var(--invert)" }
                 }, "Folose\u0219te \u201E", caut.trim(), "\u201D")
                 : null,
+
             o.default.createElement("div", {
                 className: "space-y-1.5 overflow-y-auto",
-                style: { maxHeight: "min(320px, calc(var(--ias-vazut, 100vh) * 0.5))" }
+                // lista ia aproape toată înălțimea rămasă, ca să încapă cât mai multe
+                style: { maxHeight: "calc(var(--ias-vazut, 100vh) - 230px)", minHeight: 120 }
             },
                 lista.length === 0
-                    ? o.default.createElement("div", { className: "text-sm text-slate-400 py-2" },
-                        (iasL || []).length ? "Niciun loc nu se potrive\u0219te." : "Nicio loca\u021Bie \xEEn Set\u0103ri \u2014 scrie una mai sus.")
+                    ? o.default.createElement("div", { className: "text-sm text-slate-400 py-3 text-center" },
+                        toate.length ? "Niciun loc nu se potrive\u0219te."
+                            : "Nicio loca\u021Bie \xEEn Set\u0103ri. Scrie una mai jos.")
                     : null,
                 lista.map(loc => {
                     var ales = iasV === loc.name;
                     return o.default.createElement("button", {
                         key: loc.id, type: "button",
-                        onClick: () => { iasC(loc.name), arata(!1) },
+                        onClick: () => iasAlege(loc.name),
                         className: "w-full flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-left",
                         style: {
                             background: ales ? "var(--accent-soft)" : "var(--surface)",
-                            border: `1px solid ${ales ? "var(--accent-line)" : "var(--line)"}`
+                            border: `${ales ? 2 : 1}px solid ${ales ? "var(--accent)" : "var(--line)"}`,
+                            minHeight: 48
                         }
                     },
                         o.default.createElement(dn, {
-                            size: 14, className: "shrink-0",
+                            size: 15, className: "shrink-0",
                             style: { color: ales ? "var(--accent)" : "var(--muted-2)" }
                         }),
-                        o.default.createElement("span", { className: "flex-1 min-w-0 truncate text-sm text-slate-800" }, loc.name),
+                        o.default.createElement("span", {
+                            className: "flex-1 min-w-0 truncate text-sm",
+                            style: { color: ales ? "var(--accent-ink)" : "var(--text)",
+                                fontWeight: ales ? 600 : 400 }
+                        }, loc.name),
                         ales ? o.default.createElement("span", {
-                            className: "shrink-0 text-xs", style: { color: "var(--accent-ink)" }
-                        }, "ales") : null)
+                            className: "shrink-0 text-base", style: { color: "var(--accent)" }
+                        }, "\u2713") : null)
                 })),
+
+            /* Locul nou și ștergerea stau jos, ca acțiuni secundare. */
+            toate.length <= 6 ? o.default.createElement("input", {
+                className: ie + " mt-2.5",
+                placeholder: "Sau scrie un loc nou",
+                onFocus: iasAdu,
+                type: "search", inputMode: "search", name: "cauta-loc",
+                autoComplete: "off", autoCorrect: "off", spellCheck: !1, enterKeyHint: "search",
+                value: caut, onChange: ev => pune(ev.target.value)
+            }) : null,
             iasV && iasV.trim()
                 ? o.default.createElement("button", {
-                    type: "button", onClick: () => { iasC(""), arata(!1) },
-                    className: "w-full mt-3 py-2.5 rounded-xl border text-sm",
-                    style: { borderColor: "var(--line)", color: "var(--muted)" }
+                    type: "button", onClick: () => iasAlege(""),
+                    className: "w-full mt-2 py-2.5 rounded-xl text-sm",
+                    style: { color: "var(--muted-2)" }
                 }, "F\u0103r\u0103 loc de \xEEnt\xE2lnire")
                 : null) : null))
 }
@@ -4704,6 +4738,17 @@ function Ok({
     }, "Renun\u021B\u0103")))
 }
 
+/* Intervalul unei săptămâni, scris scurt: „31 aug – 6 sept". Când cele două
+   capete cad în aceeași lună, luna se scrie o singură dată. */
+function iasIntervalSapt(luni) {
+    var a = new Date(luni), b = new Date(luni);
+    b.setDate(b.getDate() + 6);
+    var scurt = function (d) { return yo[d.getMonth()].slice(0, 3) };
+    return a.getMonth() === b.getMonth()
+        ? a.getDate() + " \u2013 " + b.getDate() + " " + scurt(b)
+        : a.getDate() + " " + scurt(a) + " \u2013 " + b.getDate() + " " + scurt(b)
+}
+
 function Hk({
     data: n,
     onOpenSession: e,
@@ -4747,19 +4792,51 @@ function Hk({
         className: "pb-4"
     }, o.default.createElement("div", {
         className: "flex items-center justify-between px-4 pt-4 pb-3"
-    }, o.default.createElement("button", {
+    },
+    /* Antetul spune limpede în ce săptămână ești, nu doar în ce lună. Trecerea
+       de la o săptămână la alta păstrează ziua aleasă — luni rămâne luni — iar
+       dacă nu mai ești în săptămâna de azi, ți-o spune scris. Așa nu se mai
+       poate întâmpla să programezi din greșeală peste încă o săptămână. */
+    o.default.createElement("button", {
         onClick: () => i(ft(pn(Ue(r), -7))),
-        className: "p-2 -ml-2 text-slate-400"
+        "aria-label": "S\u0103pt\u0103m\xE2na trecut\u0103",
+        className: "p-3 -ml-1 text-slate-400 rounded-xl active:bg-slate-100"
     }, o.default.createElement(ei, {
         size: 20
-    })), o.default.createElement("div", {
-        className: "font-display text-base font-semibold text-slate-900 uppercase tracking-wide"
-    }, yo[Ue(r).getMonth()], " ", Ue(r).getFullYear()), o.default.createElement("button", {
+    })),
+    o.default.createElement("div", { className: "flex-1 min-w-0 text-center" },
+        o.default.createElement("div", {
+            className: "font-display text-base font-semibold text-slate-900 uppercase tracking-wide truncate"
+        }, iasIntervalSapt(v)),
+        (() => {
+            let iasD = Math.round((Gi(Ue(r)).getTime() - Gi(new Date).getTime()) / 6048e5);
+            if (iasD === 0) return o.default.createElement("div", {
+                className: "text-xs", style: { color: "var(--muted-2)" }
+            }, "s\u0103pt\u0103m\xE2na asta");
+            return o.default.createElement("div", {
+                className: "text-xs font-medium", style: { color: "var(--accent-ink)" }
+            }, iasD === 1 ? "s\u0103pt\u0103m\xE2na viitoare"
+                : iasD === -1 ? "s\u0103pt\u0103m\xE2na trecut\u0103"
+                    : iasD > 0 ? `peste ${iasD} s\u0103pt\u0103m\xE2ni` : `acum ${-iasD} s\u0103pt\u0103m\xE2ni`)
+        })()),
+    o.default.createElement("button", {
         onClick: () => i(ft(pn(Ue(r), 7))),
-        className: "p-2 -mr-2 text-slate-400"
+        "aria-label": "S\u0103pt\u0103m\xE2na viitoare",
+        className: "p-3 -mr-1 text-slate-400 rounded-xl active:bg-slate-100"
     }, o.default.createElement(un, {
         size: 20
-    }))), o.default.createElement("div", {
+    }))),
+    /* „Azi" apare doar când chiar ai plecat de acolo. Aici e singurul loc unde
+       se schimbă și ziua, fiindcă tu ai cerut anume întoarcerea la azi. */
+    r !== Be() ? o.default.createElement("div", { className: "px-4 -mt-1 mb-3 flex justify-center" },
+        o.default.createElement("button", {
+            onClick: () => i(Be()),
+            className: "px-3.5 py-1.5 rounded-full text-xs font-medium",
+            style: {
+                background: "var(--accent-soft)", color: "var(--accent-ink)",
+                border: "1px solid var(--accent-line)"
+            }
+        }, "\u2190 Azi")) : null, o.default.createElement("div", {
         className: "flex px-3 gap-1.5 mb-4"
     }, w.map(A => {
         let O = Ue(A),
@@ -4783,9 +4860,25 @@ function Hk({
             className: `text-xs font-medium uppercase ${C?"text-white":"text-slate-400"}`
         }, xu[O.getDay()]), o.default.createElement("span", {
             className: `text-base font-semibold font-mono-time ${C?"text-white":W?"text-amber-600":"text-slate-800"}`
-        }, O.getDate()), o.default.createElement("span", {
-            className: `w-1.5 h-1.5 rounded-full mt-1 ${N>0?C?"bg-amber-400":"bg-amber-500":"bg-transparent"}`
-        }))
+        }, O.getDate()),
+        /* Semnul „azi" se scrie limpede, ca să nu se confunde cu ziua aleasă:
+           una e ziua în care ești, alta ziua pe care o priveşti. */
+        W ? o.default.createElement("span", {
+            className: "font-semibold uppercase tracking-wide",
+            style: { fontSize: 9, lineHeight: 1, color: C ? "var(--accent)" : "var(--accent-ink)" }
+        }, "azi") : null,
+        /* Punctele de sub cifră arată cât e de plină ziua: unul pentru o zi
+           obișnuită, trei pentru una încărcată. Se citesc dintr-o privire. */
+        o.default.createElement("span", {
+            className: "flex items-center justify-center gap-0.5 mt-1", style: { height: 5 }
+        }, N === 0 ? null : [0, 1, 2].filter(k2 => k2 === 0 || N > k2 * 2).map(k2 =>
+            o.default.createElement("span", {
+                key: k2,
+                style: {
+                    width: 4, height: 4, borderRadius: 99,
+                    background: C ? "var(--accent)" : "var(--accent-line)"
+                }
+            }))))
     })), !S && o.default.createElement("div", {
         className: "mx-4 mb-3 px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-500"
     }, "Zi liber\u0103 conform programului t\u0103u de lucru \u2014 po\u021Bi programa oricum dac\u0103 e nevoie."), G.length > 0 && (() => {
@@ -5506,10 +5599,12 @@ function Rk({
         style: {
             touchAction: "manipulation"
         },
-        className: "w-full -mt-2 mb-3.5 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium flex items-center justify-center gap-1.5"
+        /* Deschiderea hărții e o acțiune secundară, deci stă la dreapta, în
+           zona de acțiuni, nu peste informația principală. */
+        className: "-mt-2 mb-3.5 ml-auto px-3.5 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium flex items-center justify-end gap-1.5 w-fit"
     }, o.default.createElement(dn, {
         size: 14
-    }), "Deschide loca\u021Bia")
+    }), "Deschide pe hart\u0103")
     }),
     o.default.createElement("div", { className: "mb-3.5" },
         o.default.createElement("span", {
@@ -10005,6 +10100,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.35.9",
+    titlu: "Calendar mai limpede, locuri \u0219i status",
+    puncte: ["Antetul calendarului arat\u0103 intervalul s\u0103pt\u0103m\xE2nii \u0219i \xEE\u021Bi spune c\xE2nd nu mai e\u0219ti \xEEn cea de azi. Butonul \u201EAzi\u201D apare doar c\xE2nd ai plecat de acolo.", "Schimbarea s\u0103pt\u0103m\xE2nii p\u0103streaz\u0103 ziua aleas\u0103 \u2014 duminic\u0103 r\u0103m\xE2ne duminic\u0103.", "\xCEn band\u0103, ziua de azi are semnul ei, iar punctele de sub cifr\u0103 arat\u0103 c\xE2t e de plin\u0103 ziua.", "Locurile de \xEEnt\xE2lnire se v\u0103d de cum deschizi lista \u2014 dou\u0103 atingeri \u0219i ai ales. C\u0103utarea a r\u0103mas, dar nu mai e obligatorie.", "Statusul e acum patru p\u0103trate cu indicatoare rutiere; cel ales se aprinde, restul se retrag.", "Deschiderea h\u0103r\u021Bii a trecut \xEEn dreapta, unde \xEEi e locul."]
+}, {
     v: "v2.35.8",
     titlu: "\u0218ase \xEEndrept\u0103ri",
     puncte: ["Pachetul nu se mai adun\u0103 de dou\u0103 ori \xEEn rezumat la editarea unui elev.", "Elevul retras \xEEi elibereaz\u0103 calendarul: examenul lui iese, iar \u0219edin\u021Bele viitoare trec \xEEn anulate pe loc.", "C\u0103utarea \xEEn Elevi deschide singur\u0103 grupurile str\xE2nse care au pe cineva potrivit.", "\u021Ainutul ap\u0103sat pe o \u0219edin\u021B\u0103 nu mai cheam\u0103 meniul telefonului peste fereastr\u0103.", "\xCEn Set\u0103ri po\u021Bi schimba c\xE2te \u0219edin\u021Be se p\u0103streaz\u0103 pentru examen \u2014 era o cifr\u0103 fix\u0103.", "Tot \xEEn Set\u0103ri alegi ma\u0219ina implicit\u0103 pentru elevii noi; dac\u0103 ai una singur\u0103, o primesc to\u021Bi."]
