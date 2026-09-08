@@ -4714,7 +4714,15 @@ function Hk({
     let [iasRearDeschis, iasRear] = (0, o.useState)(!1),
         [iasIntrebRear, iasIntreabaRear] = (0, o.useState)(!1),
         [iasDeAnuntat, iasAnunta] = (0, o.useState)(null),
-        [r, i] = (0, o.useState)(Be()), [s, l] = (0, o.useState)(null), [u, d] = (0, o.useState)(0), [f, p] = (0, o.useState)(null), c = b0(n.settings, r), m = () => {
+        /* Săptămâna privită și ziua aleasă sunt două lucruri deosebite.
+           Comutatorul de săptămână schimbă doar banda de sus; ziua rămâne cea
+           aleasă de tine, până când atingi tu alta. Altfel se putea întâmpla ce
+           ai pățit: alegeai duminica, atingeai din greșeală săptămâna
+           următoare, iar programările plecau pe duminica de peste o săptămână
+           fără să bagi de seamă. */
+        [r, i] = (0, o.useState)(Be()),
+        [iasSapt, iasPuneSapt] = (0, o.useState)(() => ft(Gi(new Date))),
+        [s, l] = (0, o.useState)(null), [u, d] = (0, o.useState)(0), [f, p] = (0, o.useState)(null), c = b0(n.settings, r), m = () => {
         let A = s;
         if (!A) return;
         let O = (A.note || "").trim(),
@@ -4736,7 +4744,7 @@ function Hk({
         }), l(null))
     }, g = A => t({
         blocks: (n.settings.blocks || []).filter(O => O.id !== A)
-    }), v = Gi(Ue(r)), w = Array.from({
+    }), v = Ue(iasSapt), w = Array.from({
         length: 7
     }, (A, O) => ft(pn(v, O))), x = n.sessions.filter(A => A.date === r && A.status !== "cancelled"), h = Fa(n.settings), y = kw(n.settings), _ = y >= 30 ? y : 60, b = (() => {
         let A = [];
@@ -4748,18 +4756,33 @@ function Hk({
     }, o.default.createElement("div", {
         className: "flex items-center justify-between px-4 pt-4 pb-3"
     }, o.default.createElement("button", {
-        onClick: () => i(ft(pn(Ue(r), -7))),
+        onClick: () => iasPuneSapt(ft(pn(Ue(iasSapt), -7))),
+        "aria-label": "S\u0103pt\u0103m\xE2na trecut\u0103",
         className: "p-2 -ml-2 text-slate-400"
     }, o.default.createElement(ei, {
         size: 20
     })), o.default.createElement("div", {
         className: "font-display text-base font-semibold text-slate-900 uppercase tracking-wide"
-    }, yo[Ue(r).getMonth()], " ", Ue(r).getFullYear()), o.default.createElement("button", {
-        onClick: () => i(ft(pn(Ue(r), 7))),
+    }, yo[Ue(iasSapt).getMonth()], " ", Ue(iasSapt).getFullYear()), o.default.createElement("button", {
+        onClick: () => iasPuneSapt(ft(pn(Ue(iasSapt), 7))),
+        "aria-label": "S\u0103pt\u0103m\xE2na viitoare",
         className: "p-2 -mr-2 text-slate-400"
     }, o.default.createElement(un, {
         size: 20
-    }))), o.default.createElement("div", {
+    }))),
+    /* „Azi" te aduce înapoi cu totul: și banda, și ziua privită. Apare doar
+       când chiar ai plecat de acolo, ca să nu stea degeaba pe ecran. */
+    (r !== Be() || iasSapt !== ft(Gi(new Date)))
+        ? o.default.createElement("div", { className: "px-4 -mt-1 mb-2 flex justify-center" },
+            o.default.createElement("button", {
+                onClick: () => { i(Be()), iasPuneSapt(ft(Gi(new Date))) },
+                className: "px-4 py-1.5 rounded-full text-xs font-medium",
+                style: {
+                    background: "var(--accent-soft)", color: "var(--accent-ink)",
+                    border: "1px solid var(--accent-line)"
+                }
+            }, "\u2190 Azi"))
+        : null, o.default.createElement("div", {
         className: "flex px-3 gap-1.5 mb-4"
     }, w.map(A => {
         let O = Ue(A),
@@ -4768,25 +4791,50 @@ function Hk({
             W = A === Be(),
             // ziua cu examen practic poartă chenar mov, aceeași culoare cu
             // intervalul de examen din grila orei
-            iasEx = v0(n.students, A).length > 0;
+            iasEx = v0(n.students, A).length > 0,
+            /* Cât de plină e ziua, ca nivelul într-un pahar: căsuța se umple de
+               jos în sus, după câte ședințe încap în programul tău. Se citește
+               dintr-o privire, fără să numeri. */
+            iasLoc = Math.max(1, Math.floor((n.settings.endMin - n.settings.startMin) / Math.max(30, Fa(n.settings)))),
+            iasUmplut = Math.min(1, N / iasLoc);
         return o.default.createElement("button", {
             key: A,
             onClick: () => i(A),
-            className: `flex-1 flex flex-col items-center py-2 rounded-xl border transition-colors ${C?"bg-slate-900 border-slate-900":"bg-white border-slate-200"}`,
+            className: `relative overflow-hidden flex-1 flex flex-col items-center py-2 rounded-xl border transition-colors ${C?"bg-slate-900 border-slate-900":"bg-white border-slate-200"}`,
             style: iasEx ? {
                 borderColor: "var(--violet)",
                 borderWidth: 2,
                 boxShadow: C ? "none" : "0 0 0 2px color-mix(in srgb, var(--violet) 18%, transparent)"
             } : void 0,
             title: iasEx ? "Examen practic \xEEn ziua asta" : void 0
-        }, o.default.createElement("span", {
+        },
+        iasUmplut > 0 ? o.default.createElement("span", {
+            "aria-hidden": "true",
+            style: {
+                position: "absolute", left: 0, right: 0, bottom: 0,
+                height: `${Math.round(iasUmplut * 100)}%`,
+                background: C ? "rgba(255,255,255,.18)" : "var(--accent-soft)",
+                transition: "height .25s ease", pointerEvents: "none"
+            }
+        }) : null, o.default.createElement("span", {
             className: `text-xs font-medium uppercase ${C?"text-white":"text-slate-400"}`
         }, xu[O.getDay()]), o.default.createElement("span", {
-            className: `text-base font-semibold font-mono-time ${C?"text-white":W?"text-amber-600":"text-slate-800"}`
+            className: `relative text-base font-semibold font-mono-time ${C?"text-white":W?"text-amber-600":"text-slate-800"}`
         }, O.getDate()), o.default.createElement("span", {
-            className: `w-1.5 h-1.5 rounded-full mt-1 ${N>0?C?"bg-amber-400":"bg-amber-500":"bg-transparent"}`
+            className: `relative w-1.5 h-1.5 rounded-full mt-1 ${N>0?C?"bg-amber-400":"bg-amber-500":"bg-transparent"}`
         }))
-    })), !S && o.default.createElement("div", {
+    })),
+    /* Dacă ziua pe care o vezi dedesubt nu e în săptămâna de pe bandă, ți-o
+       spunem limpede: altfel ai crede că programezi în săptămâna afișată. */
+    w.indexOf(r) < 0 ? o.default.createElement("div", {
+        className: "mx-4 mb-3 px-3.5 py-2.5 rounded-xl flex items-center gap-2",
+        style: { background: "var(--accent-soft)", border: "1px solid var(--accent-line)" }
+    }, o.default.createElement(Xn, {
+        size: 15, className: "shrink-0", style: { color: "var(--accent)" }
+    }), o.default.createElement("span", {
+        className: "text-xs flex-1", style: { color: "var(--accent-ink)" }
+    }, "Vezi mai jos ", fo(r), " \u2014 din alt\u0103 s\u0103pt\u0103m\xE2n\u0103. Atinge o zi din band\u0103 ca s\u0103 treci la ea."))
+        : null, !S && o.default.createElement("div", {
         className: "mx-4 mb-3 px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-500"
     }, "Zi liber\u0103 conform programului t\u0103u de lucru \u2014 po\u021Bi programa oricum dac\u0103 e nevoie."), G.length > 0 && (() => {
         let A = G.filter(X => X.student.examResult !== "promovat"),
@@ -10005,6 +10053,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.36.2",
+    titlu: "S\u0103pt\u0103m\xE2na \u0219i ziua, desp\u0103r\u021Bite",
+    puncte: ["Comutatorul de s\u0103pt\u0103m\xE2n\u0103 schimb\u0103 doar banda de sus. Ziua r\u0103m\xE2ne cea aleas\u0103 de tine, p\xE2n\u0103 c\xE2nd atingi tu alta din band\u0103.", "Dac\u0103 ziua pe care o vezi nu e \xEEn s\u0103pt\u0103m\xE2na afi\u0219at\u0103, \u021Bi se spune limpede, cu ziua scris\u0103.", "Buton \u201EAzi\u201D care te aduce \xEEnapoi \u0219i cu banda, \u0219i cu ziua.", "Fiecare c\u0103su\u021B\u0103 din band\u0103 se umple de jos \xEEn sus, dup\u0103 c\xE2t e ziua de plin\u0103."]
+}, {
     v: "v2.35.8",
     titlu: "\u0218ase \xEEndrept\u0103ri",
     puncte: ["Pachetul nu se mai adun\u0103 de dou\u0103 ori \xEEn rezumat la editarea unui elev.", "Elevul retras \xEEi elibereaz\u0103 calendarul: examenul lui iese, iar \u0219edin\u021Bele viitoare trec \xEEn anulate pe loc.", "C\u0103utarea \xEEn Elevi deschide singur\u0103 grupurile str\xE2nse care au pe cineva potrivit.", "\u021Ainutul ap\u0103sat pe o \u0219edin\u021B\u0103 nu mai cheam\u0103 meniul telefonului peste fereastr\u0103.", "\xCEn Set\u0103ri po\u021Bi schimba c\xE2te \u0219edin\u021Be se p\u0103streaz\u0103 pentru examen \u2014 era o cifr\u0103 fix\u0103.", "Tot \xEEn Set\u0103ri alegi ma\u0219ina implicit\u0103 pentru elevii noi; dac\u0103 ai una singur\u0103, o primesc to\u021Bi."]
