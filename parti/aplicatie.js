@@ -4104,45 +4104,70 @@ function IasSemn({ fel: iasF, size: iasS = 34, stins: iasSt }) {
         o.default.createElement("polygon", { points: "20,8 32,20 20,32 8,20", fill: "#f5c518" }))
 }
 
+/* Culoarea fiecărei stări, ținută într-un singur loc: o folosesc și pătratele
+   din formular, și cardurile de pe Acasă. */
+var IAS_CULOARE_STARE = {
+    scheduled: "#2b6cb0",
+    pending: "#c2810a",
+    completed: "#00875a",
+    cancelled: "#c0392b"
+};
+
 var IAS_STARI = [
-    { id: "scheduled", nume: "Programat\u0103" },
-    { id: "pending", nume: "A\u0219teapt\u0103 confirmare" },
-    { id: "completed", nume: "Efectuat\u0103", doarEdit: !0 },
-    { id: "cancelled", nume: "Anulat\u0103", doarEdit: !0 }
+    { id: "scheduled", nume: "Programat\u0103", scurt: "Programat\u0103" },
+    { id: "pending", nume: "A\u0219teapt\u0103 confirmare", scurt: "A\u0219teapt\u0103" },
+    { id: "completed", nume: "Efectuat\u0103", scurt: "Efectuat\u0103", doarEdit: !0 },
+    { id: "cancelled", nume: "Anulat\u0103", scurt: "Anulat\u0103", doarEdit: !0 }
 ];
 
 /* Alegerea stării: patru semne, două pe rând. Selectat nu înseamnă doar
    culoare — semnul rămâne aprins, restul se sting, iar cel ales are chenar
    gros și fundal propriu. */
 function IasStare({ value: iasV, onChange: iasC, edit: iasE }) {
+    /* Patru pătrate egale: semnul sus, numele dedesubt. Cel ales se aprinde —
+       crește, capătă chenar gros și o lumină în jur — iar celelalte se retrag și
+       pălesc. Diferența se vede de la o jumătate de metru, nu doar prin culoare,
+       ca să se citească și pe soare, și de cine nu deosebește bine culorile. */
     var stari = IAS_STARI.filter(x => !x.doarEdit || iasE);
     return o.default.createElement("div", { className: "mb-3.5" },
         o.default.createElement("span", {
             className: "block text-xs font-medium text-slate-500 mb-1.5"
         }, "Status"),
         o.default.createElement("div", {
-            style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }
+            style: { display: "grid", gridTemplateColumns: `repeat(${stari.length}, 1fr)`, gap: 7 }
         }, stari.map(st => {
-            var ales = iasV === st.id;
+            var ales = iasV === st.id, cul = IAS_CULOARE_STARE[st.id];
             return o.default.createElement("button", {
                 key: st.id, type: "button", onClick: () => iasC(st.id),
+                "aria-pressed": ales,
                 style: {
-                    display: "flex", alignItems: "center", gap: 9,
-                    padding: "9px 10px", borderRadius: 14, textAlign: "left",
-                    minHeight: 54,
-                    background: ales ? "var(--accent-soft)" : "var(--surface)",
-                    border: `${ales ? 2 : 1}px solid ${ales ? "var(--accent)" : "var(--line)"}`,
-                    boxShadow: ales ? "0 2px 10px -4px var(--accent)" : "none"
+                    display: "flex", flexDirection: "column", alignItems: "center",
+                    justifyContent: "center", gap: 6,
+                    padding: "11px 3px", borderRadius: 16, minHeight: 84,
+                    background: ales ? `color-mix(in srgb, ${cul} 13%, var(--surface))` : "var(--surface)",
+                    border: `${ales ? 2 : 1}px solid ${ales ? cul : "var(--line)"}`,
+                    boxShadow: ales ? `0 4px 18px -6px ${cul}` : "none",
+                    transform: ales ? "scale(1.05)" : "scale(.94)",
+                    transition: "transform .18s cubic-bezier(.2,.9,.3,1), box-shadow .18s ease, background .18s ease, border-color .18s ease"
                 }
             },
-                o.default.createElement(IasSemn, { fel: st.id, size: 30, stins: !ales }),
                 o.default.createElement("span", {
                     style: {
-                        fontSize: 11.5, lineHeight: 1.25, minWidth: 0,
-                        fontWeight: ales ? 600 : 400,
-                        color: ales ? "var(--accent-ink)" : "var(--muted)"
+                        display: "block",
+                        transform: ales ? "scale(1.14)" : "scale(1)",
+                        filter: ales ? `drop-shadow(0 0 6px color-mix(in srgb, ${cul} 55%, transparent))` : "none",
+                        transition: "transform .18s cubic-bezier(.2,.9,.3,1), filter .18s ease"
                     }
-                }, st.nume))
+                }, o.default.createElement(IasSemn, { fel: st.id, size: 32, stins: !ales })),
+                o.default.createElement("span", {
+                    style: {
+                        fontSize: 10, lineHeight: 1.15, textAlign: "center",
+                        fontWeight: ales ? 700 : 400,
+                        color: ales ? cul : "var(--muted-2)",
+                        textShadow: ales ? `0 0 8px color-mix(in srgb, ${cul} 40%, transparent)` : "none",
+                        transition: "color .18s ease"
+                    }
+                }, st.scurt || st.nume))
         })))
 }
 
@@ -5343,7 +5368,7 @@ function Rk({
                 f(null);
                 return
             }
-            if (C(""), X(!1), K(null), e === "edit" && t) f(t), z(t);
+            if (C(""), X(!1), K(null), iasPuneInit("?"), e === "edit" && t) f(t), z(t);
             else {
                 f(null);
                 let L = t?.studentId || "",
@@ -5354,12 +5379,20 @@ function Rk({
                     let pe = sk(a.sessions, a.settings, j);
                     j = pe.date, Q = pe.startMin
                 }
-                c(L), g(j || Be()), w(Q), h(T ? gw(T, a.sessions) : "included"), _("scheduled"), M(""), k(t?.location || T?.defaultLocation || ""), B(!1), G(""), O(!!(T && T.english))
+                c(L), g(j || Be()), w(Q), h(T ? gw(T, a.sessions) : "included"), _("scheduled"), M(""), k(t?.location || T?.defaultLocation || ""), B(!1), G(""), O(!!(T && T.english)), iasPuneInit("?")
             }
         }, [n, e, t]), (0, o.useEffect)(() => {
-        // reținem cum arăta fișa imediat după deschidere
-        if (n) { let iasT = setTimeout(() => { iasPuneInit(JSON.stringify([p, m, v, x, y, b, S, E, $, A])), iasIntreaba(!1) }, 0); return () => clearTimeout(iasT) }
-    }, [n, e, t]), !n) return null;
+        /* Cum arăta fișa după ce s-a umplut. Înainte o măsuram pe un ceas pus
+           la deschidere, care se declanșa înainte ca datele ședinței să apuce
+           să intre în câmpuri — așa că fișa părea schimbată de la bun început
+           și te întreba degeaba la închidere. Acum o măsurăm exact în clipa în
+           care câmpurile s-au așezat. */
+        if (!n) { iasInit && iasPuneInit(""); return }
+        /* Semnul „?" înseamnă „încă n-am măsurat". Îl punem când se deschide
+           fișa, iar măsurătoarea se face abia la desenarea următoare, când
+           câmpurile s-au umplut cu adevărat. */
+        if (iasInit === "?") iasPuneInit(JSON.stringify([p, m, v, x, y, b, S, E, $, A])), iasIntreaba(!1)
+    }, [n, iasInit, p, m, v, x, y, b, S, E, $, A]), !n) return null;
     let q = e === "edit" ? d || t : null,
         de = q ? q.id : null,
         ge = a.students.find(L => L.id === p),
@@ -5444,7 +5477,7 @@ function Rk({
     }
     /* Ca la fișa elevului: dacă ai schimbat ceva, închiderea întreabă întâi. */
     let iasAcum = JSON.stringify([p, m, v, x, y, b, S, E, $, A]),
-        iasInchide = () => { iasInit && iasAcum !== iasInit ? iasIntreaba(!0) : i() };
+        iasInchide = () => { iasInit && iasInit !== "?" && iasAcum !== iasInit ? iasIntreaba(!0) : i() };
     return o.default.createElement(oi, {
         open: n,
         onClose: iasInchide,
@@ -5486,18 +5519,14 @@ function Rk({
     }, "Elev", o.default.createElement("span", {
         className: "text-amber-600"
     }, " *")),
-    e === "edit" ? o.default.createElement("div", {
-        className: "flex items-center gap-3 rounded-2xl px-3.5 py-3 mb-3.5",
+    o.default.createElement("div", {
+        className: "rounded-2xl px-3.5 pt-3.5 pb-1 mb-3.5",
         style: { background: "var(--surface-2)", border: "1px solid var(--line)" }
     },
-        o.default.createElement(IasSemn, { fel: y, size: 34 }),
-        o.default.createElement("div", { className: "min-w-0 flex-1" },
-            o.default.createElement("div", { className: "text-sm font-semibold text-slate-900 truncate" },
-                ge ? ge.name : "Elev \u0219ters"),
-            o.default.createElement("div", { className: "text-xs text-slate-500 capitalize" },
-                fo(m), " \xB7 ", Se(v), "\u2013", Se(v + ye)))) : null,
-    /* Alegerea elevului își poartă singură titlul, deci nu-i mai punem încă
-       unul deasupra: se scria „Elev" de două ori și mânca un rând întreg. */
+    /* Statusul și elevul stau împreună, în capul formularului: sunt primele
+       două lucruri pe care le cauți când deschizi o ședință. Alegerea elevului
+       își poartă singură titlul, deci nu-i mai punem încă unul deasupra. */
+    o.default.createElement(IasStare, { value: y, onChange: _, edit: e === "edit" }),
     o.default.createElement(Uk, {
         /* Elevii care au deja o ședință în ziua aleasă nu mai apar în listă: la
            programare nu te interesează decât cine mai poate veni. Cel deja ales
@@ -5510,7 +5539,7 @@ function Rk({
             let T = a.students.find(j => j.id === L);
             h(T ? gw(T, a.sessions) : "included"), e !== "edit" && (k(T?.defaultLocation || ""), O(!!(T && T.english)))
         }
-    }),
+    })),
     o.default.createElement(xe, {
         label: "Dat\u0103",
         required: !0
@@ -5543,7 +5572,6 @@ function Rk({
                 }
             }, Se(L))
         }))),
-    o.default.createElement(IasStare, { value: y, onChange: _, edit: e === "edit" }),
     o.default.createElement(IasLoc, {
         value: S, onChange: k,
         locations: a.settings.locations,
@@ -5619,28 +5647,6 @@ function Rk({
         onChange: L => M(L.target.value),
         placeholder: "Op\u021Bional"
     }))),
-    o.default.createElement("div", {
-        className: "rounded-2xl px-4 py-3.5 mb-3.5",
-        style: { background: "var(--surface-2)", border: "1px solid var(--line)" }
-    },
-        o.default.createElement("div", {
-            className: "text-xs font-medium text-slate-400 uppercase tracking-wide mb-2"
-        }, "Rezumat"),
-        o.default.createElement("div", { className: "flex items-start gap-3" },
-            o.default.createElement(IasSemn, { fel: y, size: 36 }),
-            o.default.createElement("div", { className: "min-w-0 flex-1" },
-                o.default.createElement("div", { className: "text-sm font-semibold text-slate-900 truncate" },
-                    ge ? ge.name : "Elev nealess"),
-                o.default.createElement("div", { className: "text-xs text-slate-500 mt-0.5 capitalize" }, fo(m)),
-                o.default.createElement("div", { className: "font-mono-time text-xs text-slate-600" },
-                    Se(v), " \u2013 ", Se(v + ye)),
-                S && S.trim() ? o.default.createElement("div", {
-                    className: "text-xs text-slate-500 mt-0.5 truncate"
-                }, S) : null,
-                o.default.createElement("div", { className: "text-xs text-slate-400 mt-0.5" },
-                    (a.settings.rateTypes.find(L => L.id === x) || {}).name || "",
-                    A ? " \xB7 englez\u0103" : "",
-                    E ? " \xB7 alt instructor" : "")))),
     e === "edit" && ge && ge.phone && y !== "cancelled" && o.default.createElement("button", {
         onClick: () => u({
             studentId: p,
@@ -10053,6 +10059,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.36.3",
+    titlu: "Fi\u0219a \u0219edin\u021Bei, mai limpede",
+    puncte: ["Statusul st\u0103 sus, l\xE2ng\u0103 elev: patru p\u0103trate cu indicatoare rutiere, cel ales se aprinde \u0219i cre\u0219te, celelalte se retrag.", "Au disp\u0103rut cardul de deasupra \u0219i rezumatul de jos \u2014 nu spuneau nimic ce nu se vedea deja.", "Dac\u0103 n-ai schimbat nimic, \xEEnchiderea nu te mai \xEEntreab\u0103 nimic."]
+}, {
     v: "v2.36.2",
     titlu: "S\u0103pt\u0103m\xE2na \u0219i ziua, desp\u0103r\u021Bite",
     puncte: ["Comutatorul de s\u0103pt\u0103m\xE2n\u0103 schimb\u0103 doar banda de sus. Ziua r\u0103m\xE2ne cea aleas\u0103 de tine, p\xE2n\u0103 c\xE2nd atingi tu alta din band\u0103.", "Dac\u0103 ziua pe care o vezi nu e \xEEn s\u0103pt\u0103m\xE2na afi\u0219at\u0103, \u021Bi se spune limpede, cu ziua scris\u0103.", "Buton \u201EAzi\u201D care te aduce \xEEnapoi \u0219i cu banda, \u0219i cu ziua.", "Fiecare c\u0103su\u021B\u0103 din band\u0103 se umple de jos \xEEn sus, dup\u0103 c\xE2t e ziua de plin\u0103."]
