@@ -2651,12 +2651,15 @@ function Tk({
                 lungimeFascicul = pe.lungime * .33,
                 Ee = ve(latimeMasina * 2.6, lungimeFascicul, pe.lungime / 2 + lungimeFascicul / 2 - .15, 16773312),
                 ae = ve(1.9, 1.8, -2.8, 16726832);
+            /* Tăria luminii, ținută deoparte: perioada zilei o stabilește, iar
+               bucla de desenare o pâlpâie ușor în jurul ei. */
+            let iasLumina = 0;
             Ee.rotation.z = -Math.PI / 2, ae.rotation.z = Math.PI / 2, r.current = {
                 setPhase: ke => {
                     let Ie = hw[ke] || hw.day;
                     S.color.setHex(Ie.hemiSky), S.groundColor.setHex(Ie.hemiGround), S.intensity = Ie.hemiI, k.color.setHex(Ie.dir), k.intensity = Ie.dirI, E.intensity = ke === "night" ? .28 : .5, B.intensity = 0, re.emissiveIntensity = Ie.head, se.emissiveIntensity = .2 + Ie.head * .5, fe.emissiveIntensity = Ie.tail, H.emissiveIntensity = Ie.glow;
                     let Lt = Math.min(1, Ie.spot / 1.7);
-                    Ee.material.opacity = Lt * .9, ae.material.opacity = Lt * .3, G.color.setHex(Ie.road), g.fog.color.setHex(Ie.fog);
+                    iasLumina = Lt * .9, Ee.material.opacity = iasLumina, ae.material.opacity = iasLumina * .33, G.color.setHex(Ie.road), g.fog.color.setHex(Ie.fog);
                     let ut = ke === "night" ? .35 : ke === "day" ? 1.15 : .7;
                     z.envMapIntensity = ut, ze.envMapIntensity = ut * 1.3, ge.envMapIntensity = ut * 1.2, ye.envMapIntensity = ut * 1.2, ce.envMapIntensity = ut, de.envMapIntensity = ut * .45
                 }
@@ -2675,7 +2678,23 @@ function Tk({
                     }
                     let Lt = st / .37 * ke;
                     for (let ut = 0; ut < Re.length; ut++) Re[ut].rotateOnAxis(Oe, Lt);
-                    we.position.y = Math.sin(Ie * 8.5) * .012, we.position.z = Math.sin(Ie * .7) * .09, we.rotation.z = Math.sin(Ie * 3.1) * .011, we.rotation.y = Math.sin(Ie * .9) * .02, U.position.z = we.position.z, m.render(g, x)
+                    we.position.y = Math.sin(Ie * 8.5) * .012, we.position.z = Math.sin(Ie * .7) * .09, we.rotation.z = Math.sin(Ie * 3.1) * .011, we.rotation.y = Math.sin(Ie * .9) * .02, U.position.z = we.position.z;
+
+                    /* Balta de lumină ține pasul cu mașina. Farurile sunt prinse
+                       de ea, deci când mașina se leagănă pe drum, lumina se
+                       leagănă odată cu ea: alunecă în lateral cât alunecă și
+                       botul, și se rotește cu cât se întoarce el.
+
+                       Rămâne însă lipită de asfalt — nu urcă și nu coboară cu
+                       suspensia, fiindcă lumina cade pe drum, nu plutește. */
+                    Ee.position.z = we.position.z, Ee.rotation.y = -we.rotation.y;
+                    ae.position.z = we.position.z, ae.rotation.y = -we.rotation.y;
+                    /* Și pâlpâie puțin, în ritmul legănării: un fascicul viu, nu
+                       o pată desenată pe jos. */
+                    Ee.material.opacity = iasLumina * (.9 + Math.sin(Ie * 8.5) * .07);
+                    ae.material.opacity = iasLumina * .33 * (.9 + Math.sin(Ie * 8.5) * .07);
+
+                    m.render(g, x)
                 };
             hn();
             let tt = () => {
@@ -10149,6 +10168,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.36.6",
+    titlu: "Lumina \u021Bine pasul cu ma\u0219ina",
+    puncte: ["Balta de lumin\u0103 din antet se leag\u0103n\u0103 odat\u0103 cu ma\u0219ina \u0219i se rote\u0219te cu botul ei, dar r\u0103m\xE2ne lipit\u0103 de asfalt.", "P\xE2lp\xE2ie u\u0219or, \xEEn ritmul leg\u0103n\u0103rii \u2014 un fascicul viu, nu o pat\u0103 desenat\u0103 pe jos."]
+}, {
     v: "v2.36.5",
     titlu: "Loc pentru lista de elevi",
     puncte: ["C\xE2nd cau\u021Bi elevul, butoanele de status se retrag, ca lista s\u0103 aib\u0103 tot ecranul. Revin dup\u0103 ce ai ales.", "C\xE2mpul de c\u0103utare urc\u0103 \xEEn capul zonei vizibile, nu la mijloc \u2014 sub el se deschide lista.", "Butonul de hart\u0103 nu se mai suprapune peste \u201EToate locurile\u201D."]
