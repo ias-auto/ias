@@ -4191,9 +4191,11 @@ function IasStare({ value: iasV, onChange: iasC, edit: iasE }) {
    ce tastatura a apucat să urce. Fără pasul ăsta, câmpul de căutare rămâne sub
    taste chiar dacă fereastra s-a așezat cum trebuie. */
 function iasAdu(ev) {
+    /* Câmpul atins urcă în capul zonei vizibile, nu în mijlocul ei: sub el se
+       deschide de obicei o listă, iar lista are nevoie de tot locul rămas. */
     var camp = ev.currentTarget;
     setTimeout(function () {
-        try { camp.scrollIntoView({ block: "center", behavior: "smooth" }) } catch (e) {}
+        try { camp.scrollIntoView({ block: "start", behavior: "smooth" }) } catch (e) {}
     }, 320)
 }
 
@@ -5306,8 +5308,13 @@ function Uk({
     elevi: n,
     value: e,
     onChange: t,
-    ascunsi: iasAscunsi = 0
+    ascunsi: iasAscunsi = 0,
+    onDeschis: iasSpune
 }) {
+    /* Când se deschide căutarea, dă de știre în afară: fișa ședinței își
+       retrage atunci butoanele de status, ca lista de elevi să aibă tot
+       ecranul. Altfel patru pătrate mari stau între tine și listă tocmai când
+       ai nevoie de ea. */
     let [a, r] = (0, o.useState)(!1), [i, s] = (0, o.useState)(""), l = n.find(f => f.id === e) || null, u = pu(i).trim(), d = u ? n.filter(f => pu(`${f.name} ${f.group||""}`).includes(u) || (f.phone || "").includes(i.trim())) : n;
     return a ? o.default.createElement("div", {
         className: "mb-3.5"
@@ -5336,9 +5343,7 @@ function Uk({
         className: `${ie} pl-10 pr-10`
     }), o.default.createElement("button", {
         type: "button",
-        onClick: () => {
-            r(!1), s("")
-        },
+        onClick: () => { r(!1), s(""), iasSpune && iasSpune(!1) },
         "aria-label": "\xCEnchide lista",
         className: "absolute right-1 top-1/2 -translate-y-1/2 p-2.5 text-slate-400"
     }, o.default.createElement(ir, {
@@ -5360,7 +5365,7 @@ function Uk({
         key: f.id,
         type: "button",
         onClick: () => {
-            t(f.id), r(!1), s("")
+            t(f.id), r(!1), s(""), iasSpune && iasSpune(!1)
         },
         className: "w-full flex items-center gap-2 px-3.5 py-2.5 text-left border-b border-slate-100 last:border-0 active:bg-slate-50"
     }, o.default.createElement("span", {
@@ -5379,7 +5384,7 @@ function Uk({
     }, o.default.createElement("button", {
         type: "button",
         onClick: () => {
-            r(!0), s("")
+            r(!0), s(""), iasSpune && iasSpune(!0)
         },
         className: `${ie} text-left flex items-center gap-2`
     }, o.default.createElement(Oi, {
@@ -5404,6 +5409,7 @@ function Rk({
     onTrimiteConfirmare: u
 }) {
     let [iasInit, iasPuneInit] = (0, o.useState)(""), [iasIntreb, iasIntreaba] = (0, o.useState)(!1),
+        [iasCautaElev, iasCauta] = (0, o.useState)(!1),
         [d, f] = (0, o.useState)(null), [p, c] = (0, o.useState)(""), [m, g] = (0, o.useState)(Be()), [v, w] = (0, o.useState)(a.settings.startMin), [x, h] = (0, o.useState)("included"), [y, _] = (0, o.useState)("scheduled"), [b, M] = (0, o.useState)(""), [S, k] = (0, o.useState)(""), [E, B] = (0, o.useState)(!1), [$, G] = (0, o.useState)(""), [A, O] = (0, o.useState)(!1), [N, C] = (0, o.useState)(""), [W, X] = (0, o.useState)(!1), [R, K] = (0, o.useState)(null), ne = (0, o.useMemo)(() => {
         if (e !== "edit" || !t || !t.id) return null;
         let L = Be();
@@ -5579,8 +5585,9 @@ function Rk({
     /* Statusul și elevul stau împreună, în capul formularului: sunt primele
        două lucruri pe care le cauți când deschizi o ședință. Alegerea elevului
        își poartă singură titlul, deci nu-i mai punem încă unul deasupra. */
-    o.default.createElement(IasStare, { value: y, onChange: _, edit: e === "edit" }),
+    iasCautaElev ? null : o.default.createElement(IasStare, { value: y, onChange: _, edit: e === "edit" }),
     o.default.createElement(Uk, {
+        onDeschis: iasCauta,
         /* Elevii care au deja o ședință în ziua aleasă nu mai apar în listă: la
            programare nu te interesează decât cine mai poate veni. Cel deja ales
            rămâne, ca să nu dispară de sub deget când editezi o ședință. */
@@ -5635,7 +5642,9 @@ function Rk({
         style: {
             touchAction: "manipulation"
         },
-        className: "w-full -mt-2 mb-3.5 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium flex items-center justify-center gap-1.5"
+        /* Marginea negativă îl trăgea peste butonul de deasupra, care venea de
+           pe vremea când era lipit de câmpul de locație. Acum stă la rândul lui. */
+        className: "w-full mt-2 mb-3.5 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium flex items-center justify-center gap-1.5"
     }, o.default.createElement(dn, {
         size: 14
     }), "Deschide loca\u021Bia")
@@ -10140,6 +10149,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.36.5",
+    titlu: "Loc pentru lista de elevi",
+    puncte: ["C\xE2nd cau\u021Bi elevul, butoanele de status se retrag, ca lista s\u0103 aib\u0103 tot ecranul. Revin dup\u0103 ce ai ales.", "C\xE2mpul de c\u0103utare urc\u0103 \xEEn capul zonei vizibile, nu la mijloc \u2014 sub el se deschide lista.", "Butonul de hart\u0103 nu se mai suprapune peste \u201EToate locurile\u201D."]
+}, {
     v: "v2.36.4",
     titlu: "Locuri, sortare \u0219i indicatoare",
     puncte: ["Locurile obi\u0219nuite stau la vedere, ca butoane: o singur\u0103 ap\u0103sare \u0219i ai ales. Restul se deschid \xEEntr-o list\u0103.", "C\xE2nd deschizi o list\u0103, capul ei urc\u0103 \xEEn susul ecranului, ca s\u0103 vezi tot ce e \xEEn\u0103untru.", "Cele nou\u0103 criterii de sortare au intrat sub un singur buton \u201ESortare\u201D, cu criteriul ales scris al\u0103turi; \xEEl atingi ca s\u0103 \xEEntorci ordinea.", "Pe cardurile de \u0219edin\u021B\u0103 apare indicatorul rutier cu numele dedesubt, cu lumina pe conturul lui, nu \xEEntr-un chenar."]
