@@ -3445,16 +3445,29 @@ function Dk({
 function I0({
     status: n
 }) {
+    /* Starea ședinței, cu indicatorul rutier deasupra și numele dedesubt. Nu
+       mai stă într-o pastilă cu chenar: lumina urmărește chiar conturul
+       semnului și al scrisului, așa că se citește dintr-o privire, fără să
+       taie cardul cu o cutie în plus. */
     let e = go[n] || go.scheduled,
-        t = {
-            blue: "bg-blue-50 text-blue-700 border-blue-200",
-            amber: "bg-amber-50 text-amber-700 border-amber-200",
-            emerald: "bg-emerald-50 text-emerald-700 border-emerald-200",
-            red: "bg-red-50 text-red-700 border-red-200"
-        } [e.c];
+        cul = IAS_CULOARE_STARE[n] || IAS_CULOARE_STARE.scheduled;
     return o.default.createElement("span", {
-        className: `inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border shrink-0 ${t}`
-    }, e.label)
+        className: "inline-flex flex-col items-center shrink-0",
+        style: { gap: 3, width: 62 }
+    },
+        o.default.createElement("span", {
+            style: {
+                display: "block",
+                filter: `drop-shadow(0 0 5px color-mix(in srgb, ${cul} 60%, transparent))`
+            }
+        }, o.default.createElement(IasSemn, { fel: n, size: 26 })),
+        o.default.createElement("span", {
+            style: {
+                fontSize: 9.5, lineHeight: 1.1, textAlign: "center", fontWeight: 600,
+                color: cul,
+                textShadow: `0 0 7px color-mix(in srgb, ${cul} 45%, transparent)`
+            }
+        }, (IAS_STARI.filter(x => x.id === n)[0] || {}).scurt || e.label))
 }
 
 function Mw({
@@ -4185,96 +4198,121 @@ function iasAdu(ev) {
 }
 
 function IasLoc({ value: iasV, onChange: iasC, locations: iasL, harta: iasH }) {
+    /* Locurile obișnuite stau la vedere, ca butoane: o singură apăsare și ai
+       ales. Încap două rânduri; dacă ai mai multe, restul se deschid într-o
+       listă, ca formularul să nu crească la nesfârșit. */
     var [deschis, arata] = (0, o.useState)(!1), [caut, pune] = (0, o.useState)("");
-    var lista = (iasL || []).filter(x => {
-        var q = pu(caut).trim();
-        return !q || pu(x.name).includes(q)
-    });
+    var toate = iasL || [];
+    var q = pu(caut).trim();
+    var lista = q ? toate.filter(x => pu(x.name).includes(q)) : toate;
+    var LAVEDERE = 6;
+    var alege = function (nume) { iasC(nume), arata(!1), pune("") };
+    /* Locul ales stă mereu printre cele la vedere, chiar dacă e mai jos în
+       listă — altfel n-ai vedea pe ce ai pus ședința. */
+    var primele = toate.slice(0, LAVEDERE);
+    if (iasV && iasV.trim() && !primele.some(x => x.name === iasV)) {
+        var alesul = toate.filter(x => x.name === iasV)[0];
+        primele = (alesul ? [alesul] : [{ id: "scris", name: iasV }]).concat(primele).slice(0, LAVEDERE);
+    }
+
     return o.default.createElement("div", { className: "mb-3.5" },
         o.default.createElement("span", {
             className: "block text-xs font-medium text-slate-500 mb-1.5"
         }, "Loc de \xEEnt\xE2lnire"),
+
+        toate.length || (iasV && iasV.trim())
+            ? o.default.createElement("div", {
+                style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 8 }
+            }, primele.map(function (loc) {
+                var ales = iasV === loc.name;
+                return o.default.createElement("button", {
+                    key: loc.id, type: "button",
+                    onClick: function () { iasC(ales ? "" : loc.name) },
+                    className: "px-2 py-2.5 rounded-xl text-xs text-center",
+                    style: {
+                        minHeight: 46, lineHeight: 1.2,
+                        background: ales ? "var(--accent-soft)" : "var(--surface)",
+                        color: ales ? "var(--accent-ink)" : "var(--muted)",
+                        fontWeight: ales ? 600 : 400,
+                        border: `${ales ? 2 : 1}px solid ${ales ? "var(--accent)" : "var(--line)"}`
+                    }
+                }, loc.name)
+            }))
+            : null,
+
         o.default.createElement("button", {
-            type: "button", onClick: () => { arata(!0), pune("") },
-            className: "w-full flex items-center gap-2.5 rounded-xl px-3.5 py-3 text-left",
-            style: {
-                background: "var(--surface)",
-                border: `1px solid ${iasV && iasV.trim() ? "var(--accent-line)" : "var(--line)"}`
-            }
+            type: "button", onClick: function () { arata(!0), pune("") },
+            className: "w-full flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-left",
+            style: { background: "var(--surface)", border: "1px dashed var(--line-2)" }
         },
-            o.default.createElement(dn, {
-                size: 15, className: "shrink-0",
-                style: { color: iasV && iasV.trim() ? "var(--accent)" : "var(--muted-2)" }
-            }),
-            o.default.createElement("span", {
-                className: "flex-1 min-w-0 truncate text-sm",
-                style: { color: iasV && iasV.trim() ? "var(--text)" : "var(--muted-2)" }
-            }, iasV && iasV.trim() ? iasV : "Alege punctul de \xEEnt\xE2lnire"),
-            o.default.createElement(un, { size: 15, className: "shrink-0 text-slate-300" })),
+            o.default.createElement(dn, { size: 14, className: "shrink-0", style: { color: "var(--muted-2)" } }),
+            o.default.createElement("span", { className: "flex-1 text-xs", style: { color: "var(--muted-2)" } },
+                toate.length > LAVEDERE
+                    ? `Toate locurile (${toate.length}) sau scrie unul nou`
+                    : "Alt loc, scris de tine"),
+            o.default.createElement(un, { size: 14, className: "shrink-0 text-slate-300" })),
         iasV && iasV.trim() && iasH ? iasH : null,
 
         o.default.createElement(oi, {
-            open: deschis, onClose: () => arata(!1),
+            open: deschis, onClose: function () { arata(!1) },
             title: "Punct de \xEEnt\xE2lnire", layer: Wt.dialog
         }, deschis ? o.default.createElement("div", null,
-            o.default.createElement("input", {
-                className: ie + " mb-3", autoFocus: !0,
-                placeholder: "Caut\u0103 sau scrie un loc nou",
-                onFocus: iasAdu,
-                type: "search",
-                inputMode: "search",
-                name: "cauta-loc",
-                autoComplete: "off",
-                autoCorrect: "off",
-                spellCheck: !1,
-                enterKeyHint: "search",
-                value: caut, onChange: ev => pune(ev.target.value)
-            }),
-            caut.trim() && !lista.some(x => x.name === caut.trim())
-                ? o.default.createElement("button", {
-                    type: "button",
-                    onClick: () => { iasC(caut.trim()), arata(!1) },
-                    className: "w-full mb-3 py-2.5 rounded-xl text-white text-sm font-medium",
-                    style: { background: "var(--invert)" }
-                }, "Folose\u0219te \u201E", caut.trim(), "\u201D")
-                : null,
+            /* Lista întâi, căutarea abia când chiar ai multe locuri. */
             o.default.createElement("div", {
-                className: "space-y-1.5 overflow-y-auto",
-                style: { maxHeight: "min(320px, calc(var(--ias-vazut, 100vh) * 0.5))" }
+                className: "space-y-1.5",
+                style: { maxHeight: "calc(var(--ias-vazut, 100vh) - 250px)", minHeight: 120, overflowY: "auto" }
             },
                 lista.length === 0
-                    ? o.default.createElement("div", { className: "text-sm text-slate-400 py-2" },
-                        (iasL || []).length ? "Niciun loc nu se potrive\u0219te." : "Nicio loca\u021Bie \xEEn Set\u0103ri \u2014 scrie una mai sus.")
+                    ? o.default.createElement("div", { className: "text-sm text-slate-400 py-2 text-center" },
+                        toate.length ? "Niciun loc nu se potrive\u0219te." : "Nicio loca\u021Bie \xEEn Set\u0103ri \u2014 scrie una mai jos.")
                     : null,
-                lista.map(loc => {
+                lista.map(function (loc) {
                     var ales = iasV === loc.name;
                     return o.default.createElement("button", {
                         key: loc.id, type: "button",
-                        onClick: () => { iasC(loc.name), arata(!1) },
+                        onClick: function () { alege(loc.name) },
                         className: "w-full flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-left",
                         style: {
+                            minHeight: 48,
                             background: ales ? "var(--accent-soft)" : "var(--surface)",
-                            border: `1px solid ${ales ? "var(--accent-line)" : "var(--line)"}`
+                            border: `${ales ? 2 : 1}px solid ${ales ? "var(--accent)" : "var(--line)"}`
                         }
                     },
                         o.default.createElement(dn, {
                             size: 14, className: "shrink-0",
                             style: { color: ales ? "var(--accent)" : "var(--muted-2)" }
                         }),
-                        o.default.createElement("span", { className: "flex-1 min-w-0 truncate text-sm text-slate-800" }, loc.name),
+                        o.default.createElement("span", {
+                            className: "flex-1 min-w-0 truncate text-sm",
+                            style: { color: ales ? "var(--accent-ink)" : "var(--text)", fontWeight: ales ? 600 : 400 }
+                        }, loc.name),
                         ales ? o.default.createElement("span", {
-                            className: "shrink-0 text-xs", style: { color: "var(--accent-ink)" }
-                        }, "ales") : null)
+                            className: "shrink-0", style: { color: "var(--accent)" }
+                        }, "\u2713") : null)
                 })),
+            o.default.createElement("input", {
+                className: ie + " mt-3",
+                placeholder: toate.length > 8 ? "Caut\u0103 sau scrie un loc nou" : "Scrie un loc nou",
+                onFocus: iasAdu,
+                type: "search", inputMode: "search", name: "cauta-loc",
+                autoComplete: "off", autoCorrect: "off", spellCheck: !1, enterKeyHint: "search",
+                value: caut, onChange: function (ev) { pune(ev.target.value) }
+            }),
+            q && !toate.some(function (x) { return x.name === caut.trim() })
+                ? o.default.createElement("button", {
+                    type: "button", onClick: function () { alege(caut.trim()) },
+                    className: "w-full mt-2 py-2.5 rounded-xl text-white text-sm font-medium",
+                    style: { background: "var(--invert)" }
+                }, "Folose\u0219te \u201E", caut.trim(), "\u201D")
+                : null,
             iasV && iasV.trim()
                 ? o.default.createElement("button", {
-                    type: "button", onClick: () => { iasC(""), arata(!1) },
-                    className: "w-full mt-3 py-2.5 rounded-xl border text-sm",
-                    style: { borderColor: "var(--line)", color: "var(--muted)" }
+                    type: "button", onClick: function () { alege("") },
+                    className: "w-full mt-2 py-2.5 rounded-xl text-sm",
+                    style: { color: "var(--muted-2)" }
                 }, "F\u0103r\u0103 loc de \xEEnt\xE2lnire")
                 : null) : null))
 }
-
 function IasFile({ etichete: iasEt, copii: iasCp }) {
     let [ales, alege] = (0, o.useState)(0);
     return o.default.createElement("div", null,
@@ -4293,7 +4331,21 @@ function Jn({
     defaultOpen: a = !1,
     forteaza: iasF
 }) {
-    let [r, i] = (0, o.useState)(a);
+    let [r, i] = (0, o.useState)(a), iasCap = (0, o.useRef)(null);
+
+    /* Când deschizi o listă, capul ei urcă în susul ecranului. Altfel se
+       desfășoară pe sub marginea de jos și trebuie să derulezi ca să vezi ce e
+       înăuntru. Se face lin și doar la deschidere, nu la închidere. */
+    function iasUrca() {
+        var el = iasCap.current;
+        if (!el) return;
+        setTimeout(function () {
+            try {
+                var sus = el.getBoundingClientRect().top;
+                if (sus > 90) window.scrollBy({ top: sus - 78, behavior: "smooth" })
+            } catch (x) {}
+        }, 60)
+    }
     /* Un grup pe care l-ai strâns rămâne strâns — și bine face. Dar la căutare,
        dacă are pe cineva potrivit, se deschide singur: altfel elevul căutat
        stătea ascuns înăuntru și părea că nu există. */
@@ -4302,7 +4354,8 @@ function Jn({
         className: "mb-3"
     }, o.default.createElement("button", {
         type: "button",
-        onClick: () => i(!r),
+        ref: iasCap,
+        onClick: () => { r || iasUrca(), i(!r) },
         className: "w-full flex items-center gap-2 py-1.5"
     }, o.default.createElement("span", {
         className: "text-xs font-medium text-slate-400 uppercase tracking-wide flex-1 text-left"
@@ -5919,7 +5972,8 @@ function Vk({
     onAddStudent: t,
     onOpenReport: a
 }) {
-    let [r, i] = (0, o.useState)(""), [s, l] = (0, o.useState)("name"), [u, d] = (0, o.useState)(1), f = pu(r).trim(), p = E => !f || pu(`${E.name||""} ${E.firstName||""} ${E.lastName||""}`).includes(f) || pu(E.group).includes(f) || (E.phone || "").replace(/\s+/g, "").includes(r.replace(/\s+/g, "")), c = (E, B) => E.name.localeCompare(B.name, "ro"), m = E => (B, $) => {
+    let [r, i] = (0, o.useState)(""), [s, l] = (0, o.useState)("name"), [u, d] = (0, o.useState)(1),
+        [iasSortDeschis, iasSort] = (0, o.useState)(!1), f = pu(r).trim(), p = E => !f || pu(`${E.name||""} ${E.firstName||""} ${E.lastName||""}`).includes(f) || pu(E.group).includes(f) || (E.phone || "").replace(/\s+/g, "").includes(r.replace(/\s+/g, "")), c = (E, B) => E.name.localeCompare(B.name, "ro"), m = E => (B, $) => {
         let G = E(B) || "",
             A = E($) || "";
         return !G && !A ? c(B, $) : G ? A ? u * G.localeCompare(A, "ro") || c(B, $) : -1 : 1
@@ -6071,34 +6125,61 @@ function Vk({
         className: "absolute right-1 top-1/2 -translate-y-1/2 p-2.5 text-slate-400"
     }, o.default.createElement(ir, {
         size: 16
-    }))), o.default.createElement("div", {
-        className: "flex gap-1.5 mt-2 overflow-x-auto pb-1"
-    }, [
-        ["name", "Nume"],
-        ["grupa", "Grup\u0103"],
-        ["exam", "Ex. practic"],
-        ["theory", "Ex. teoretic"],
-        ["area", "Zon\u0103"],
-        ["place", "Punct start"],
-        ["remaining", "Ore r\u0103mase"],
-        ["debt", "Datorie"],
-        ["recent", "Recent"]
-    ].map(([E, B]) => {
-        let $ = s === E;
-        return o.default.createElement("button", {
-            key: E,
-            onClick: () => {
-                $ ? d(G => -G) : (l(E), d(1))
-            },
-            "aria-label": $ ? `${B}, atinge din nou ca s\u0103 \xEEntorci ordinea` : B,
-            className: `px-3 py-1.5 rounded-full text-xs font-medium border shrink-0 flex items-center gap-1 ${$?"bg-slate-900 text-white border-slate-900":"bg-white text-slate-500 border-slate-200"}`
-        }, B, $ && o.default.createElement(un, {
-            size: 12,
-            style: {
-                transform: u === 1 ? "rotate(90deg)" : "rotate(-90deg)"
-            }
-        }))
-    }))), o.default.createElement("div", {
+    }))), (() => {
+        /* Criteriile de sortare stăteau ca nouă butoane înșirate, cu derulare pe
+           orizontală: trebuia să le împingi ca să vezi ce ai. Acum sunt sub un
+           singur buton „Sortare", cu criteriul ales scris lângă el. Atingi
+           criteriul din listă ca să-l alegi, sau butonul ca să întorci ordinea. */
+        let iasCrit = [
+            ["name", "Nume"],
+            ["grupa", "Grup\u0103"],
+            ["exam", "Ex. practic"],
+            ["theory", "Ex. teoretic"],
+            ["area", "Zon\u0103"],
+            ["place", "Punct start"],
+            ["remaining", "Ore r\u0103mase"],
+            ["debt", "Datorie"],
+            ["recent", "Recent"]
+        ];
+        let iasAles = (iasCrit.filter(x => x[0] === s)[0] || iasCrit[0])[1];
+        return o.default.createElement("div", { className: "flex items-center gap-1.5 mt-2" },
+            o.default.createElement("button", {
+                onClick: () => iasSort(!iasSortDeschis),
+                className: "px-3 py-1.5 rounded-full text-xs font-medium border shrink-0 flex items-center gap-1.5 bg-white text-slate-500 border-slate-200"
+            }, o.default.createElement(ka, { size: 13 }), "Sortare"),
+            o.default.createElement("button", {
+                onClick: () => d(G => -G),
+                "aria-label": `${iasAles}, atinge ca s\u0103 \xEEntorci ordinea`,
+                className: "px-3 py-1.5 rounded-full text-xs font-medium border shrink-0 flex items-center gap-1 bg-slate-900 text-white border-slate-900"
+            }, iasAles, o.default.createElement(un, {
+                size: 12,
+                style: { transform: u === 1 ? "rotate(90deg)" : "rotate(-90deg)" }
+            })),
+            o.default.createElement(oi, {
+                open: iasSortDeschis, onClose: () => iasSort(!1),
+                title: "Sorteaz\u0103 dup\u0103", layer: Wt.dialog
+            }, iasSortDeschis ? o.default.createElement("div", { className: "space-y-1.5" },
+                iasCrit.map(([E, B]) => {
+                    let ales = s === E;
+                    return o.default.createElement("button", {
+                        key: E,
+                        onClick: () => { ales ? d(G => -G) : (l(E), d(1)), iasSort(!1) },
+                        className: "w-full flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-left",
+                        style: {
+                            minHeight: 48,
+                            background: ales ? "var(--accent-soft)" : "var(--surface)",
+                            border: `${ales ? 2 : 1}px solid ${ales ? "var(--accent)" : "var(--line)"}`
+                        }
+                    },
+                        o.default.createElement("span", {
+                            className: "flex-1 text-sm",
+                            style: { color: ales ? "var(--accent-ink)" : "var(--text)", fontWeight: ales ? 600 : 400 }
+                        }, B),
+                        ales ? o.default.createElement("span", {
+                            className: "shrink-0", style: { color: "var(--accent)" }
+                        }, "\u2713") : null)
+                })) : null))
+    })()), o.default.createElement("div", {
         className: "px-4"
     }, _.length === 0 && M.length === 0 && S.length === 0 && b.length === 0 && o.default.createElement("div", {
         className: "text-center py-10 text-sm text-slate-400"
@@ -10059,6 +10140,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.36.4",
+    titlu: "Locuri, sortare \u0219i indicatoare",
+    puncte: ["Locurile obi\u0219nuite stau la vedere, ca butoane: o singur\u0103 ap\u0103sare \u0219i ai ales. Restul se deschid \xEEntr-o list\u0103.", "C\xE2nd deschizi o list\u0103, capul ei urc\u0103 \xEEn susul ecranului, ca s\u0103 vezi tot ce e \xEEn\u0103untru.", "Cele nou\u0103 criterii de sortare au intrat sub un singur buton \u201ESortare\u201D, cu criteriul ales scris al\u0103turi; \xEEl atingi ca s\u0103 \xEEntorci ordinea.", "Pe cardurile de \u0219edin\u021B\u0103 apare indicatorul rutier cu numele dedesubt, cu lumina pe conturul lui, nu \xEEntr-un chenar."]
+}, {
     v: "v2.36.3",
     titlu: "Fi\u0219a \u0219edin\u021Bei, mai limpede",
     puncte: ["Statusul st\u0103 sus, l\xE2ng\u0103 elev: patru p\u0103trate cu indicatoare rutiere, cel ales se aprinde \u0219i cre\u0219te, celelalte se retrag.", "Au disp\u0103rut cardul de deasupra \u0219i rezumatul de jos \u2014 nu spuneau nimic ce nu se vedea deja.", "Dac\u0103 n-ai schimbat nimic, \xEEnchiderea nu te mai \xEEntreab\u0103 nimic."]
