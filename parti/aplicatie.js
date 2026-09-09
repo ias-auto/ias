@@ -4218,6 +4218,26 @@ function iasAdu(ev) {
     }, 320)
 }
 
+/* Locurile de întâlnire, așezate după cât de des le folosești. Cele la care duci
+   elevii în fiecare zi urcă în față, ca să le atingi din prima; cele rare cad
+   spre coadă. Se numără din ședințele tale, deci ordinea se așază singură, în
+   timp, fără să reglezi nimic.
+
+   Ordinea din Setări rămâne cea de bază: la folosiri egale, locurile își
+   păstrează rândul pe care i l-ai dat tu. */
+function iasLocuriDesFolosite(locatii, sesiuni) {
+    var lista = locatii || [];
+    if (!sesiuni || !sesiuni.length) return lista;
+    var cate = {};
+    sesiuni.forEach(function (x) {
+        if (!x || x.status === "cancelled" || !x.location) return;
+        cate[x.location] = (cate[x.location] || 0) + 1
+    });
+    return lista.map(function (loc, k) { return { loc: loc, k: k, n: cate[loc.name] || 0 } })
+        .sort(function (a, b) { return b.n - a.n || a.k - b.k })
+        .map(function (x) { return x.loc })
+}
+
 function IasLoc({ value: iasV, onChange: iasC, locations: iasL, harta: iasH }) {
     /* Locurile obișnuite stau la vedere, ca butoane: o singură apăsare și ai
        ales. Încap două rânduri; dacă ai mai multe, restul se deschid într-o
@@ -5653,7 +5673,7 @@ function Rk({
         }))),
     o.default.createElement(IasLoc, {
         value: S, onChange: k,
-        locations: a.settings.locations,
+        locations: iasLocuriDesFolosite(a.settings.locations, a.sessions),
         harta: S.trim() && o.default.createElement("a", {
         href: wu(xo(a.settings, S), S),
         target: "_blank",
@@ -10168,6 +10188,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.36.7",
+    titlu: "Locurile, dup\u0103 c\xE2t le folose\u0219ti",
+    puncte: ["\xCEn fi\u0219a \u0219edin\u021Bei \u0219i \xEEn cea a elevului, locurile de \xEEnt\xE2lnire se a\u0219az\u0103 singure: cele la care duci elevii \xEEn fiecare zi urc\u0103 \xEEn fa\u021B\u0103, cele rare cad spre coad\u0103.", "Se num\u0103r\u0103 din \u0219edin\u021Bele tale, f\u0103r\u0103 s\u0103 reglezi nimic. La folosiri egale r\u0103m\xE2ne r\xE2ndul din Set\u0103ri, iar \u0219edin\u021Bele anulate nu se pun la socoteal\u0103."]
+}, {
     v: "v2.36.6",
     titlu: "Lumina \u021Bine pasul cu ma\u0219ina",
     puncte: ["Balta de lumin\u0103 din antet se leag\u0103n\u0103 odat\u0103 cu ma\u0219ina \u0219i se rote\u0219te cu botul ei, dar r\u0103m\xE2ne lipit\u0103 de asfalt.", "P\xE2lp\xE2ie u\u0219or, \xEEn ritmul leg\u0103n\u0103rii \u2014 un fascicul viu, nu o pat\u0103 desenat\u0103 pe jos."]
@@ -12217,7 +12241,7 @@ function y3() {
         initial: f.initial,
         defaultWeeklyLimit: n.settings.defaultWeeklyLimit,
         defaultCounty: n.settings.defaultCounty,
-        locations: n.settings.locations,
+        locations: iasLocuriDesFolosite(n.settings.locations, n.sessions),
         settingsPachete: n.settings,
         masini: iasMasini(n.settings),
         masinaImplicita: iasMasinaImplicita(n.settings),
