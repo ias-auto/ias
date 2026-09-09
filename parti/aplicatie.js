@@ -8922,11 +8922,15 @@ function Yk({
         className: "bg-slate-900 rounded-2xl px-3 py-4 text-center"
     }, o.default.createElement("div", {
         className: "text-xs text-slate-400 uppercase tracking-wide mb-1"
-    }, "De la elevi"), o.default.createElement("div", {
+    /* Cifra asta n-a fost niciodată „banii de la elevi": e valoarea orelor
+       suplimentare făcute în luna asta, adică ce ai de încasat peste pachet.
+       Eticheta veche o făcea să pară încasările lunii, care sunt cu totul
+       altele — le vezi mai jos, la „Detalii de la elevi". */
+    }, "Ore suplimentare"), o.default.createElement("div", {
         className: "font-mono-time text-xl font-semibold text-white"
     }, y.total.toLocaleString("ro-RO")), o.default.createElement("div", {
         className: "text-xs text-slate-400 mt-0.5"
-    }, n.settings.currency, " acumulat")), o.default.createElement("div", {
+    }, n.settings.currency, " de \xEEncasat")), o.default.createElement("div", {
         className: "bg-slate-900 rounded-2xl px-3 py-4 text-center"
     }, o.default.createElement("div", {
         className: "text-xs text-slate-400 uppercase tracking-wide mb-1"
@@ -10188,6 +10192,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.36.8",
+    titlu: "O cifr\u0103 l\u0103murit\u0103 \u0219i lini\u0219te la ap\u0103sare",
+    puncte: ["\xCEn Finan\u021Be, cifra din st\xE2nga sus se numea \u201EDe la elevi\u201D, de\u0219i ar\u0103ta valoarea orelor suplimentare din luna aceea. Acum \xEE\u0219i spune numele: \u201EOre suplimentare \u2014 de \xEEncasat\u201D. \xCEncas\u0103rile lunii se v\u0103d, ca \u0219i p\xE2n\u0103 acum, la \u201EDetalii de la elevi\u201D.", "\u021Ainutul ap\u0103sat nu mai ridic\u0103 meniul telefonului cu \u201ECopy, Share, Ask Gemini\u201D. \xCEn c\xE2mpurile \xEEn care scrii, selec\u021Bia r\u0103m\xE2ne ca \xEEnainte."]
+}, {
     v: "v2.36.7",
     titlu: "Locurile, dup\u0103 c\xE2t le folose\u0219ti",
     puncte: ["\xCEn fi\u0219a \u0219edin\u021Bei \u0219i \xEEn cea a elevului, locurile de \xEEnt\xE2lnire se a\u0219az\u0103 singure: cele la care duci elevii \xEEn fiecare zi urc\u0103 \xEEn fa\u021B\u0103, cele rare cad spre coad\u0103.", "Se num\u0103r\u0103 din \u0219edin\u021Bele tale, f\u0103r\u0103 s\u0103 reglezi nimic. La folosiri egale r\u0103m\xE2ne r\xE2ndul din Set\u0103ri, iar \u0219edin\u021Bele anulate nu se pun la socoteal\u0103."]
@@ -11683,6 +11691,25 @@ function y3() {
           -webkit-user-select: none;
           user-select: none;
           touch-action: pan-y;
+        }
+
+        /* Aplicația nu e o pagină de citit: ținutul apăsat pe un buton sau pe o
+           listă nu trebuie să selecteze text și să ridice meniul telefonului cu
+           „Copy, Share, Ask Gemini". În câmpurile în care chiar scrii —
+           inputuri, textarea — selecția rămâne, fiindcă acolo îți trebuie. */
+        [data-skin] {
+          -webkit-user-select: none;
+          user-select: none;
+          -webkit-touch-callout: none;
+        }
+        [data-skin] input,
+        [data-skin] textarea,
+        [data-skin] select,
+        [data-skin] [contenteditable="true"],
+        [data-skin] .ias-selectabil {
+          -webkit-user-select: text;
+          user-select: text;
+          -webkit-touch-callout: default;
         }
 
         .ias-peste-blocaj { position: relative }
