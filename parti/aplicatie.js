@@ -6915,6 +6915,83 @@ function Wk({
     }))
 }
 
+/* ============== BORDUL FIȘEI DE ELEV ==============
+   Fișa arăta ca un teanc de cartonașe puse unul sub altul: toate la fel de
+   apăsate, deci niciunul nu ieșea în față. Am făcut-o să semene cu un bord: sus
+   omul și drumul lui, apoi cadranul cu cât a parcurs, iar dedesubt restul, în
+   panouri mai ușoare.
+
+   Culorile rămân cele cu care te-ai obișnuit — chihlimbariu și verde — ca să nu
+   fie nevoie să înveți nimic din nou. */
+
+/* Cadranul de progres: un inel care se umple cât a făcut elevul din orele lui.
+   E desenat din două arce, nu dintr-o imagine, deci rămâne curat la orice
+   mărime de ecran. */
+function IasCadran({ facute: iasF, total: iasT, size: iasS = 92 }) {
+    var tot = Math.max(0, Number(iasT) || 0),
+        fac = Math.max(0, Math.min(tot, Number(iasF) || 0)),
+        parte = tot ? fac / tot : 0,
+        raza = (iasS - 12) / 2,
+        contur = 2 * Math.PI * raza,
+        gata = parte >= 1;
+    return o.default.createElement("div", {
+        style: { position: "relative", width: iasS, height: iasS, flexShrink: 0 }
+    },
+        o.default.createElement("svg", {
+            width: iasS, height: iasS, viewBox: `0 0 ${iasS} ${iasS}`,
+            style: { transform: "rotate(-90deg)", display: "block" }
+        },
+            o.default.createElement("circle", {
+                cx: iasS / 2, cy: iasS / 2, r: raza, fill: "none",
+                stroke: "var(--line)", strokeWidth: 8
+            }),
+            o.default.createElement("circle", {
+                cx: iasS / 2, cy: iasS / 2, r: raza, fill: "none",
+                stroke: gata ? "var(--ok)" : "var(--accent)",
+                strokeWidth: 8, strokeLinecap: "round",
+                strokeDasharray: contur,
+                strokeDashoffset: contur * (1 - parte),
+                style: { transition: "stroke-dashoffset .5s cubic-bezier(.2,.9,.3,1)" }
+            })),
+        o.default.createElement("div", {
+            style: {
+                position: "absolute", inset: 0, display: "flex",
+                alignItems: "center", justifyContent: "center", flexDirection: "column"
+            }
+        }, o.default.createElement("span", {
+            className: "font-mono-time font-semibold",
+            style: { fontSize: iasS * .23, color: gata ? "var(--ok)" : "var(--accent-ink)", lineHeight: 1 }
+        }, Math.round(parte * 100), "%"))
+    )
+}
+
+/* Fâșia de drum din capul fișei: un apus desenat din culorile aplicației, cu
+   linia de mijloc care se pierde în zare. Nu e o poză — sunt câteva forme, deci
+   nu adaugă nimic de descărcat și arată la fel pe orice ecran. */
+function IasFasieDrum({ inaltime: iasH = 92 }) {
+    return o.default.createElement("div", {
+        "aria-hidden": "true",
+        style: {
+            position: "absolute", left: 0, right: 0, top: 0, height: iasH,
+            overflow: "hidden", pointerEvents: "none", opacity: .5
+        }
+    }, o.default.createElement("svg", {
+        viewBox: "0 0 400 92", preserveAspectRatio: "none",
+        style: { width: "100%", height: "100%", display: "block" }
+    },
+        o.default.createElement("defs", null,
+            o.default.createElement("linearGradient", { id: "iasCer", x1: "0", y1: "0", x2: "0", y2: "1" },
+                o.default.createElement("stop", { offset: "0%", stopColor: "var(--accent)", stopOpacity: ".30" }),
+                o.default.createElement("stop", { offset: "100%", stopColor: "var(--accent)", stopOpacity: "0" }))),
+        o.default.createElement("rect", { x: 0, y: 0, width: 400, height: 92, fill: "url(#iasCer)" }),
+        o.default.createElement("path", {
+            d: "M0 92 L165 34 L235 34 L400 92 Z", fill: "var(--line)", opacity: ".55"
+        }),
+        o.default.createElement("path", {
+            d: "M196 92 L199 34 L201 34 L204 92 Z", fill: "var(--accent)", opacity: ".5"
+        })))
+}
+
 function qk({
     open: n,
     student: e,
@@ -6966,6 +7043,10 @@ Te rog confirm\u0103. Mul\u021Bumesc!`;
         onClose: r,
         title: e.name
     }, o.default.createElement("div", {
+        className: "relative -mx-5 -mt-4 px-5 pt-5 pb-3 mb-4",
+        style: { overflow: "hidden" }
+    }, o.default.createElement(IasFasieDrum, { inaltime: 104 }),
+        o.default.createElement("div", { className: "relative" }, o.default.createElement("div", {
         className: "flex items-center gap-2 mb-4 flex-wrap"
     }, o.default.createElement(Lf, {
         student: e,
@@ -6982,7 +7063,8 @@ Te rog confirm\u0103. Mul\u021Bumesc!`;
         className: `text-xs font-medium px-2 py-0.5 rounded-full border ${S==="nou"?"bg-amber-50 text-amber-700 border-amber-200":"bg-blue-50 text-blue-700 border-blue-200"}`
     }, S === "nou" ? "Elev nou" : "\xCEn curs"), e.phone && o.default.createElement(tS, {
         phone: e.phone
-    })), e.examResult === "promovat" && o.default.createElement("div", {
+    })))),
+    e.examResult === "promovat" && o.default.createElement("div", {
         className: "relative overflow-hidden rounded-xl px-3.5 py-3.5 mb-4 text-center",
         style: {
             backgroundImage: "linear-gradient(180deg, var(--ok-soft), transparent 75%)",
@@ -6997,7 +7079,8 @@ Te rog confirm\u0103. Mul\u021Bumesc!`;
         }
     }, "Permis luat!"), o.default.createElement("div", {
         className: "text-xs text-slate-500 mt-0.5"
-    }, "Examen practic promovat", e.examDate ? ` \xB7 ${qe(e.examDate)}` : "", Number(e.examAttempts) > 0 ? ` \xB7 din ${Number(e.examAttempts)} ${Number(e.examAttempts)===1?"sus\u021Binere":"sus\u021Bineri"}` : ""))), ho(e) && (() => {
+    }, "Examen practic promovat", e.examDate ? ` \xB7 ${qe(e.examDate)}` : "", Number(e.examAttempts) > 0 ? ` \xB7 din ${Number(e.examAttempts)} ${Number(e.examAttempts)===1?"sus\u021Binere":"sus\u021Bineri"}` : ""))),
+    ho(e) && (() => {
         let R = Dw(e),
             K = R.ramase === 0;
         return o.default.createElement("div", {
@@ -7023,7 +7106,8 @@ Te rog confirm\u0103. Mul\u021Bumesc!`;
                 background: K ? "var(--ok)" : "var(--invert)"
             }
         }, "Am eliberat adeverin\u021Ba"))
-    })(), !ho(e) && e.adeverintaDin && (() => {
+    })(),
+    !ho(e) && e.adeverintaDin && (() => {
         let R = UA(e, t);
         return R >= vf ? null : o.default.createElement("div", {
             className: "rounded-xl px-3.5 py-3 mb-4",
@@ -7038,7 +7122,67 @@ Te rog confirm\u0103. Mul\u021Bumesc!`;
         }, R, " din ", vf, " efectuate de la ", qe(e.adeverintaDin), ". Abia dup\u0103 ele poate fi reprogramat la examen."), o.default.createElement(Cf, {
             value: R / vf * 100
         }))
-    })(), e.examDate && e.examDate <= Be() && e.examResult !== "promovat" && o.default.createElement("div", {
+    })(),
+    o.default.createElement("div", {
+        className: "rounded-2xl px-4 py-4 mb-3",
+        style: { background: "var(--surface-2)", border: "1px solid var(--line)" }
+    },
+        o.default.createElement("div", { className: "flex items-center gap-4" },
+            o.default.createElement(IasCadran, { facute: _, total: y, size: 92 }),
+            o.default.createElement("div", { className: "flex-1 min-w-0" },
+                o.default.createElement("div", { className: "flex items-baseline gap-1.5" },
+                    o.default.createElement("span", {
+                        className: "font-mono-time text-2xl font-semibold text-slate-900"
+                    }, _),
+                    o.default.createElement("span", {
+                        className: "font-mono-time text-base", style: { color: "var(--muted-2)" }
+                    }, "/ ", y)),
+                o.default.createElement("div", {
+                    className: "text-xs", style: { color: "var(--muted-2)" }
+                }, "\u0219edin\u021Be efectuate"),
+                o.default.createElement("div", {
+                    className: "mt-2 rounded-full overflow-hidden",
+                    style: { height: 5, background: "var(--line)" }
+                }, o.default.createElement("div", {
+                    style: {
+                        height: "100%", width: `${y ? Math.round(_ / y * 100) : 0}%`,
+                        background: _ >= y && y ? "var(--ok)" : "var(--accent)",
+                        transition: "width .5s cubic-bezier(.2,.9,.3,1)"
+                    }
+                })),
+                o.default.createElement("div", {
+                    className: "font-mono-time text-sm mt-2",
+                    style: { color: M > 0 ? "var(--accent-ink)" : "var(--ok)" }
+                }, M > 0 ? `${M} r\u0103mase` : "toate f\u0103cute"))),
+        /* Ședința nouă stă chiar lângă numărul de ore: e fapta care urmează
+           firesc după ce te-ai uitat câte au mai rămas. */
+        o.default.createElement("div", { className: "mt-3" }, o.default.createElement("div", {
+        className: "flex gap-2 mb-2.5"
+    }, o.default.createElement("button", {
+        onClick: i,
+        className: "flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm font-medium flex items-center justify-center gap-1.5"
+    }, o.default.createElement(ka, {
+        size: 14
+    }), "Editeaz\u0103"), o.default.createElement("button", {
+        onClick: s,
+        className: "flex-1 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-medium flex items-center justify-center gap-1.5"
+    }, o.default.createElement(cn, {
+        size: 14
+    }), "\u0218edin\u021B\u0103 nou\u0103")))),
+    o.default.createElement("div", {
+        className: "mb-4"
+    }, o.default.createElement("div", {
+        className: "flex items-center justify-between text-xs text-slate-400 mb-1"
+    }, o.default.createElement("span", null, "Progres \u0219edin\u021Be efectuate"), o.default.createElement("span", {
+        className: "font-mono-time"
+    }, _, "/", y)), o.default.createElement(Cf, {
+        value: y > 0 ? _ / y * 100 : 0
+    }), b > 0 && o.default.createElement("div", {
+        className: "text-xs text-slate-400 mt-1.5"
+    }, "programate \xEEn calendar: ", b, " (nu scad r\u0103masele p\xE2n\u0103 nu sunt efectuate)"), E > 0 && o.default.createElement("div", {
+        className: "text-xs text-violet-600 mt-1.5"
+    }, "din care cu al\u021Bi instructori: ", E)),
+    e.examDate && e.examDate <= Be() && e.examResult !== "promovat" && o.default.createElement("div", {
         className: "rounded-xl px-3.5 py-3 mb-4",
         style: {
             border: "1px solid var(--violet)"
@@ -7058,7 +7202,8 @@ Te rog confirm\u0103. Mul\u021Bumesc!`;
     }, "Promovat"), o.default.createElement("button", {
         onClick: () => c(e.id, "respins"),
         className: "flex-1 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-medium"
-    }, "Respins"))), (() => {
+    }, "Respins"))),
+    (() => {
         /* Teoreticul se notează la fel ca practicul, cu contorul lui de
            susțineri. Apare doar după ce a trecut ziua examenului. */
         if (!e.theoryExamDate || e.theoryExamDate > Be() || e.theoryExamResult === "promovat") return null;
@@ -7081,92 +7226,8 @@ Te rog confirm\u0103. Mul\u021Bumesc!`;
                 onClick: () => c(e.id, "respins", "teoretic"),
                 className: "flex-1 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-medium"
             }, "Respins")))
-    })(), o.default.createElement("div", {
-        className: "grid grid-cols-3 gap-2 mb-3"
-    }, o.default.createElement("div", {
-        className: "bg-slate-50 rounded-xl px-3 py-2.5 text-center"
-    }, o.default.createElement("div", {
-        className: "font-mono-time text-lg font-semibold text-slate-900"
-    }, y), o.default.createElement("div", {
-        className: "text-xs text-slate-400 mt-0.5"
-    }, "total")), o.default.createElement("div", {
-        className: "bg-slate-50 rounded-xl px-3 py-2.5 text-center"
-    }, o.default.createElement("div", {
-        className: "font-mono-time text-lg font-semibold text-slate-900"
-    }, _), o.default.createElement("div", {
-        className: "text-xs text-slate-400 mt-0.5"
-    }, "efectuate")), o.default.createElement("div", {
-        className: "bg-amber-50 rounded-xl px-3 py-2.5 text-center"
-    }, o.default.createElement("div", {
-        className: "font-mono-time text-lg font-semibold text-amber-700"
-    }, M), o.default.createElement("div", {
-        className: "text-xs text-amber-600 mt-0.5"
-    }, "r\u0103mase"))), o.default.createElement("div", {
-        className: "mb-4"
-    }, o.default.createElement("div", {
-        className: "flex items-center justify-between text-xs text-slate-400 mb-1"
-    }, o.default.createElement("span", null, "Progres \u0219edin\u021Be efectuate"), o.default.createElement("span", {
-        className: "font-mono-time"
-    }, _, "/", y)), o.default.createElement(Cf, {
-        value: y > 0 ? _ / y * 100 : 0
-    }), b > 0 && o.default.createElement("div", {
-        className: "text-xs text-slate-400 mt-1.5"
-    }, "programate \xEEn calendar: ", b, " (nu scad r\u0103masele p\xE2n\u0103 nu sunt efectuate)"), E > 0 && o.default.createElement("div", {
-        className: "text-xs text-violet-600 mt-1.5"
-    }, "din care cu al\u021Bi instructori: ", E)), o.default.createElement("div", {
-        className: `rounded-xl border px-3.5 py-3 mb-4 ${G>0?"bg-amber-50 border-amber-200":"bg-emerald-50 border-emerald-200"}`
-    }, o.default.createElement("div", {
-        className: "flex items-center justify-between gap-2"
-    }, o.default.createElement("div", {
-        className: "min-w-0"
-    }, o.default.createElement("div", {
-        className: `text-sm font-medium ${G>0?"text-amber-800":"text-emerald-800"}`
-    }, G > 0 ? "Datorie ore" : "Achitat la zi"), o.default.createElement("div", {
-        className: "text-xs text-slate-500 mt-0.5"
-    }, "Acumulat: ", B.toLocaleString("ro-RO"), " \xB7 Pl\u0103tit: ", $.toLocaleString("ro-RO"), " ", a.currency), (() => {
-        let R = t.filter(ne => ne.studentId === e.id && ne.status !== "cancelled" && !ne.otherInstructor && ne.type !== "included").length,
-            K = Math.max(0, (Number(e.extraHours) || 0) - R);
-        return K > 0 ? o.default.createElement("div", {
-            className: "text-xs text-slate-400 mt-0.5"
-        }, "din care ", K, " ore suplimentare \xEEnc\u0103 neprogramate") : null
-    })()), o.default.createElement("div", {
-        className: "flex items-center gap-2 shrink-0"
-    }, G > 0 && o.default.createElement("span", {
-        className: "font-mono-time text-lg font-semibold text-amber-700"
-    }, G.toLocaleString("ro-RO"), " ", a.currency), G < 0 && o.default.createElement("span", {
-        className: "text-xs text-emerald-700"
-    }, "avans ", Math.abs(G).toLocaleString("ro-RO"), " ", a.currency), o.default.createElement("button", {
-        onClick: () => h(!0),
-        className: "px-3 py-2 rounded-xl bg-emerald-600 text-white text-sm font-medium flex items-center gap-1.5"
-    }, o.default.createElement(Bi, {
-        size: 15
-    }), G > 0 ? "Achit\u0103" : "Pl\u0103te\u0219te \xEEn avans"))), o.default.createElement("div", {
-        className: "mt-2 pt-2 border-t border-slate-200/60"
-    }, o.default.createElement(Jn, {
-        title: "Taxe",
-        summary: _f(e, a) > 0 ? `${_f(e,a).toLocaleString("ro-RO")} ${a.currency}` : "niciuna"
-    }, o.default.createElement(qA, {
-        student: e,
-        settings: a,
-        onSet: p
-    }))), A.length > 0 && o.default.createElement("div", {
-        className: "mt-2 pt-2 border-t border-slate-200/60 space-y-0.5"
-    }, A.slice(0, 3).map(R => o.default.createElement("button", {
-        key: R.id,
-        onClick: () => f(e.id, R),
-        className: "w-full flex items-center justify-between gap-2 text-xs text-slate-500 text-left py-0.5"
-    }, o.default.createElement("span", null, R.date ? qe(R.date) : "\u2014", R.collector === "school" ? o.default.createElement("span", {
-        className: "text-slate-400"
-    }, " \xB7 la \u0219coal\u0103") : null), o.default.createElement("span", {
-        className: "flex items-center gap-1.5"
-    }, o.default.createElement("span", {
-        className: "font-mono-time"
-    }, (Number(R.amount) || 0).toLocaleString("ro-RO"), " ", a.currency), o.default.createElement(ka, {
-        size: 12,
-        className: "text-slate-300"
-    })))), A.length > 3 && o.default.createElement("div", {
-        className: "text-xs text-slate-400"
-    }, "+ \xEEnc\u0103 ", A.length - 3, " pl\u0103\u021Bi \xB7 toate \xEEn Finan\u021Be, pe luni"))), o.default.createElement("div", {
+    })(),
+    o.default.createElement("div", {
         className: "grid grid-cols-2 gap-3 mb-4 text-sm"
     }, o.default.createElement("div", null, o.default.createElement("div", {
         className: "text-xs text-slate-400 mb-0.5"
@@ -7234,50 +7295,62 @@ Te rog confirm\u0103. Mul\u021Bumesc!`;
         className: "text-xs text-slate-400 mb-0.5"
     }, "Zona de domiciliu"), o.default.createElement("div", {
         className: "text-slate-800"
-    }, e.area))), o.default.createElement("div", {
-        className: "flex gap-2 mb-2.5"
-    }, o.default.createElement("button", {
-        onClick: i,
-        className: "flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm font-medium flex items-center justify-center gap-1.5"
-    }, o.default.createElement(ka, {
-        size: 14
-    }), "Editeaz\u0103"), o.default.createElement("button", {
-        onClick: s,
-        className: "flex-1 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-medium flex items-center justify-center gap-1.5"
-    }, o.default.createElement(cn, {
-        size: 14
-    }), "\u0218edin\u021B\u0103 nou\u0103")), g && o.default.createElement("button", {
-        onClick: () => m(e),
-        className: "w-full py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium flex items-center justify-center gap-1.5 mb-2.5"
-    }, o.default.createElement(fa, {
-        size: 14
-    }), "Trimite elevul altui instructor"), e.phone && !e.bunVenitTrimis && o.default.createElement("button", {
-        onClick: () => u({
-            name: e.name,
-            phone: e.phone,
-            title: "Trimite mesajul de bun venit",
-            message: ik(e, a),
-            onTrimis: () => w(e.id)
-        }),
-        className: "w-full py-2.5 rounded-xl text-white text-sm font-medium flex items-center justify-center gap-1.5 mb-2.5",
-        style: {
-            background: "var(--invert)"
-        }
-    }, o.default.createElement(ai, {
-        size: 14
-    }), "Trimite mesajul de bun venit"), e.phone && N.length > 0 && o.default.createElement("button", {
-        onClick: () => u({
-            name: e.name,
-            phone: e.phone,
-            title: "Trimite programul",
-            message: X
-        }),
-        className: "w-full py-2.5 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-medium flex items-center justify-center gap-1.5 mb-5"
-    }, o.default.createElement(Na, {
-        size: 14
-    }), "Trimite programul elevului"), !(e.phone && N.length > 0) && o.default.createElement("div", {
-        className: "mb-2.5"
-    }), (() => {
+    }, e.area))),
+    o.default.createElement("div", {
+        className: `rounded-xl border px-3.5 py-3 mb-4 ${G>0?"bg-amber-50 border-amber-200":"bg-emerald-50 border-emerald-200"}`
+    }, o.default.createElement("div", {
+        className: "flex items-center justify-between gap-2"
+    }, o.default.createElement("div", {
+        className: "min-w-0"
+    }, o.default.createElement("div", {
+        className: `text-sm font-medium ${G>0?"text-amber-800":"text-emerald-800"}`
+    }, G > 0 ? "Datorie ore" : "Achitat la zi"), o.default.createElement("div", {
+        className: "text-xs text-slate-500 mt-0.5"
+    }, "Acumulat: ", B.toLocaleString("ro-RO"), " \xB7 Pl\u0103tit: ", $.toLocaleString("ro-RO"), " ", a.currency), (() => {
+        let R = t.filter(ne => ne.studentId === e.id && ne.status !== "cancelled" && !ne.otherInstructor && ne.type !== "included").length,
+            K = Math.max(0, (Number(e.extraHours) || 0) - R);
+        return K > 0 ? o.default.createElement("div", {
+            className: "text-xs text-slate-400 mt-0.5"
+        }, "din care ", K, " ore suplimentare \xEEnc\u0103 neprogramate") : null
+    })()), o.default.createElement("div", {
+        className: "flex items-center gap-2 shrink-0"
+    }, G > 0 && o.default.createElement("span", {
+        className: "font-mono-time text-lg font-semibold text-amber-700"
+    }, G.toLocaleString("ro-RO"), " ", a.currency), G < 0 && o.default.createElement("span", {
+        className: "text-xs text-emerald-700"
+    }, "avans ", Math.abs(G).toLocaleString("ro-RO"), " ", a.currency), o.default.createElement("button", {
+        onClick: () => h(!0),
+        className: "px-3 py-2 rounded-xl bg-emerald-600 text-white text-sm font-medium flex items-center gap-1.5"
+    }, o.default.createElement(Bi, {
+        size: 15
+    }), G > 0 ? "Achit\u0103" : "Pl\u0103te\u0219te \xEEn avans"))), o.default.createElement("div", {
+        className: "mt-2 pt-2 border-t border-slate-200/60"
+    }, o.default.createElement(Jn, {
+        title: "Taxe",
+        summary: _f(e, a) > 0 ? `${_f(e,a).toLocaleString("ro-RO")} ${a.currency}` : "niciuna"
+    }, o.default.createElement(qA, {
+        student: e,
+        settings: a,
+        onSet: p
+    }))), A.length > 0 && o.default.createElement("div", {
+        className: "mt-2 pt-2 border-t border-slate-200/60 space-y-0.5"
+    }, A.slice(0, 3).map(R => o.default.createElement("button", {
+        key: R.id,
+        onClick: () => f(e.id, R),
+        className: "w-full flex items-center justify-between gap-2 text-xs text-slate-500 text-left py-0.5"
+    }, o.default.createElement("span", null, R.date ? qe(R.date) : "\u2014", R.collector === "school" ? o.default.createElement("span", {
+        className: "text-slate-400"
+    }, " \xB7 la \u0219coal\u0103") : null), o.default.createElement("span", {
+        className: "flex items-center gap-1.5"
+    }, o.default.createElement("span", {
+        className: "font-mono-time"
+    }, (Number(R.amount) || 0).toLocaleString("ro-RO"), " ", a.currency), o.default.createElement(ka, {
+        size: 12,
+        className: "text-slate-300"
+    })))), A.length > 3 && o.default.createElement("div", {
+        className: "text-xs text-slate-400"
+    }, "+ \xEEnc\u0103 ", A.length - 3, " pl\u0103\u021Bi \xB7 toate \xEEn Finan\u021Be, pe luni"))),
+    (() => {
         /* Notițele și mementourile, pe cardul elevului. Una singură se citește
            pe loc; mai multe se strâng într-o listă, ca să nu umple cardul. */
         let iasN = iasNotite(e),
@@ -7315,7 +7388,8 @@ Te rog confirm\u0103. Mul\u021Bumesc!`;
                     className: "my-2", style: { borderTop: "1px solid var(--line)" }
                 }) : null,
                 iasN.map(iasRandNota)));
-    })(), o.default.createElement(Jn, {
+    })(),
+    o.default.createElement(Jn, {
         title: "Istoric \u0219edin\u021Be",
         summary: O.length ? `${O.length}` : "gol"
     }, o.default.createElement("div", {
@@ -7348,7 +7422,43 @@ Te rog confirm\u0103. Mul\u021Bumesc!`;
         className: "text-xs font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200"
     }, "par\u021Bial achitat\u0103"), k[R.id] === "due" && o.default.createElement("span", {
         className: "text-xs font-medium px-2 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200"
-    }, "de plat\u0103")))))), o.default.createElement(Pk, {
+    }, "de plat\u0103")))))),
+    e.phone && N.length > 0 && o.default.createElement("button", {
+        onClick: () => u({
+            name: e.name,
+            phone: e.phone,
+            title: "Trimite programul",
+            message: X
+        }),
+        className: "w-full py-2.5 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-medium flex items-center justify-center gap-1.5 mb-5"
+    }, o.default.createElement(Na, {
+        size: 14
+    }), "Trimite programul elevului"),
+    !(e.phone && N.length > 0) && o.default.createElement("div", {
+        className: "mb-2.5"
+    }),
+    e.phone && !e.bunVenitTrimis && o.default.createElement("button", {
+        onClick: () => u({
+            name: e.name,
+            phone: e.phone,
+            title: "Trimite mesajul de bun venit",
+            message: ik(e, a),
+            onTrimis: () => w(e.id)
+        }),
+        className: "w-full py-2.5 rounded-xl text-white text-sm font-medium flex items-center justify-center gap-1.5 mb-2.5",
+        style: {
+            background: "var(--invert)"
+        }
+    }, o.default.createElement(ai, {
+        size: 14
+    }), "Trimite mesajul de bun venit"),
+    g && o.default.createElement("button", {
+        onClick: () => m(e),
+        className: "w-full py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium flex items-center justify-center gap-1.5 mb-2.5"
+    }, o.default.createElement(fa, {
+        size: 14
+    }), "Trimite elevul altui instructor"),
+    o.default.createElement(Pk, {
         open: x,
         studentName: e.name,
         outstanding: G,
@@ -9900,6 +10010,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.37.0",
+    titlu: "Fi\u0219a elevului, ca un bord",
+    puncte: ["Sus, numele \u0219i datele lui pe o f\xE2\u0219ie de drum \xEEn apus, desenat\u0103 din culorile aplica\u021Biei.", "Progresul e acum un cadran care se umple: procentul \xEEn mijloc, \u0219edin\u021Bele f\u0103cute al\u0103turi, c\xE2te au r\u0103mas dedesubt \u0219i butonul de \u0219edin\u021B\u0103 nou\u0103 chiar l\xE2ng\u0103 ele.", "Restul fi\u0219ei s-a a\u0219ezat pe grupuri: examenele, datele, banii, agenda, istoricul.", "Trimiterea programului a cobor\xEEt l\xE2ng\u0103 istoric, iar transferul la alt instructor a r\u0103mas ultimul, ca ac\u021Biune rar\u0103.", "Nicio func\u021Bie n-a fost schimbat\u0103 \u2014 doar a\u0219ezarea lor."]
+}, {
     v: "v2.36.9",
     titlu: "Cur\u0103\u021Benie \u0219i c\xE2teva \xEEndrept\u0103ri",
     puncte: ["Rearanjarea zilei a fost scoas\u0103 cu totul.", "\u021Ainutul ap\u0103sat nu mai ridic\u0103 meniul telefonului nic\u0103ieri; \xEEn c\xE2mpurile \xEEn care scrii, selec\u021Bia r\u0103m\xE2ne.", "Butoanele de status nu mai dispar din fi\u0219a \u0219edin\u021Bei dup\u0103 ce ai umblat prin c\u0103utarea de elev.", "Cutia de viteze a ie\u0219it din fi\u0219a elevului \u2014 o d\u0103 ma\u0219ina lui.", "\xCEn Finan\u021Be, \xEEn locul banilor pe ore suplimentare vezi c\xE2te \u0219edin\u021Be ai f\u0103cut luna asta \u0219i c\xE2t mai ai p\xE2n\u0103 la pragul de salariu.", "Noti\u021Ba \u0219edin\u021Bei se vede pe card, \xEEntre nume \u0219i status."]
