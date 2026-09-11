@@ -2,6 +2,21 @@
    mijlocul ecranului: se vede din ce ai deschis-o. */
 var IAS_ATINS = { x: 50, y: 50 };
 
+/* Meniul „Back, Forward, Reload, Download, Print, Share" al browserului nu e
+   meniul de selecție a textului — e meniul contextual, iar el se ridică la
+   apăsare lungă chiar și acolo unde n-ai ce selecta. Se oprește doar refuzându-l
+   pe față, nu din foaia de stil.
+
+   În câmpurile în care scrii îl lăsăm în pace: acolo îți trebuie ca să lipești
+   un număr de telefon sau un link de hartă. */
+if (typeof document < "u") {
+    document.addEventListener("contextmenu", function (ev) {
+        var t = ev.target;
+        if (t && t.closest && t.closest('input, textarea, select, [contenteditable="true"], .ias-selectabil')) return;
+        ev.preventDefault()
+    }, { capture: !0 })
+}
+
 /* Când se ridică tastatura, ecranul nu se micșorează pe toate telefoanele —
    pe unele rămâne la fel, iar tastatura doar acoperă partea de jos. O fereastră
    așezată pe mijloc ajunge atunci pe jumătate sub taste, iar câmpul de căutare
@@ -4325,7 +4340,17 @@ function zk({
         className: "ml-1.5 text-xs font-normal text-violet-600"
     }, "\xB7 ", z.instructorName || "alt instr.")), z.location && o.default.createElement("span", {
         className: "block text-xs text-slate-400 truncate"
-    }, z.location))), o.default.createElement(I0, {
+    }, z.location))),
+    /* Notița, și pe cardurile de pe Acasă: aici te uiți dimineața, înainte să
+       pleci, deci tot ce ai scris despre ședință trebuie să fie la vedere. */
+    z.notes && z.notes.trim() ? o.default.createElement("div", {
+        className: "flex-1 min-w-0 px-2.5 self-center",
+        style: { maxWidth: 240, minWidth: 36 }
+    }, o.default.createElement("span", {
+        className: "block text-xs truncate",
+        style: { color: "var(--muted-2)", fontStyle: "italic" }
+    }, z.notes.trim())) : null,
+    o.default.createElement(I0, {
         status: z.status
     }))))), Y && o.default.createElement("div", {
         className: "px-4 mt-5"
@@ -4920,9 +4945,13 @@ function Hk({
             /* Notița ședinței, în golul dintre nume și status: e locul care
                stătea gol oricum, iar ce ai scris acolo se citește fără să mai
                deschizi fișa. Doar ce ai scris tu, nimic adăugat. */
+            /* O ascunsesem pe ecranele sub 640 de puncte, adică taman pe
+               telefon — acolo unde te uiți la ea. Acum se vede întotdeauna: în
+               golul dintre nume și status când e loc, iar dacă nu, se strânge
+               la o singură linie tăiată. */
             Y.notes && Y.notes.trim() ? o.default.createElement("div", {
-                className: "hidden sm:block flex-1 min-w-0 px-3 self-center",
-                style: { maxWidth: 260 }
+                className: "flex-1 min-w-0 px-2.5 self-center",
+                style: { maxWidth: 280, minWidth: 40 }
             }, o.default.createElement("span", {
                 className: "block text-xs truncate",
                 style: { color: "var(--muted-2)", fontStyle: "italic" }
@@ -10010,6 +10039,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.37.2",
+    titlu: "Noti\u021Bele se v\u0103d, meniul nu se mai deschide",
+    puncte: ["Noti\u021Ba \u0219edin\u021Bei se vede acum pe carduri \u0219i pe telefon \u2014 o ascunsesem din gre\u0219eal\u0103 taman pe ecranele mici. Apare \u0219i pe Acas\u0103, nu doar \xEEn calendar.", "Ap\u0103sarea lung\u0103 nu mai cheam\u0103 meniul browserului cu \u201EBack, Reload, Download\u201D. \xCEn c\xE2mpurile \xEEn care scrii po\u021Bi lipi ca \xEEnainte."]
+}, {
     v: "v2.37.0",
     titlu: "Fi\u0219a elevului, ca un bord",
     puncte: ["Sus, numele \u0219i datele lui pe o f\xE2\u0219ie de drum \xEEn apus, desenat\u0103 din culorile aplica\u021Biei.", "Progresul e acum un cadran care se umple: procentul \xEEn mijloc, \u0219edin\u021Bele f\u0103cute al\u0103turi, c\xE2te au r\u0103mas dedesubt \u0219i butonul de \u0219edin\u021B\u0103 nou\u0103 chiar l\xE2ng\u0103 ele.", "Restul fi\u0219ei s-a a\u0219ezat pe grupuri: examenele, datele, banii, agenda, istoricul.", "Trimiterea programului a cobor\xEEt l\xE2ng\u0103 istoric, iar transferul la alt instructor a r\u0103mas ultimul, ca ac\u021Biune rar\u0103.", "Nicio func\u021Bie n-a fost schimbat\u0103 \u2014 doar a\u0219ezarea lor."]
