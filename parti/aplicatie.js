@@ -356,11 +356,35 @@ var Fa = n => Number(n && n.sessionMin) || si,
     kw = n => Number(n && n.stepMin) || 30,
     or = (n, e) => Number(n && n.duration) || Fa(e);
 
-function Tf(n) {
+/* Programul de lucru, pe zile. Ai un program de bază — cel din Setări — iar
+   peste el poți pune, pentru fiecare zi a săptămânii, alte ore. De luni până
+   vineri începi la 8:30, fiindcă îl duci pe băiat la grădiniță; sâmbăta și
+   duminica poți porni de la 7 și merge până mai târziu.
+
+   Zilele fără program propriu îl folosesc pe cel de bază, deci nimic nu se
+   schimbă pentru cine nu umblă la reglaj. */
+function iasProgramZi(setari, data) {
+    var baza = { startMin: (setari || {}).startMin, endMin: (setari || {}).endMin };
+    if (!data) return baza;
+    var pe = ((setari || {}).programZile || {})[Ue(data).getDay()];
+    if (!pe) return baza;
+    var s2 = Number(pe.startMin), e2 = Number(pe.endMin);
+    return {
+        startMin: isNaN(s2) ? baza.startMin : s2,
+        endMin: isNaN(e2) ? baza.endMin : e2
+    }
+}
+
+function Tf(n, iasData) {
+    var iasP = iasProgramZi(n, iasData);
+    return iasTfCu(n, iasP.startMin, iasP.endMin)
+}
+
+function iasTfCu(n, iasStart, iasEnd) {
     let e = [],
         t = Fa(n),
         a = kw(n);
-    for (let r = n.startMin; r + t <= n.endMin; r += a) e.push(r);
+    for (let r = iasStart; r + t <= iasEnd; r += a) e.push(r);
     return e
 }
 
@@ -1296,7 +1320,7 @@ function sk(n, e, t) {
     for (let l = 0; l < 60; l++) {
         let u = ft(s);
         if (u >= r && e.workDays.includes(s.getDay())) {
-            for (let d of Tf(e))
+            for (let d of Tf(e, u))
                 if (!(u === r && d <= i) && !w0(n, u, d, null, e)) return {
                     date: u,
                     startMin: d
@@ -1571,7 +1595,7 @@ function uk({
                 if (z < a || M && z > M) continue;
                 let q = J.getDay();
                 if (!t.workDays.includes(q)) continue;
-                let de = Tf(t),
+                let de = Tf(t, z),
                     ge = v0(t.examStudents, z),
                     ye = b0(t, z);
                 for (let Ne of de) {
@@ -4327,13 +4351,22 @@ function zk({
         className: "font-mono-time text-lg font-semibold text-slate-900"
     }, m), o.default.createElement("div", {
         className: "text-xs text-slate-400 mt-0.5"
-    }, "s\u0103pt. asta")), o.default.createElement("div", {
-        className: "bg-amber-50 rounded-xl border border-amber-200 px-2 py-3 text-center"
-    }, o.default.createElement("div", {
-        className: "font-mono-time text-base font-semibold text-amber-700"
-    }, g.total.toLocaleString("ro-RO")), o.default.createElement("div", {
-        className: "text-xs text-amber-600 mt-0.5"
-    }, n.settings.currency, " elevi"))), o.default.createElement("div", {
+    }, "s\u0103pt. asta")), (() => {
+        /* Aici stăteau banii pe ore suplimentare — o cifră care nu-ți spunea
+           nimic dimineața. În locul ei, orele tale de volan de azi: cât stai
+           efectiv în mașină, adunat din ședințele zilei. Asta hotărăște cum
+           arată ziua, nu o sumă. */
+        let iasMin = d.reduce((iasS, iasZ) => iasS + (Number(iasZ.duration) || Fa(n.settings)), 0),
+            iasOre = Math.floor(iasMin / 60), iasRest = iasMin % 60;
+        return o.default.createElement("div", {
+            className: "bg-amber-50 rounded-xl border border-amber-200 px-2 py-3 text-center"
+        }, o.default.createElement("div", {
+            className: "font-mono-time text-base font-semibold text-amber-700"
+        }, iasMin ? (iasRest ? `${iasOre}h${String(iasRest).padStart(2, "0")}` : `${iasOre}h`) : "\u2014"),
+            o.default.createElement("div", {
+                className: "text-xs text-amber-600 mt-0.5"
+            }, "la volan azi"))
+    })()), o.default.createElement("div", {
         className: "px-4 mt-5"
     }, o.default.createElement("div", {
         className: "text-xs font-medium text-slate-400 uppercase tracking-wide mb-2"
@@ -4641,7 +4674,8 @@ function Hk({
         length: 7
     }, (A, O) => ft(pn(v, O))), x = n.sessions.filter(A => A.date === r && A.status !== "cancelled"), h = Fa(n.settings), y = kw(n.settings), _ = y >= 30 ? y : 60, b = (() => {
         let A = [];
-        for (let O = n.settings.startMin; O + h <= n.settings.endMin; O += _) A.push(O);
+        let iasPz = iasProgramZi(n.settings, r);
+        for (let O = iasPz.startMin; O + h <= iasPz.endMin; O += _) A.push(O);
         return A
     })(), M = Ue(r).getDay(), S = n.settings.workDays.includes(M), k = A => n.students.find(O => O.id === A)?.name || "Elev \u0219ters", E = (0, o.useMemo)(() => ok(n, r), [n, r]), B = -1e9, $ = r >= Be() && r <= ft(pn(new Date, RA)), G = (0, o.useMemo)(() => v0(n.students, r), [n.students, r]);
     return o.default.createElement("div", {
@@ -4688,7 +4722,8 @@ function Hk({
             /* Cât de plină e ziua, ca nivelul într-un pahar: căsuța se umple de
                jos în sus, după câte ședințe încap în programul tău. Se citește
                dintr-o privire, fără să numeri. */
-            iasLoc = Math.max(1, Math.floor((n.settings.endMin - n.settings.startMin) / Math.max(30, Fa(n.settings)))),
+            iasPzi = iasProgramZi(n.settings, A),
+            iasLoc = Math.max(1, Math.floor((iasPzi.endMin - iasPzi.startMin) / Math.max(30, Fa(n.settings)))),
             iasUmplut = Math.min(1, N / iasLoc);
         return o.default.createElement("button", {
             key: A,
@@ -5251,7 +5286,7 @@ function Rk({
         de = q ? q.id : null,
         ge = a.students.find(L => L.id === p),
         ye = Fa(a.settings),
-        Ne = Tf(a.settings),
+        Ne = Tf(a.settings, m),
         ce = a.sessions.filter(L => L.date === m && L.status !== "cancelled" && L.id !== de && !L.otherInstructor),
         ze = L => ce.some(T => bu(L, ye, T.startMin, or(T, a.settings))),
         re = J ? J.length : 0,
@@ -9284,7 +9319,67 @@ function e3({
             }, z.map(H => o.default.createElement("option", {
                 key: H,
                 value: H
-            }, Se(H)))))), o.default.createElement("div", {
+            }, Se(H)))))),
+            /* Programul de bază e cel de sus. Sub el, fiecare zi poate avea
+               orele ei: de luni până vineri începi mai târziu, dacă ai de dus
+               copilul undeva, iar sâmbăta poți porni cu noaptea în cap. Zilele
+               pe care nu le atingi merg pe programul de bază. */
+            o.default.createElement(Jn, {
+                title: "Ore altfel, pe zile",
+                summary: (() => {
+                    let iasCate = po.filter(H => ((J.programZile || {})[H])).length;
+                    return iasCate ? `${iasCate} ${iasCate === 1 ? "zi" : "zile"}` : "toate la fel"
+                })()
+            }, o.default.createElement("p", { className: "text-xs text-slate-400 mb-3" },
+                "Zilele nebifate merg pe programul de mai sus. Bifeaz\u0103 doar ce e altfel."),
+                po.filter(H => J.workDays.includes(H)).map(H => {
+                    let iasPe = (J.programZile || {})[H],
+                        iasAre = !!iasPe,
+                        iasS = iasAre ? Number(iasPe.startMin) : J.startMin,
+                        iasE = iasAre ? Number(iasPe.endMin) : J.endMin,
+                        iasPune = (chei) => {
+                            let iasT = { ...(J.programZile || {}) };
+                            if (chei === null) delete iasT[H];
+                            else iasT[H] = { startMin: iasS, endMin: iasE, ...chei };
+                            e({ programZile: iasT })
+                        };
+                    return o.default.createElement("div", {
+                        key: H,
+                        className: "rounded-xl px-3 py-2.5 mb-2",
+                        style: {
+                            background: iasAre ? "var(--accent-soft)" : "var(--surface)",
+                            border: `1px solid ${iasAre ? "var(--accent-line)" : "var(--line)"}`
+                        }
+                    },
+                        o.default.createElement("div", { className: "flex items-center gap-2" },
+                            o.default.createElement("button", {
+                                onClick: () => iasPune(iasAre ? null : {}),
+                                className: "text-xs font-medium px-2.5 py-1.5 rounded-lg shrink-0",
+                                style: {
+                                    minWidth: 54,
+                                    background: iasAre ? "var(--accent)" : "var(--surface-2)",
+                                    color: iasAre ? "#fff" : "var(--muted-2)",
+                                    border: `1px solid ${iasAre ? "var(--accent)" : "var(--line)"}`
+                                }
+                            }, Tw[H]),
+                            iasAre
+                                ? o.default.createElement("div", { className: "flex items-center gap-1.5 flex-1" },
+                                    o.default.createElement("select", {
+                                        className: ie + " text-xs", style: { padding: "6px 8px" },
+                                        value: iasS,
+                                        onChange: (ev) => iasPune({ startMin: Number(ev.target.value) })
+                                    }, z.map(L => o.default.createElement("option", { key: L, value: L }, Se(L)))),
+                                    o.default.createElement("span", { className: "text-xs text-slate-400" }, "\u2013"),
+                                    o.default.createElement("select", {
+                                        className: ie + " text-xs", style: { padding: "6px 8px" },
+                                        value: iasE,
+                                        onChange: (ev) => iasPune({ endMin: Number(ev.target.value) })
+                                    }, z.map(L => o.default.createElement("option", { key: L, value: L }, Se(L)))))
+                                : o.default.createElement("span", {
+                                    className: "text-xs flex-1", style: { color: "var(--muted-2)" }
+                                }, "ca programul de baz\u0103 \xB7 ", Se(J.startMin), "\u2013", Se(J.endMin))))
+                })),
+            o.default.createElement("div", {
                 className: "grid grid-cols-2 gap-3"
             }, o.default.createElement(xe, {
                 label: "Durata unei \u0219edin\u021Be"
@@ -10071,6 +10166,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.37.4",
+    titlu: "Program pe zile \u0219i ore la volan",
+    puncte: ["\xCEn Set\u0103ri \u2192 Program de lucru po\u021Bi da fiec\u0103rei zile orele ei: de luni p\xE2n\u0103 vineri de la 8:30, s\xE2mb\u0103ta de la 7 \u0219i p\xE2n\u0103 mai t\xE2rziu. Zilele pe care nu le atingi merg pe programul de baz\u0103.", "Calendarul, planul \u0219i grila de ore din fi\u0219a \u0219edin\u021Bei urmeaz\u0103 toate programul zilei.", "Pe Acas\u0103, \xEEn locul banilor pe ore suplimentare vezi c\xE2te ore stai la volan azi."]
+}, {
     v: "v2.37.3",
     titlu: "Noti\u021Bele se v\u0103d pe carduri",
     puncte: ["Pe cardul \u0219edin\u021Bei apare noti\u021Ba ei, iar dac\u0103 n-are una, cea mai nou\u0103 noti\u021B\u0103 din agenda elevului. Sunt dou\u0103 locuri deosebite \u0219i p\xE2n\u0103 acum se vedea doar primul.", "Se v\u0103d \u0219i pe Acas\u0103, \u0219i \xEEn calendar, inclusiv pe ecrane \xEEnguste.", "Ap\u0103sarea lung\u0103 nu mai cheam\u0103 meniul browserului. \xCEn c\xE2mpurile \xEEn care scrii po\u021Bi lipi ca \xEEnainte."]
