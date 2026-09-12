@@ -3744,6 +3744,26 @@ function iasNotite(elev) {
     return vechi ? [{ id: "veche", text: vechi, data: elev.enrollDate || "" }] : [];
 }
 
+/* Ce notiță se arată pe cardul unei ședințe. Sunt două feluri de notițe în
+   aplicație, și e ușor să le încurci:
+
+     · notița ședinței — scrisă în fișa ei, sub „Detalii avansate", și ține
+       doar de ziua aceea („de repetat parcarea");
+     · notițele elevului — din agenda lui, și țin de el, la orice ședință
+       („școlarizare în rate").
+
+   Pe card o arătăm pe cea a ședinței, fiindcă e cea anume. Dacă ședința n-are
+   una, punem cea mai nouă notiță a elevului: tot ce ai scris trebuie să se
+   vadă undeva, nu să stea îngropat. */
+function iasNotitaDeCard(sesiune, elev) {
+    var aSa = ((sesiune || {}).notes || "").trim();
+    if (aSa) return { text: aSa, aElevului: !1 };
+    var ale = iasNotite(elev);
+    var ultima = ale.length ? ale[ale.length - 1] : null;
+    var t = ultima ? (ultima.text || "").trim() : "";
+    return t ? { text: t, aElevului: !0 } : null
+}
+
 function IasNotite({ notite: lista, onChange: schimba }) {
     let [ciorna, pune] = (0, o.useState)(null);
     function salveaza() {
@@ -4343,13 +4363,19 @@ function zk({
     }, z.location))),
     /* Notița, și pe cardurile de pe Acasă: aici te uiți dimineața, înainte să
        pleci, deci tot ce ai scris despre ședință trebuie să fie la vedere. */
-    z.notes && z.notes.trim() ? o.default.createElement("div", {
-        className: "flex-1 min-w-0 px-2.5 self-center",
-        style: { maxWidth: 240, minWidth: 36 }
-    }, o.default.createElement("span", {
-        className: "block text-xs truncate",
-        style: { color: "var(--muted-2)", fontStyle: "italic" }
-    }, z.notes.trim())) : null,
+    (() => {
+        let iasN = iasNotitaDeCard(z, n.students.find(iasE => iasE.id === z.studentId));
+        return iasN ? o.default.createElement("div", {
+            className: "flex-1 min-w-0 px-2.5 self-center",
+            style: { maxWidth: 240, minWidth: 36 }
+        }, o.default.createElement("span", {
+            className: "block text-xs truncate",
+            style: {
+                color: "var(--muted-2)", fontStyle: "italic",
+                opacity: iasN.aElevului ? .8 : 1
+            }
+        }, iasN.text)) : null
+    })(),
     o.default.createElement(I0, {
         status: z.status
     }))))), Y && o.default.createElement("div", {
@@ -4949,13 +4975,19 @@ function Hk({
                telefon — acolo unde te uiți la ea. Acum se vede întotdeauna: în
                golul dintre nume și status când e loc, iar dacă nu, se strânge
                la o singură linie tăiată. */
-            Y.notes && Y.notes.trim() ? o.default.createElement("div", {
-                className: "flex-1 min-w-0 px-2.5 self-center",
-                style: { maxWidth: 280, minWidth: 40 }
-            }, o.default.createElement("span", {
-                className: "block text-xs truncate",
-                style: { color: "var(--muted-2)", fontStyle: "italic" }
-            }, Y.notes.trim())) : null,
+            (() => {
+                let iasN = iasNotitaDeCard(Y, n.students.find(iasE => iasE.id === Y.studentId));
+                return iasN ? o.default.createElement("div", {
+                    className: "flex-1 min-w-0 px-2.5 self-center",
+                    style: { maxWidth: 280, minWidth: 40 }
+                }, o.default.createElement("span", {
+                    className: "block text-xs truncate",
+                    style: {
+                        color: "var(--muted-2)", fontStyle: "italic",
+                        opacity: iasN.aElevului ? .8 : 1
+                    }
+                }, iasN.text)) : null
+            })(),
             o.default.createElement("div", {
                 className: "flex flex-col items-end gap-1 shrink-0"
             }, o.default.createElement(I0, {
@@ -10039,9 +10071,9 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
-    v: "v2.37.2",
-    titlu: "Noti\u021Bele se v\u0103d, meniul nu se mai deschide",
-    puncte: ["Noti\u021Ba \u0219edin\u021Bei se vede acum pe carduri \u0219i pe telefon \u2014 o ascunsesem din gre\u0219eal\u0103 taman pe ecranele mici. Apare \u0219i pe Acas\u0103, nu doar \xEEn calendar.", "Ap\u0103sarea lung\u0103 nu mai cheam\u0103 meniul browserului cu \u201EBack, Reload, Download\u201D. \xCEn c\xE2mpurile \xEEn care scrii po\u021Bi lipi ca \xEEnainte."]
+    v: "v2.37.3",
+    titlu: "Noti\u021Bele se v\u0103d pe carduri",
+    puncte: ["Pe cardul \u0219edin\u021Bei apare noti\u021Ba ei, iar dac\u0103 n-are una, cea mai nou\u0103 noti\u021B\u0103 din agenda elevului. Sunt dou\u0103 locuri deosebite \u0219i p\xE2n\u0103 acum se vedea doar primul.", "Se v\u0103d \u0219i pe Acas\u0103, \u0219i \xEEn calendar, inclusiv pe ecrane \xEEnguste.", "Ap\u0103sarea lung\u0103 nu mai cheam\u0103 meniul browserului. \xCEn c\xE2mpurile \xEEn care scrii po\u021Bi lipi ca \xEEnainte."]
 }, {
     v: "v2.37.0",
     titlu: "Fi\u0219a elevului, ca un bord",
