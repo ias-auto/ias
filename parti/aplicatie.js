@@ -72,6 +72,15 @@ var yo = ["ianuarie", "februarie", "martie", "aprilie", "mai", "iunie", "iulie",
         return e ? `${e.label.toLowerCase()}, ${Se(e.start)}\u2013${Se(e.end)}` : ""
     };
 
+/* Elevii care dau teoreticul în ziua asta. Teoreticul nu ocupă mașina, deci nu
+   bară intervale ca practicul — dar tot trebuie să știi de el: îl poți întreba
+   cum a fost, iar dacă pică, ședințele lui se așază altfel. */
+function iasTeoreticeZi(elevi, data) {
+    return !data || !elevi ? [] : elevi.filter(function (x) {
+        return !x.withdrawn && x.theoryExamDate === data
+    })
+}
+
 function v0(n, e) {
     /* Elevul retras nu mai ține mașina ocupată: examenul lui iese din calendar
        de îndată ce l-ai retras, ca intervalul să fie iar al tău. */
@@ -88,8 +97,36 @@ function y0(n, e, t) {
     return n.find(r => e < r.end && a > r.start) || null
 }
 
+/* Pauzele de masă, așa cum le-ai stabilit în Setări: se repetă în fiecare zi
+   lucrătoare, fără să le mai marchezi de fiecare dată. Intră în aceeași oală cu
+   intervalele barate manual, deci calendarul le hașurează la fel, planul le
+   ocolește, iar dacă programezi peste una ești avertizat — ca la orice blocaj.
+
+   Fiecare om își ia câte pauze îi trebuie: unul trei, altul una. */
+function iasPauze(setari, data) {
+    var lista = ((setari || {}).pauze) || [];
+    if (!data || !lista.length) return [];
+    var zi = Ue(data).getDay();
+    if (((setari || {}).workDays || []).length && !setari.workDays.includes(zi)) return [];
+    return lista.filter(function (x) {
+        // o pauză poate fi legată de anumite zile; fără zile, e în toate
+        return !x.zile || !x.zile.length || x.zile.indexOf(zi) >= 0
+    }).map(function (x, k) {
+        var start = Number(x.startMin) || 0,
+            durata = Math.max(5, Number(x.durata) || 30);
+        return {
+            id: "pauza_" + (x.id || k),
+            pauza: !0,
+            date: data,
+            note: (x.nume || "").trim() || "Pauz\u0103",
+            start: start,
+            end: Math.min(1440, start + durata)
+        }
+    })
+}
+
 function b0(n, e) {
-    return !e || !n || !n.blocks ? [] : n.blocks.filter(t => t.date === e).map(t => t.allDay ? {
+    var manuale = !e || !n || !n.blocks ? [] : n.blocks.filter(t => t.date === e).map(t => t.allDay ? {
         ...t,
         start: 0,
         end: 1440
@@ -97,7 +134,8 @@ function b0(n, e) {
         ...t,
         start: Number(t.startMin) || 0,
         end: Number(t.endMin) || 0
-    })
+    });
+    return manuale.concat(iasPauze(n, e))
 }
 
 function bf(n, e, t) {
@@ -2483,7 +2521,24 @@ function Tk({
                 _ = y && y.categorii.includes(h.categorie),
                 b = (h.build === eS ? 8.8 : 4.2) + (_ ? 3.4 : 0),
                 M = Math.max(1, b / 4.2);
-            x.position.set(4.6 * M, 1.85 * Math.pow(M, .75), 4.2 * M), x.lookAt(-.5 * (M - 1), .82 * Math.pow(M, .55), 0), m = new Qe({
+            /* Pe un ecran îngust unghiul orizontal al camerei se strânge, iar
+               mașina — care e lungă — iese din cadru pe la boturi. Dăm camera
+               înapoi cât trebuie ca să încapă, proporțional cu cât e de îngust
+               ecranul. Pe ecran lat nu se schimbă nimic. */
+            let iasIncape = (lat, inalt) => {
+                let asp = (lat || 1) / (inalt || 1);
+                /* 1,10 e distanța de la care mașina încape întreagă la orice
+                   raport de ecran — chiar și pe cel lat, unde înainte îi ieșea
+                   un colț. Pe ecranele înguste dăm mai mult înapoi, fiindcă
+                   acolo unghiul orizontal e cel care strânge. */
+                return Math.max(1.1, asp >= 2.4 ? 1 : Math.min(1.6, 2.4 / Math.max(.9, asp)))
+            };
+            let iasAsaza = (lat, inalt) => {
+                let D = M * iasIncape(lat, inalt);
+                x.position.set(4.6 * D, 1.85 * Math.pow(D, .75), 4.2 * D),
+                x.lookAt(-.5 * (D - 1), .82 * Math.pow(D, .55), 0)
+            };
+            iasAsaza(v, w), m = new Qe({
                 antialias: !0,
                 alpha: !0
             }), m.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)), m.setSize(v, w), m.outputEncoding = Aa, uf !== void 0 && (m.toneMapping = uf, m.toneMappingExposure = 1.05), m.domElement.style.display = "block", f.appendChild(m.domElement), g.fog = new Hl(7325682, 10, 28);
@@ -2739,7 +2794,7 @@ function Tk({
             let tt = () => {
                 let ke = f.clientWidth,
                     Ie = f.clientHeight;
-                !ke || !Ie || (x.aspect = ke / Ie, x.updateProjectionMatrix(), m.setSize(ke, Ie))
+                !ke || !Ie || (iasAsaza(ke, Ie), x.aspect = ke / Ie, x.updateProjectionMatrix(), m.setSize(ke, Ie))
             };
             return typeof ResizeObserver < "u" ? (c = new ResizeObserver(tt), c.observe(f)) : window.addEventListener("resize", tt), () => {
                 cancelAnimationFrame(p), c ? c.disconnect() : window.removeEventListener("resize", tt), g.traverse(ke => {
@@ -4719,6 +4774,7 @@ function Hk({
             // ziua cu examen practic poartă chenar mov, aceeași culoare cu
             // intervalul de examen din grila orei
             iasEx = v0(n.students, A).length > 0,
+            iasTeo = iasTeoreticeZi(n.students, A).length > 0,
             /* Cât de plină e ziua, ca nivelul într-un pahar: căsuța se umple de
                jos în sus, după câte ședințe încap în programul tău. Se citește
                dintr-o privire, fără să numeri. */
@@ -4729,12 +4785,16 @@ function Hk({
             key: A,
             onClick: () => i(A),
             className: `relative overflow-hidden flex-1 flex flex-col items-center py-2 rounded-xl border transition-colors ${C?"bg-slate-900 border-slate-900":"bg-white border-slate-200"}`,
-            style: iasEx ? {
+            /* Ziua cu examen poartă chenar mov — plin la practic, punctat la
+               teoretic, fiindcă teoreticul nu-ți ocupă mașina. */
+            style: (iasEx || iasTeo) ? {
                 borderColor: "var(--violet)",
                 borderWidth: 2,
+                borderStyle: iasEx ? "solid" : "dashed",
                 boxShadow: C ? "none" : "0 0 0 2px color-mix(in srgb, var(--violet) 18%, transparent)"
             } : void 0,
-            title: iasEx ? "Examen practic \xEEn ziua asta" : void 0
+            title: iasEx ? "Examen practic \xEEn ziua asta"
+                : iasTeo ? "Examen teoretic \xEEn ziua asta" : void 0
         },
         iasUmplut > 0 ? o.default.createElement("span", {
             "aria-hidden": "true",
@@ -4764,7 +4824,30 @@ function Hk({
     }, "Vezi mai jos ", fo(r), " \u2014 din alt\u0103 s\u0103pt\u0103m\xE2n\u0103. Atinge o zi din band\u0103 ca s\u0103 treci la ea."))
         : null, !S && o.default.createElement("div", {
         className: "mx-4 mb-3 px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-500"
-    }, "Zi liber\u0103 conform programului t\u0103u de lucru \u2014 po\u021Bi programa oricum dac\u0103 e nevoie."), G.length > 0 && (() => {
+    }, "Zi liber\u0103 conform programului t\u0103u de lucru \u2014 po\u021Bi programa oricum dac\u0103 e nevoie."),
+    /* Teoreticele zilei: nu ocup\u0103 ma\u0219ina, deci nu bar\u0103 nimic, dar apar scrise
+       aici ca s\u0103 \u0219tii de ele \u0219i s\u0103-i po\u021Bi \xEEntreba cum a fost. */
+    (() => {
+        let iasT = iasTeoreticeZi(n.students, r);
+        return iasT.length ? o.default.createElement("div", {
+            className: "mx-4 mb-3 px-3.5 py-2.5 rounded-xl flex items-start gap-2",
+            style: {
+                background: "color-mix(in srgb, var(--violet) 10%, transparent)",
+                border: "1px dashed var(--violet)"
+            }
+        }, o.default.createElement(ni, {
+            size: 15, className: "shrink-0 mt-0.5", style: { color: "var(--violet)" }
+        }), o.default.createElement("div", { className: "flex-1 min-w-0" },
+            o.default.createElement("div", {
+                className: "text-xs font-medium", style: { color: "var(--violet)" }
+            }, iasT.length === 1 ? "Examen teoretic azi" : `${iasT.length} examene teoretice azi`),
+            o.default.createElement("div", {
+                className: "text-xs mt-0.5", style: { color: "var(--muted)" }
+            }, iasT.map(x => x.name).join(", ")),
+            o.default.createElement("div", {
+                className: "text-xs mt-0.5", style: { color: "var(--muted-2)" }
+            }, "Nu \xEE\u021Bi ocup\u0103 ma\u0219ina \u2014 po\u021Bi programa normal."))) : null
+    })(), G.length > 0 && (() => {
         let A = G.filter(X => X.student.examResult !== "promovat"),
             O = G.filter(X => X.student.examResult === "promovat"),
             N = r <= Be(),
@@ -9379,6 +9462,63 @@ function e3({
                                     className: "text-xs flex-1", style: { color: "var(--muted-2)" }
                                 }, "ca programul de baz\u0103 \xB7 ", Se(J.startMin), "\u2013", Se(J.endMin))))
                 })),
+            /* Pauzele de masă: le pui o dată și se repetă singure în fiecare
+               zi de lucru. Câte îți trebuie — unul ia trei, altul una. */
+            o.default.createElement(Jn, {
+                title: "Pauze de mas\u0103",
+                summary: (() => {
+                    let iasP = (J.pauze || []);
+                    return iasP.length
+                        ? iasP.map(x => Se(Number(x.startMin) || 0)).join(" \xB7 ")
+                        : "niciuna"
+                })()
+            }, o.default.createElement("p", { className: "text-xs text-slate-400 mb-3" },
+                "Se repet\u0103 \xEEn fiecare zi de lucru \u0219i apar barate \xEEn calendar, ca orice interval indisponibil. Dac\u0103 programezi peste una, e\u0219ti avertizat \xEEnt\xE2i."),
+                (J.pauze || []).map((iasPz, iasK) => {
+                    let iasScrie = (chei) => {
+                        let iasT = (J.pauze || []).slice();
+                        iasT[iasK] = { ...iasT[iasK], ...chei };
+                        e({ pauze: iasT })
+                    };
+                    return o.default.createElement("div", {
+                        key: iasPz.id || iasK,
+                        className: "rounded-xl px-3 py-2.5 mb-2",
+                        style: { background: "var(--surface)", border: "1px solid var(--line)" }
+                    },
+                        o.default.createElement("div", { className: "flex items-center gap-1.5" },
+                            o.default.createElement("input", {
+                                className: ie + " text-xs", style: { padding: "6px 8px", flex: "1 1 0", minWidth: 0 },
+                                placeholder: "Pauz\u0103",
+                                value: iasPz.nume || "",
+                                onChange: (ev) => iasScrie({ nume: ev.target.value })
+                            }),
+                            o.default.createElement("select", {
+                                className: ie + " text-xs", style: { padding: "6px 8px", width: 92 },
+                                value: Number(iasPz.startMin) || 0,
+                                onChange: (ev) => iasScrie({ startMin: Number(ev.target.value) })
+                            }, z.map(L => o.default.createElement("option", { key: L, value: L }, Se(L)))),
+                            o.default.createElement("select", {
+                                className: ie + " text-xs", style: { padding: "6px 8px", width: 86 },
+                                value: Number(iasPz.durata) || 30,
+                                onChange: (ev) => iasScrie({ durata: Number(ev.target.value) })
+                            }, [15, 20, 30, 45, 60, 90].map(L => o.default.createElement("option", { key: L, value: L }, L, " min"))),
+                            o.default.createElement("button", {
+                                onClick: () => e({ pauze: (J.pauze || []).filter((x, i2) => i2 !== iasK) }),
+                                "aria-label": "\u0218terge pauza",
+                                className: "shrink-0 p-2 text-slate-400"
+                            }, o.default.createElement(lo, { size: 15 }))))
+                }),
+                o.default.createElement("button", {
+                    onClick: () => e({
+                        pauze: (J.pauze || []).concat([{
+                            id: "p" + Date.now(),
+                            nume: "Pauz\u0103",
+                            startMin: (J.pauze || []).length ? 780 : 720,
+                            durata: 30
+                        }])
+                    }),
+                    className: "w-full py-2.5 rounded-xl border border-dashed border-slate-300 text-slate-500 text-sm flex items-center justify-center gap-1.5"
+                }, o.default.createElement(cn, { size: 14 }), "Adaug\u0103 o pauz\u0103")),
             o.default.createElement("div", {
                 className: "grid grid-cols-2 gap-3"
             }, o.default.createElement(xe, {
@@ -10166,6 +10306,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.37.5",
+    titlu: "Pauze de mas\u0103, teoretice \u0219i \xEEncadrare",
+    puncte: ["\xCEn Set\u0103ri \u2192 Program de lucru \xEE\u021Bi pui pauzele de mas\u0103 \u2014 c\xE2te ai nevoie, cu ora \u0219i durata lor. Se repet\u0103 singure \xEEn fiecare zi de lucru, apar barate \xEEn calendar, planul le ocole\u0219te, iar dac\u0103 programezi peste una e\u0219ti avertizat.", "Ziua cu examen teoretic e marcat\u0103 \xEEn band\u0103 \u0219i anun\u021Bat\u0103 \xEEn ziua ei, ca cea cu practic \u2014 cu chenar punctat, fiindc\u0103 teoreticul nu \xEE\u021Bi ocup\u0103 ma\u0219ina.", "Ma\u0219ina din antet \xEEncape acum \xEEntreag\u0103 pe orice ecran."]
+}, {
     v: "v2.37.4",
     titlu: "Program pe zile \u0219i ore la volan",
     puncte: ["\xCEn Set\u0103ri \u2192 Program de lucru po\u021Bi da fiec\u0103rei zile orele ei: de luni p\xE2n\u0103 vineri de la 8:30, s\xE2mb\u0103ta de la 7 \u0219i p\xE2n\u0103 mai t\xE2rziu. Zilele pe care nu le atingi merg pe programul de baz\u0103.", "Calendarul, planul \u0219i grila de ore din fi\u0219a \u0219edin\u021Bei urmeaz\u0103 toate programul zilei.", "Pe Acas\u0103, \xEEn locul banilor pe ore suplimentare vezi c\xE2te ore stai la volan azi."]
