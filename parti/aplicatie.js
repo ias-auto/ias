@@ -4828,25 +4828,52 @@ function Hk({
     /* Teoreticele zilei: nu ocup\u0103 ma\u0219ina, deci nu bar\u0103 nimic, dar apar scrise
        aici ca s\u0103 \u0219tii de ele \u0219i s\u0103-i po\u021Bi \xEEntreba cum a fost. */
     (() => {
-        let iasT = iasTeoreticeZi(n.students, r);
-        return iasT.length ? o.default.createElement("div", {
-            className: "mx-4 mb-3 px-3.5 py-2.5 rounded-xl flex items-start gap-2",
-            style: {
-                background: "color-mix(in srgb, var(--violet) 10%, transparent)",
-                border: "1px dashed var(--violet)"
-            }
-        }, o.default.createElement(ni, {
-            size: 15, className: "shrink-0 mt-0.5", style: { color: "var(--violet)" }
-        }), o.default.createElement("div", { className: "flex-1 min-w-0" },
-            o.default.createElement("div", {
-                className: "text-xs font-medium", style: { color: "var(--violet)" }
-            }, iasT.length === 1 ? "Examen teoretic azi" : `${iasT.length} examene teoretice azi`),
-            o.default.createElement("div", {
-                className: "text-xs mt-0.5", style: { color: "var(--muted)" }
-            }, iasT.map(x => x.name).join(", ")),
-            o.default.createElement("div", {
-                className: "text-xs mt-0.5", style: { color: "var(--muted-2)" }
-            }, "Nu \xEE\u021Bi ocup\u0103 ma\u0219ina \u2014 po\u021Bi programa normal."))) : null
+        /* Teoreticele zilei, cu aceleași butoane ca practicul: îl notezi din
+           calendar, fără să mai intri pe fișa elevului. Ziua trebuie să fi
+           venit — n-are rost să notezi un examen care n-a avut loc încă. */
+        let iasT = iasTeoreticeZi(n.students, r).filter(x => x.theoryExamResult !== "promovat"),
+            iasLuati = iasTeoreticeZi(n.students, r).filter(x => x.theoryExamResult === "promovat"),
+            iasAVenit = r <= Be();
+        if (!iasT.length && !iasLuati.length) return null;
+        return o.default.createElement("div", { className: "mx-4 mb-3 space-y-2" },
+            iasLuati.map(x => o.default.createElement("div", {
+                key: x.id,
+                className: "rounded-xl px-3.5 py-2.5 flex items-center gap-2",
+                style: { background: "var(--ok-soft)", border: "1px solid var(--ok-line)" }
+            }, o.default.createElement("span", {
+                className: "text-sm font-medium truncate", style: { color: "var(--ok)" }
+            }, x.name, " \xB7 teoretic promovat"))),
+            iasT.length ? o.default.createElement("div", {
+                className: "rounded-xl px-3.5 py-3",
+                style: { border: "1px dashed var(--violet)" }
+            },
+                o.default.createElement("div", {
+                    className: "text-xs font-semibold uppercase tracking-wide mb-1.5",
+                    style: { color: "var(--violet)" }
+                }, iasT.length === 1 ? "Examen teoretic azi" : `${iasT.length} examene teoretice azi`),
+                iasT.map(x => o.default.createElement("div", {
+                    key: x.id, className: "mb-2 last:mb-0"
+                },
+                    o.default.createElement("div", {
+                        className: "text-sm font-medium text-slate-900 truncate"
+                    }, x.name),
+                    Number(x.theoryExamAttempts) > 0 ? o.default.createElement("div", {
+                        className: "text-xs", style: { color: "var(--muted-2)" }
+                    }, x.theoryExamAttempts, Number(x.theoryExamAttempts) === 1 ? " sus\u021Binere" : " sus\u021Bineri") : null,
+                    iasAVenit ? o.default.createElement("div", { className: "flex gap-2 mt-2" },
+                        o.default.createElement("button", {
+                            onClick: () => a(x.id, "promovat", "teoretic"),
+                            className: "flex-1 py-2 rounded-xl bg-emerald-600 text-white text-sm font-medium"
+                        }, "Promovat"),
+                        o.default.createElement("button", {
+                            onClick: () => a(x.id, "respins", "teoretic"),
+                            className: "flex-1 py-2 rounded-xl border border-red-200 text-red-600 text-sm font-medium"
+                        }, "Respins")) : null)),
+                o.default.createElement("p", {
+                    className: "text-xs mt-1.5", style: { color: "var(--muted-2)" }
+                }, iasAVenit
+                    ? "Se adaug\u0103 o sus\u021Binere la contor; la respins data r\u0103m\xE2ne liber\u0103 pentru reexaminare. Nu \xEE\u021Bi ocup\u0103 ma\u0219ina \u2014 po\u021Bi programa normal."
+                    : "Nu \xEE\u021Bi ocup\u0103 ma\u0219ina \u2014 po\u021Bi programa normal.")) : null)
     })(), G.length > 0 && (() => {
         let A = G.filter(X => X.student.examResult !== "promovat"),
             O = G.filter(X => X.student.examResult === "promovat"),
@@ -10306,9 +10333,9 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
-    v: "v2.37.5",
+    v: "v2.37.6",
     titlu: "Pauze de mas\u0103, teoretice \u0219i \xEEncadrare",
-    puncte: ["\xCEn Set\u0103ri \u2192 Program de lucru \xEE\u021Bi pui pauzele de mas\u0103 \u2014 c\xE2te ai nevoie, cu ora \u0219i durata lor. Se repet\u0103 singure \xEEn fiecare zi de lucru, apar barate \xEEn calendar, planul le ocole\u0219te, iar dac\u0103 programezi peste una e\u0219ti avertizat.", "Ziua cu examen teoretic e marcat\u0103 \xEEn band\u0103 \u0219i anun\u021Bat\u0103 \xEEn ziua ei, ca cea cu practic \u2014 cu chenar punctat, fiindc\u0103 teoreticul nu \xEE\u021Bi ocup\u0103 ma\u0219ina.", "Ma\u0219ina din antet \xEEncape acum \xEEntreag\u0103 pe orice ecran."]
+    puncte: ["\xCEn Set\u0103ri \u2192 Program de lucru \xEE\u021Bi pui pauzele de mas\u0103 \u2014 c\xE2te ai nevoie, cu ora \u0219i durata lor. Se repet\u0103 singure \xEEn fiecare zi de lucru, apar barate \xEEn calendar, planul le ocole\u0219te, iar dac\u0103 programezi peste una e\u0219ti avertizat.", "Ziua cu examen teoretic e marcat\u0103 \xEEn band\u0103 \u0219i anun\u021Bat\u0103 \xEEn ziua ei, ca cea cu practic \u2014 cu chenar punctat, fiindc\u0103 teoreticul nu \xEE\u021Bi ocup\u0103 ma\u0219ina.", "\u0218i teoreticul se noteaz\u0103 direct din calendar: Promovat sau Respins, ca la practic, cu contorul de sus\u021Bineri.", "Ma\u0219ina din antet \xEEncape acum \xEEntreag\u0103 pe orice ecran."]
 }, {
     v: "v2.37.4",
     titlu: "Program pe zile \u0219i ore la volan",
