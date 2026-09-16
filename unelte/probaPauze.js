@@ -94,6 +94,20 @@ const pauza = (ms) => new Promise(r => setTimeout(r, ms));
     [...doc().querySelectorAll('button[title]')].some(x => /Examen teoretic/.test(x.getAttribute('title'))),
     'chenar mov punctat');
 
+  /* ---- teoreticul se notează din calendar ---- */
+  const btn = (re) => [...doc().querySelectorAll('button')].find(x => re.test(x.textContent.trim()));
+  cer('teoreticul are butoane de rezultat', !!btn(/^Promovat$/) && !!btn(/^Respins$/),
+    'promovat sau respins, din calendar');
+  clic(btn(/^Promovat$/));
+  await pauza(700);
+  const dupa = JSON.parse(d.window.localStorage.getItem('ias:app-data')).students[0];
+  cer('  rezultatul se scrie pe elev', dupa.theoryExamResult === 'promovat',
+    `teoretic: ${dupa.theoryExamResult}`);
+  cer('  și se numără susținerea', Number(dupa.theoryExamAttempts) === 1,
+    dupa.theoryExamAttempts + ' susținere');
+  cer('  iar în calendar apare izbânda', /teoretic promovat/.test(text()),
+    'Teoretic Ana · teoretic promovat');
+
   console.log('');
   rez.forEach(([s, n, dt]) => console.log('  ' + s + ' ' + n.padEnd(38) + (dt || '')));
   const cazute = rez.filter(r => r[0] === '✕').length;
