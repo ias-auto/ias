@@ -1565,6 +1565,35 @@ function bw(n, e, t, a) {
     }
 }
 
+/* Ora la care e obișnuit fiecare elev. Nu e media orelor lui — media ar minți:
+   cine a venit o dată la 9 și de două ori seara, la 18 și 20, n-are treabă cu
+   ora 13, deși acolo cade media. Ceea ce contează e unde se îngrămădesc
+   ședințele lui.
+
+   Fiecare ședință trecută luminează orele din jurul ei, tot mai slab cu cât te
+   depărtezi. Unde se suprapun mai multe lumini, acolo e obiceiul lui: în pilda
+   de sus, în jurul orei 19, între cele două de seară — nu la 9, unde a fost o
+   singură dată.
+
+   Nu e o regulă de fier: dacă la ora aceea nu se poate, planul așază elevul
+   unde încape, ca până acum. E doar o preferință, ca să nimerească din prima
+   ora la care omul chiar poate. */
+function iasOreleLui(sesiuni, idElev) {
+    return (sesiuni || []).filter(function (x) {
+        return x.studentId === idElev && x.status !== "cancelled" && !x.otherInstructor
+    }).map(function (x) { return Number(x.startMin) || 0 })
+}
+
+function iasScorObisnuinta(oreVechi, ora) {
+    if (!oreVechi || !oreVechi.length) return 0;
+    var scor = 0;
+    for (var i = 0; i < oreVechi.length; i++) {
+        var d = (oreVechi[i] - ora) / 90;   // o oră și jumătate de răbdare
+        scor += Math.exp(-d * d)
+    }
+    return scor
+}
+
 function uk({
     students: n,
     existingSessions: e,
@@ -1642,6 +1671,7 @@ function uk({
                         ze = t.grupare || "fara",
                         re = ze !== "fara" && m[z] || null,
                         se = fe => {
+                            var iasBuni = [];
                             for (let he of i) {
                                 // elevul plecat o perioadă nu intră în plan cât lipsește
                                 if (l[he.id] <= 0 || f[`${he.id}_${z}`] || iasLipseste(he, z) || !Qw(he, z) || !v(he, z)) continue;
@@ -1661,9 +1691,19 @@ function uk({
                                     let T = Sf(z, he.examDate);
                                     if (T < 1 || T > 5) continue
                                 } else if (he.examDate && z >= he.examDate) continue;
-                                if (!((p[`${he.id}_${ne}`] || 0) >= u[he.id]) && A(he, Ne, C)) return he
+                                if (!((p[`${he.id}_${ne}`] || 0) >= u[he.id]) && A(he, Ne, C)) iasBuni.push(he)
                             }
-                            return null
+                            if (!iasBuni.length) return null;
+                            /* Dintre cei care pot la ora asta, îl luăm pe cel
+                               obișnuit cu ea. Dacă niciunul n-are un obicei
+                               aici, rămâne primul — adică cel mai grăbit, după
+                               ordinea dinainte. */
+                            var iasCelMaiBun = null, iasScorMax = 0;
+                            for (var iasJ = 0; iasJ < iasBuni.length; iasJ++) {
+                                var iasS2 = iasScorObisnuinta(iasOreleLui(e, iasBuni[iasJ].id), Ne);
+                                if (iasS2 > iasScorMax + 1e-9) iasScorMax = iasS2, iasCelMaiBun = iasBuni[iasJ]
+                            }
+                            return iasScorMax >= .35 ? iasCelMaiBun : iasBuni[0]
                         };
                     ce = (re ? se(!0) : null) || se(!1), ce && (k.push({
                         studentId: ce.id,
@@ -4731,6 +4771,12 @@ function Hk({
         let A = [];
         let iasPz = iasProgramZi(n.settings, r);
         for (let O = iasPz.startMin; O + h <= iasPz.endMin; O += _) A.push(O);
+        /* Ședințele deja puse rămân la vedere chiar dacă ai strâns între timp
+           programul de lucru. Ai programat pe cineva la 7:30 și abia apoi ai
+           mutat începutul la 10 — ședința aceea există, omul o așteaptă, deci
+           n-are voie să dispară din zi doar fiindcă nu mai încape în tipar. */
+        x.forEach(O => { if (A.indexOf(O.startMin) < 0) A.push(O.startMin) });
+        A.sort((O, N) => O - N);
         return A
     })(), M = Ue(r).getDay(), S = n.settings.workDays.includes(M), k = A => n.students.find(O => O.id === A)?.name || "Elev \u0219ters", E = (0, o.useMemo)(() => ok(n, r), [n, r]), B = -1e9, $ = r >= Be() && r <= ft(pn(new Date, RA)), G = (0, o.useMemo)(() => v0(n.students, r), [n.students, r]);
     return o.default.createElement("div", {
@@ -4775,6 +4821,14 @@ function Hk({
             // intervalul de examen din grila orei
             iasEx = v0(n.students, A).length > 0,
             iasTeo = iasTeoreticeZi(n.students, A).length > 0,
+            /* Zilele pe care le-ai barat cu mâna se văd din bandă, fără să
+               intri în ele: un semn de exclamare în colț și o umbră caldă peste
+               căsuță. Pauzele de masă nu se socotesc aici — ele sunt în fiecare
+               zi, deci n-ar deosebi nimic. Ziua barată toată e mai apăsată
+               decât una cu doar un interval oprit. */
+            iasBlocuri = (n.settings.blocks || []).filter(X => X.date === A),
+            iasZiBarata = iasBlocuri.some(X => X.allDay),
+            iasAreBlocaj = iasBlocuri.length > 0,
             /* Cât de plină e ziua, ca nivelul într-un pahar: căsuța se umple de
                jos în sus, după câte ședințe încap în programul tău. Se citește
                dintr-o privire, fără să numeri. */
@@ -4793,9 +4847,28 @@ function Hk({
                 borderStyle: iasEx ? "solid" : "dashed",
                 boxShadow: C ? "none" : "0 0 0 2px color-mix(in srgb, var(--violet) 18%, transparent)"
             } : void 0,
-            title: iasEx ? "Examen practic \xEEn ziua asta"
-                : iasTeo ? "Examen teoretic \xEEn ziua asta" : void 0
+            title: [
+                iasEx ? "Examen practic" : iasTeo ? "Examen teoretic" : "",
+                iasZiBarata ? "zi indisponibil\u0103" : iasAreBlocaj ? "interval indisponibil" : ""
+            ].filter(Boolean).join(" \xB7 ") || void 0
         },
+        iasAreBlocaj ? o.default.createElement("span", {
+            "aria-hidden": "true",
+            style: {
+                position: "absolute", left: 0, right: 0, top: 0, bottom: 0,
+                background: iasZiBarata
+                    ? "repeating-linear-gradient(45deg, transparent, transparent 4px, color-mix(in srgb, var(--bad) 22%, transparent) 4px, color-mix(in srgb, var(--bad) 22%, transparent) 8px)"
+                    : "color-mix(in srgb, var(--bad) 12%, transparent)",
+                pointerEvents: "none"
+            }
+        }) : null,
+        iasAreBlocaj ? o.default.createElement("span", {
+            style: {
+                position: "absolute", top: 2, right: 4, fontSize: 11, lineHeight: 1,
+                fontWeight: 700, color: "var(--bad)", pointerEvents: "none"
+            },
+            title: iasZiBarata ? "Zi indisponibil\u0103" : "Interval indisponibil"
+        }, "!") : null,
         iasUmplut > 0 ? o.default.createElement("span", {
             "aria-hidden": "true",
             style: {
@@ -5396,7 +5469,13 @@ function Rk({
         de = q ? q.id : null,
         ge = a.students.find(L => L.id === p),
         ye = Fa(a.settings),
-        Ne = Tf(a.settings, m),
+        /* Grila de ore ține și ea ora ședinței deschise, chiar dacă a rămas în
+           afara programului de lucru: altfel n-ai mai vedea pe ce oră e pusă. */
+        Ne = (() => {
+            let iasG = Tf(a.settings, m).slice();
+            if (v != null && iasG.indexOf(v) < 0) iasG.push(v), iasG.sort((L, T) => L - T);
+            return iasG
+        })(),
         ce = a.sessions.filter(L => L.date === m && L.status !== "cancelled" && L.id !== de && !L.otherInstructor),
         ze = L => ce.some(T => bu(L, ye, T.startMin, or(T, a.settings))),
         re = J ? J.length : 0,
@@ -5922,7 +6001,17 @@ function Vk({
     onOpenReport: a
 }) {
     let [r, i] = (0, o.useState)(""), [s, l] = (0, o.useState)("name"), [u, d] = (0, o.useState)(1),
-        [iasSortDeschis, iasSort] = (0, o.useState)(!1), f = pu(r).trim(), p = E => !f || pu(`${E.name||""} ${E.firstName||""} ${E.lastName||""}`).includes(f) || pu(E.group).includes(f) || (E.phone || "").replace(/\s+/g, "").includes(r.replace(/\s+/g, "")), c = (E, B) => E.name.localeCompare(B.name, "ro"), m = E => (B, $) => {
+        [iasSortDeschis, iasSort] = (0, o.useState)(!1), f = pu(r).trim(), /* Căutarea prinde și numărul de înregistrare — cum e scris pe dosar, cu sau
+       fără spații și cratime, ca „CT 05 SEV" să iasă și dacă scrii „ct05sev". */
+    p = E => {
+        if (!f) return !0;
+        let iasCurat = (x) => String(x || "").toUpperCase().replace(/[^A-Z0-9]/g, ""),
+            iasCautat = iasCurat(r);
+        return pu(`${E.name||""} ${E.firstName||""} ${E.lastName||""}`).includes(f)
+            || pu(E.group).includes(f)
+            || (E.phone || "").replace(/\s+/g, "").includes(r.replace(/\s+/g, ""))
+            || (!!iasCautat && iasCurat(E.regNumber).includes(iasCautat))
+    }, c = (E, B) => E.name.localeCompare(B.name, "ro"), m = E => (B, $) => {
         let G = E(B) || "",
             A = E($) || "";
         return !G && !A ? c(B, $) : G ? A ? u * G.localeCompare(A, "ro") || c(B, $) : -1 : 1
@@ -5945,7 +6034,12 @@ function Vk({
         name: (E, B) => u * c(E, B),
         exam: m(E => E.examDate),
         theory: m(E => E.theoryExamDate),
-        remaining: g(E => kf(E, n.sessions)),
+        /* Sortarea trebuie să se uite la aceeași cifră pe care o scrie cardul:
+           ședințe totale minus cele efectuate. Se lua după cele rămase
+           neprogramate — care scad și ședințele doar puse în calendar — așa că
+           lista părea amestecată, deși fiecare card arăta altceva. */
+        remaining: g(E => Math.max(0, bo(E) - S0(n.sessions, E.id))),
+        efectuate: g(E => S0(n.sessions, E.id)),
         debt: g(E => Hw(E, n.sessions, n.settings)),
         grupa: w,
         recent: (E, B) => u * (B.enrollDate || "").localeCompare(E.enrollDate || "") || c(E, B),
@@ -6066,7 +6160,7 @@ function Vk({
     }), o.default.createElement("input", {
         value: r,
         onChange: E => i(E.target.value),
-        placeholder: "Caut\u0103 nume, telefon sau grup\u0103",
+        placeholder: "Caut\u0103 nume, telefon, grup\u0103 sau nr.",
         className: `${ie} pl-10 ${r?"pr-10":""}`
     }), r && o.default.createElement("button", {
         onClick: () => i(""),
@@ -6087,6 +6181,7 @@ function Vk({
             ["area", "Zon\u0103"],
             ["place", "Punct start"],
             ["remaining", "Ore r\u0103mase"],
+            ["efectuate", "Ore efectuate"],
             ["debt", "Datorie"],
             ["recent", "Recent"]
         ];
@@ -10333,6 +10428,18 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.37.9",
+    titlu: "Planul \u021Bine minte ora fiec\u0103rui elev",
+    puncte: ["Planul nu mai crede c\u0103 un elev cu o \u0219edin\u021B\u0103 la 9 \u0219i una la 18 e liber toat\u0103 ziua. Se uit\u0103 unde se \xEEngr\u0103m\u0103desc \u0219edin\u021Bele lui de p\xE2n\u0103 acum \u0219i \xEEl a\u0219az\u0103 pe aproape: cu 9, 18 \u0219i 20 \xEEn spate, \xEEl pune \xEEn jurul orei 19, nu la 9.", "Nu e o regul\u0103 de fier \u2014 dac\u0103 la ora aceea nu se poate, \xEEl a\u0219az\u0103 unde \xEEncape, ca p\xE2n\u0103 acum. Elevul f\u0103r\u0103 trecut n-are nicio preferin\u021B\u0103.", "\u0218edin\u021Bele deja puse r\u0103m\xE2n la vedere chiar dac\u0103 str\xE2ngi \xEEntre timp programul de lucru: una de la 7:30 nu dispare fiindc\u0103 ai mutat \xEEnceputul la 10."]
+}, {
+    v: "v2.37.8",
+    titlu: "Zilele indisponibile se v\u0103d din band\u0103",
+    puncte: ["Ziua pe care ai marcat-o indisponibil\u0103 poart\u0103 un semn de exclamare \u0219i o umbr\u0103 \xEEn c\u0103su\u021Ba ei din band\u0103 \u2014 o vezi derul\xE2nd prin s\u0103pt\u0103m\xE2ni, f\u0103r\u0103 s\u0103 intri \xEEn ea. Ziua barat\u0103 toat\u0103 e ha\u0219urat\u0103, una cu doar un interval oprit are doar umbra.", "Pauzele de mas\u0103 nu marcheaz\u0103 zilele: sunt \xEEn fiecare zi, deci n-ar deosebi nimic."]
+}, {
+    v: "v2.37.7",
+    titlu: "Sortare \u0219i c\u0103utare dup\u0103 num\u0103r",
+    puncte: ["Sortarea dup\u0103 ore r\u0103mase se lua dup\u0103 alt\u0103 cifr\u0103 dec\xE2t cea scris\u0103 pe card \u2014 sc\u0103dea \u0219i \u0219edin\u021Bele doar programate. Acum urmeaz\u0103 exact ce vezi.", "Sortare nou\u0103, dup\u0103 ore efectuate.", "C\u0103utarea \xEEn Elevi prinde \u0219i num\u0103rul de \xEEnregistrare, cu sau f\u0103r\u0103 spa\u021Bii: \u201Ect05sev\u201D g\u0103se\u0219te \u201ECT 05 SEV\u201D."]
+}, {
     v: "v2.37.6",
     titlu: "Pauze de mas\u0103, teoretice \u0219i \xEEncadrare",
     puncte: ["\xCEn Set\u0103ri \u2192 Program de lucru \xEE\u021Bi pui pauzele de mas\u0103 \u2014 c\xE2te ai nevoie, cu ora \u0219i durata lor. Se repet\u0103 singure \xEEn fiecare zi de lucru, apar barate \xEEn calendar, planul le ocole\u0219te, iar dac\u0103 programezi peste una e\u0219ti avertizat.", "Ziua cu examen teoretic e marcat\u0103 \xEEn band\u0103 \u0219i anun\u021Bat\u0103 \xEEn ziua ei, ca cea cu practic \u2014 cu chenar punctat, fiindc\u0103 teoreticul nu \xEE\u021Bi ocup\u0103 ma\u0219ina.", "\u0218i teoreticul se noteaz\u0103 direct din calendar: Promovat sau Respins, ca la practic, cu contorul de sus\u021Bineri.", "Ma\u0219ina din antet \xEEncape acum \xEEntreag\u0103 pe orice ecran."]
