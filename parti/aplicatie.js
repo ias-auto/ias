@@ -462,8 +462,17 @@ function kf(n, e) {
 /* Câte ședințe se țin deoparte pentru examen. Era o cifră scrisă în cod; acum
    se poate schimba din Setări, fiindcă fiecare instructor lucrează altfel. */
 var Nf = 3,
+    /* Ședințele ținute deoparte pentru perioada examenului. Pornită, planul nu
+       programează de la sine ultimele câteva ore ale unui elev, ca să-i rămână
+       pentru zilele dinaintea examenului.
+
+       Din pornire e OPRITĂ, și așa trebuie să fie: legea cere ca elevul să aibă
+       toate ședințele efectuate, iar a-i ține ore nefăcute nu e treaba
+       aplicației să hotărască în locul instructorului. O pornește cine o vrea,
+       cu câte ore îi convin. */
     iasRezerva = (setari) => {
-        var n = Number(setari && setari.rezervaExamen);
+        if (!setari || !setari.rezervaActiva) return 0;
+        var n = Number(setari.rezervaExamen);
         return isNaN(n) || n < 0 ? Nf : Math.min(10, n)
     },
     wf = 14,
@@ -8129,7 +8138,10 @@ function jk({
             b(N), i.forEach(C => e(C.id, N)), p(null)
         },
         className: "shrink-0 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs"
-    }, "Implicit")), o.default.createElement("div", {
+    }, "Implicit")),
+    /* Bifa asta n-are rost dacă nu ții nicio ședință deoparte — atunci nu e
+       nimic de inclus. Apare doar când rezerva e pornită din Setări. */
+    iasRezerva(n.settings) > 0 && o.default.createElement("div", {
         className: "flex items-center gap-3 px-3.5 pb-2.5"
     }, o.default.createElement("input", {
         type: "checkbox",
@@ -8140,7 +8152,7 @@ function jk({
         className: "w-4 h-4 accent-amber-500 shrink-0"
     }), o.default.createElement("span", {
         className: "text-sm text-slate-600 flex-1"
-    }, "Include \u0219i \u0219edin\u021Bele rezervate")), o.default.createElement("p", {
+    }, "Include \u0219i \u0219edin\u021Bele rezervate")), iasRezerva(n.settings) > 0 && o.default.createElement("p", {
         className: "text-xs text-slate-400 px-3.5 -mt-1 mb-1"
     }, "Ultimele ", iasRezerva(n.settings), " \u0219edin\u021Be ale fiec\u0103rui elev se p\u0103streaz\u0103 pentru preg\u0103tirea de dinaintea examenului. Bifeaz\u0103 dac\u0103 vrei s\u0103 intre \u0219i ele \xEEn plan."), i.map(N => {
         let C = bw(n.sessions, N.id, N, r);
@@ -9624,6 +9636,40 @@ function e3({
                                     className: "text-xs flex-1", style: { color: "var(--muted-2)" }
                                 }, "ca programul de baz\u0103 \xB7 ", Se(J.startMin), "\u2013", Se(J.endMin))))
                 })),
+            /* Rezerva de examen: oprită din pornire, fiindcă nu e treaba
+               aplicației să hotărască în locul instructorului. Legea cere ca
+               elevul să aibă toate ședințele efectuate, iar cine vrea totuși
+               să-și țină câteva ore pentru zilele dinaintea examenului o
+               pornește el, cu câte îi convin. */
+            o.default.createElement("div", {
+                className: "rounded-xl px-3.5 py-3 mb-3.5",
+                style: {
+                    background: J.rezervaActiva ? "var(--accent-soft)" : "var(--surface)",
+                    border: `1px solid ${J.rezervaActiva ? "var(--accent-line)" : "var(--line)"}`
+                }
+            },
+                o.default.createElement("label", { className: "flex items-center gap-3" },
+                    o.default.createElement("input", {
+                        type: "checkbox",
+                        checked: !!J.rezervaActiva,
+                        onChange: () => e({ rezervaActiva: !J.rezervaActiva }),
+                        className: "w-4 h-4 accent-amber-500 shrink-0"
+                    }),
+                    o.default.createElement("span", { className: "text-sm flex-1", style: { color: "var(--text)" } },
+                        "P\u0103streaz\u0103 \u0219edin\u021Be pentru examen")),
+                o.default.createElement("p", {
+                    className: "text-xs mt-1.5", style: { color: "var(--muted-2)" }
+                }, "Oprit\u0103, planul programeaz\u0103 toate orele elevului, ca p\u0103n\u0103 la examen s\u0103 le aib\u0103 pe toate efectuate. Pornit\u0103, las\u0103 ultimele c\xE2teva neprogramate, pentru zilele dinaintea examenului."),
+                J.rezervaActiva ? o.default.createElement("div", { className: "mt-3" },
+                    o.default.createElement(xe, {
+                        label: "C\xE2te \u0219edin\u021Be p\u0103strezi"
+                    }, o.default.createElement(IasNumar, {
+                        value: iasRezerva(J) || Nf,
+                        min: 1,
+                        max: 10,
+                        className: ie,
+                        onCommit: H => e({ rezervaExamen: H })
+                    }))) : null),
             /* Pauzele de masă: le pui o dată și se repetă singure în fiecare
                zi de lucru. Câte îți trebuie — unul ia trei, altul una. */
             o.default.createElement(Jn, {
@@ -9715,16 +9761,6 @@ function e3({
                 max: 7,
                 className: ie,
                 onCommit: H => e({ defaultWeeklyLimit: H })
-            })), o.default.createElement(xe, {
-                label: "\u0218edin\u021Be p\u0103strate pentru examen"
-            }, o.default.createElement(IasNumar, {
-                value: iasRezerva(J),
-                min: 0,
-                max: 10,
-                className: ie,
-                onCommit: H => e({ rezervaExamen: H })
-            }), o.default.createElement(IasInfo, {
-                text: "Ultimele at\xE2tea \u0219edin\u021Be ale fiec\u0103rui elev sunt \u021Binute deoparte pentru perioada examenului \u2014 planul nu le programeaz\u0103 de la sine. Pune 0 dac\u0103 nu vrei rezerv\u0103."
             })), o.default.createElement(xe, {
                 label: "Jude\u021B implicit pentru elevi noi"
             }, o.default.createElement("select", {
@@ -10468,6 +10504,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.38.1",
+    titlu: "Rezerva de examen, la alegerea ta",
+    puncte: ["P\u0103strarea ultimelor \u0219edin\u021Be pentru perioada examenului e acum OPRIT\u0103 din pornire. Legea cere ca elevul s\u0103 aib\u0103 toate \u0219edin\u021Bele efectuate, iar aplica\u021Bia n-are de ce s\u0103 hot\u0103rasc\u0103 asta \xEEn locul t\u0103u.", "O porne\u0219ti din Set\u0103ri \u2192 Program de lucru, dac\u0103 o vrei, \u0219i alegi c\xE2te \u0219edin\u021Be p\u0103strezi \u2014 \xEEntre una \u0219i zece.", "C\xE2t e oprit\u0103, planul programeaz\u0103 toate orele elevului, iar bifa de rezerv\u0103 din Plan nu mai apare degeaba."]
+}, {
     v: "v2.38.0",
     titlu: "Mesajul de schimbare spune limpede ce s-a mutat",
     puncte: ["C\xE2nd schimbi o \u0219edin\u021B\u0103, mesajul c\u0103tre elev spune exact ce s-a mutat: ora, locul sau am\xE2ndou\u0103. Ce era iese \xEEnclinat, ce e acum iese \xEEngro\u0219at, cu harta locului nou.", "C\xE2nd se schimb\u0103 am\xE2ndou\u0103, mesajul scrie \xEEngro\u0219at, pe r\xE2ndul lui: \u201EATEN\u021AIE: se schimb\u0103 \u0219i ORA, \u0219i LOCUL\u201D.", "Reparat: c\xE2nd se schimbau \u0219i ora, \u0219i locul, aplica\u021Bia \u021Binea minte doar ora veche, iar mesajul nu pomenea c\u0103 s-a mutat \u0219i locul."]
