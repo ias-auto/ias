@@ -20,7 +20,7 @@ const settings = {
   feeTypes: [{ id: 'f1', name: 'Pachet integral', price: 3100, hours: 17, oreTip: 'included', laScoala: true }],
   masini: [{ id: 'm1', nume: 'CT 01 IAS', cutie: 'manuala' }, { id: 'm2', nume: 'CT 02 IAS', cutie: 'automata' }],
   masinaImplicita: 'm2',
-  rezervaExamen: 5,
+  rezervaActiva: true, rezervaExamen: 5,
 };
 const students = [
   { id: 's1', name: 'Pachet Ana', lastName: 'Pachet', firstName: 'Ana',
@@ -113,12 +113,15 @@ const deschideElev = async (nume) => {
   const randSetari = (re) => [...doc().querySelectorAll('button')]
     .find(x => re.test(x.textContent.trim()) && !x.closest('.sheet-anim'));
 
-  clic(randSetari(/^Elevi noi/)); await pauza(800);
+  // comutatorul rezervei stă în „Program de lucru", lângă pauze
+  clic(randSetari(/^Program de lucru/)); await pauza(800);
   const f1 = fata();
-  cer('rezerva de examen se poate schimba',
-    !!f1 && /Ședințe păstrate pentru examen/.test(f1.textContent)
-    && [...f1.querySelectorAll('input')].some(x => x.value === '5'),
-    f1 ? 'acum e 5, nu 3 fix' : 'n-am ajuns la fereastră');
+  /* Rezerva e acum oprită din pornire și se pornește dintr-un comutator, cu
+     numărul ei alături — nu mai e un câmp care stă mereu la vedere. */
+  cer('rezerva de examen se pornește la alegere',
+    !!f1 && /Păstrează ședințe pentru examen/.test(f1.textContent)
+    && /Câte ședințe păstrezi/.test(f1.textContent),
+    f1 ? 'pornită, cu 5 ședințe' : 'n-am ajuns la fereastră');
   inchide(); await pauza(700);
 
   clic(randSetari(/^Mașinile mele/)); await pauza(800);
