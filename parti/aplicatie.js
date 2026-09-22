@@ -1332,6 +1332,20 @@ function ik(n, e) {
     return (e && e.textBunVenit || p0).replace(/\{salut\}/g, t).replace(/\{prenume\}/g, Ff(n)).replace(/\{eu\}/g, e && e.numeleTau || "").replace(/\{scoala\}/g, e && e.numeScoala || "\u0219coala noastr\u0103").replace(/\{disponibil\}/g, a.replace(/^când (ești )?/, "") || "disponibil")
 }
 
+/* Ce s-a schimbat la o ședință, spus fără echivoc. În WhatsApp, _asta_ iese
+   înclinat și *asta* îngroșat: ce era rămâne înclinat, ce e acum iese gros, ca
+   ochiul să prindă întâi noul.
+
+   Regula care a născut funcția: când se schimbă și ora, și locul, trebuie să
+   scrie limpede că se schimbă AMÂNDOUĂ. Altfel omul citește ora nouă, se
+   liniștește și merge la locul știut. */
+function iasCeSaSchimbat(veche, noua) {
+    var v = veche || {}, n = noua || {};
+    var dataOra = v.date !== n.date || Number(v.startMin) !== Number(n.startMin),
+        locul = (v.location || "").trim() !== (n.location || "").trim();
+    return { dataOra: dataOra, locul: locul }
+}
+
 function yw(n, e, t, a, r) {
     let i = Ff(e),
         {
@@ -1340,16 +1354,42 @@ function yw(n, e, t, a, r) {
         } = _0(e),
         u = `${Se(t.startMin)}\u2013${Se(t.startMin+(Number(t.duration)||si))}`,
         d = $w(xo(r, t.location), t.location),
-        f = t.location ? `
-Ne vedem la: *${t.location}*${d?`
-${d}`:""}` : "",
+        f = t.location ? `\nNe vedem la: *${t.location}*${d?`\n${d}`:""}` : "",
         p = " Te rog s\u0103 \xEEmi confirmi \xEEn urm\u0103toarea or\u0103, ca s\u0103 pot elibera locul dac\u0103 nu po\u021Bi ajunge.";
-    return n === "created" ? `${s}, ${i}! \u021Ai-am programat \u0219edin\u021Ba de conducere ${fo(t.date)}, ora ${u}.${f}
-${p.trim()} Mul\u021Bumesc!` : n === "rescheduled" ? `${s}, ${i}! \u0218edin\u021Ba ta de conducere a fost mutat\u0103 de pe ${fo(a.date)}, ora ${Se(a.startMin)}, pe ${fo(t.date)}, ora ${u}.${f}
-${p.trim()} Mul\u021Bumesc!` : n === "cancelled" ? `${s}, ${i}! Am anulat \u0219edin\u021Ba de conducere din ${fo(t.date)}, ora ${Se(t.startMin)}, la cererea ta. Scrie-mi ${l} ca s\u0103 g\u0103sim alt\u0103 or\u0103. Mul\u021Bumesc!` : n === "location" ? `${s}, ${i}! \u0218edin\u021Ba de ${fo(t.date)}, ora ${u}, r\u0103m\xE2ne la fel \u2014 se schimb\u0103 doar locul de \xEEnt\xE2lnire.${f}
-${p.trim()} Mul\u021Bumesc!` : ""
-}
 
+    if (n === "rescheduled" || n === "location") {
+        let ce = iasCeSaSchimbat(a, t),
+            oraVeche = a ? `${fo(a.date)}, ora ${Se(a.startMin)}` : "",
+            oraNoua = `${fo(t.date)}, ora ${u}`,
+            locVechi = (a && a.location || "").trim(),
+            locNou = (t.location || "").trim(),
+            harta = d ? `\n${d}` : "",
+            randuri = [];
+
+        // capul mesajului spune din prima ce anume s-a mutat
+        /* Capul spune din prima ce s-a mutat. Când se mută amândouă, atenția
+           stă pe rândul ei și îngroșată, fiindcă tocmai asta scăpa elevilor. */
+        let cap = ce.dataOra && ce.locul
+            ? `${s}, ${i}! Ți-am schimbat ședința de conducere.\n*ATENȚIE: se schimbă și ORA, și LOCUL.*`
+            : ce.locul
+                ? `${s}, ${i}! Ședința ta rămâne la aceeași oră.\n*Se schimbă doar LOCUL de întâlnire.*`
+                : `${s}, ${i}! Ți-am mutat ședința de conducere.\n*Se schimbă ORA.*`;
+
+        // un rând gol între bucăți, ca fiecare schimbare să stea singură
+        if (ce.dataOra) randuri.push(
+            `\n\nOra:\n_${oraVeche}_\n→ *${oraNoua}*`);
+        else randuri.push(`\n\nOra rămâne: ${oraNoua}`);
+
+        if (ce.locul) randuri.push(
+            `\n\nLocul:\n${locVechi ? `_${locVechi}_\n→ ` : ""}*${locNou || "(nestabilit)"}*${harta}`);
+        else if (locNou) randuri.push(
+            `\n\nLocul rămâne același: ${locNou}${harta}`);
+
+        return cap + randuri.join("") + `\n\n${p.trim()} Mul\u021Bumesc!`
+    }
+
+    return n === "created" ? `${s}, ${i}! \u021Ai-am programat \u0219edin\u021Ba de conducere ${fo(t.date)}, ora ${u}.${f}\n${p.trim()} Mul\u021Bumesc!` : n === "cancelled" ? `${s}, ${i}! Am anulat \u0219edin\u021Ba de conducere din ${fo(t.date)}, ora ${Se(t.startMin)}, la cererea ta. Scrie-mi ${l} ca s\u0103 g\u0103sim alt\u0103 or\u0103. Mul\u021Bumesc!` : ""
+}
 function sk(n, e, t) {
     let a = new Date,
         r = ft(a),
@@ -10428,6 +10468,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.38.0",
+    titlu: "Mesajul de schimbare spune limpede ce s-a mutat",
+    puncte: ["C\xE2nd schimbi o \u0219edin\u021B\u0103, mesajul c\u0103tre elev spune exact ce s-a mutat: ora, locul sau am\xE2ndou\u0103. Ce era iese \xEEnclinat, ce e acum iese \xEEngro\u0219at, cu harta locului nou.", "C\xE2nd se schimb\u0103 am\xE2ndou\u0103, mesajul scrie \xEEngro\u0219at, pe r\xE2ndul lui: \u201EATEN\u021AIE: se schimb\u0103 \u0219i ORA, \u0219i LOCUL\u201D.", "Reparat: c\xE2nd se schimbau \u0219i ora, \u0219i locul, aplica\u021Bia \u021Binea minte doar ora veche, iar mesajul nu pomenea c\u0103 s-a mutat \u0219i locul."]
+}, {
     v: "v2.37.9",
     titlu: "Planul \u021Bine minte ora fiec\u0103rui elev",
     puncte: ["Planul nu mai crede c\u0103 un elev cu o \u0219edin\u021B\u0103 la 9 \u0219i una la 18 e liber toat\u0103 ziua. Se uit\u0103 unde se \xEEngr\u0103m\u0103desc \u0219edin\u021Bele lui de p\xE2n\u0103 acum \u0219i \xEEl a\u0219az\u0103 pe aproape: cu 9, 18 \u0219i 20 \xEEn spate, \xEEl pune \xEEn jurul orei 19, nu la 9.", "Nu e o regul\u0103 de fier \u2014 dac\u0103 la ora aceea nu se poate, \xEEl a\u0219az\u0103 unde \xEEncape, ca p\xE2n\u0103 acum. Elevul f\u0103r\u0103 trecut n-are nicio preferin\u021B\u0103.", "\u0218edin\u021Bele deja puse r\u0103m\xE2n la vedere chiar dac\u0103 str\xE2ngi \xEEntre timp programul de lucru: una de la 7:30 nu dispare fiindc\u0103 ai mutat \xEEnceputul la 10."]
@@ -11589,9 +11633,17 @@ function y3() {
                     }]
                 } : Ae)
             })), Y("\u0218edin\u021B\u0103 actualizat\u0103."), I.status === "cancelled" && V.status !== "cancelled" ? ee = "cancelled" : ue && I.status !== "cancelled" ? (ee = "rescheduled", te = {
+                /* Ținem minte și locul vechi, nu doar ora. Înainte se pierdea:
+                   când se schimbau amândouă, mesajul vorbea doar de oră, iar
+                   elevul venea la ora nouă, dar la locul vechi. */
                 date: V.date,
-                startMin: V.startMin
-            }) : De && I.status !== "cancelled" && (ee = "location")
+                startMin: V.startMin,
+                location: V.location || ""
+            }) : De && I.status !== "cancelled" && (ee = "location", te = {
+                date: V.date,
+                startMin: V.startMin,
+                location: V.location || ""
+            })
         } else ce(ue => ({
             ...ue,
             sessions: [...ue.sessions, {
