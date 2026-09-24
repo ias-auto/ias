@@ -1818,6 +1818,27 @@ function dk({
    deja — nu-ți mai amintește de ceva ce ai făcut. */
 var IAS_PRAG_TEORETIC = 10;
 
+/* Semnul de înștiințare, desenat: șase brațe pornite din același punct, ca o
+   floricică. Nu e litera „*" dintr-un rând de text — e un semn de sine
+   stătător, care se vede din colțul cardului fără să se piardă între cuvinte. */
+function IasSemnNou({ size: iasS = 14, culoare: iasC = "var(--accent)" }) {
+    var brate = [0, 30, 60, 90, 120, 150];
+    return o.default.createElement("svg", {
+        width: iasS, height: iasS, viewBox: "0 0 24 24",
+        style: {
+            display: "block",
+            filter: `drop-shadow(0 0 4px color-mix(in srgb, ${iasC} 60%, transparent))`
+        }
+    }, brate.map(function (unghi) {
+        return o.default.createElement("line", {
+            key: unghi,
+            x1: 12, y1: 4, x2: 12, y2: 20,
+            stroke: iasC, strokeWidth: 3.2, strokeLinecap: "round",
+            transform: `rotate(${unghi} 12 12)`
+        })
+    }))
+}
+
 function iasAsteaptaSala(elev, sesiuni) {
     if (!elev || elev.withdrawn) return 0;
     if (elev.theoryExamResult === "promovat") return 0;
@@ -1848,15 +1869,9 @@ function Lf({
             style: { color: "var(--accent)" }
         })) : null,
         iasSala ? o.default.createElement("span", {
-            /* Asterisc, nu stea: e un semn de înștiințare, nu o distincție.
-               Steaua o păstrăm pentru altceva. */
             title: `${iasSala} \u0219edin\u021Be efectuate \u2014 poate fi programat la teoretic`,
-            style: {
-                color: "var(--accent)", fontSize: e + 6, lineHeight: .6,
-                fontWeight: 700, alignSelf: "flex-start",
-                textShadow: "0 0 6px color-mix(in srgb, var(--accent) 55%, transparent)"
-            }
-        }, "*") : null)
+            style: { alignSelf: "flex-start", marginTop: -2 }
+        }, o.default.createElement(IasSemnNou, { size: e + 2 })) : null)
 }
 
 function Bf({
@@ -4316,8 +4331,10 @@ function IasLoc({ value: iasV, onChange: iasC, locations: iasL, harta: iasH }) {
                 }, "F\u0103r\u0103 loc de \xEEnt\xE2lnire")
                 : null) : null))
 }
-function IasFile({ etichete: iasEt, copii: iasCp }) {
-    let [ales, alege] = (0, o.useState)(0);
+function IasFile({ etichete: iasEt, copii: iasCp, dela: iasDela = 0 }) {
+    /* Fila de pornire: de obicei prima, dar când vii din înștiințarea „gata de
+       sală" se deschide drept pe Teoretic, fiindcă acolo ai treabă. */
+    let [ales, alege] = (0, o.useState)(iasDela);
     return o.default.createElement("div", null,
         o.default.createElement("div", { className: "flex gap-1.5 mb-3" },
             iasEt.map((e, n) => o.default.createElement("button", {
@@ -4332,7 +4349,8 @@ function Jn({
     summary: e,
     children: t,
     defaultOpen: a = !1,
-    forteaza: iasF
+    forteaza: iasF,
+    semn: iasSemn
 }) {
     let [r, i] = (0, o.useState)(a), iasCap = (0, o.useRef)(null);
 
@@ -4352,15 +4370,28 @@ function Jn({
     /* Un grup pe care l-ai strâns rămâne strâns — și bine face. Dar la căutare,
        dacă are pe cineva potrivit, se deschide singur: altfel elevul căutat
        stătea ascuns înăuntru și părea că nu există. */
-    (0, o.useEffect)(() => { if (iasF) i(!0) }, [iasF]);
+    (0, o.useEffect)(() => {
+        if (!iasF) return;
+        i(!0);
+        /* Deschisă din afară — de pildă din înștiințarea de pe Acasă — secțiunea
+           se aduce singură în câmpul vizual, altfel rămâne undeva jos și tot
+           trebuie s-o cauți. */
+        iasUrca()
+    }, [iasF]);
     return o.default.createElement("div", {
         className: "mb-3"
     }, o.default.createElement("button", {
         type: "button",
         ref: iasCap,
         onClick: () => { r || iasUrca(), i(!r) },
-        className: "w-full flex items-center gap-2 py-1.5"
-    }, o.default.createElement("span", {
+        className: "relative w-full flex items-center gap-2 py-1.5"
+    },
+    /* Semnul de înștiințare stă în colțul din dreapta sus al rândului, ca
+       bulina de pe aplicațiile de mail. */
+    iasSemn ? o.default.createElement("span", {
+        style: { position: "absolute", right: -4, top: -3 }
+    }, iasSemn) : null,
+    o.default.createElement("span", {
         className: "text-xs font-medium text-slate-400 uppercase tracking-wide flex-1 text-left"
     }, n), e ? o.default.createElement("span", {
         className: "text-xs text-slate-400 truncate"
@@ -4561,9 +4592,7 @@ function zk({
                 o.default.createElement("div", {
                     className: "px-3.5 pt-3 pb-1.5 text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5",
                     style: { color: "var(--accent-ink)" }
-                }, o.default.createElement("span", {
-                    style: { fontSize: 17, fontWeight: 700, lineHeight: .7 }
-                }, "*"),
+                }, o.default.createElement(IasSemnNou, { size: 15 }),
                     iasGata.length === 1 ? "Gata de teoretic" : `${iasGata.length} gata de teoretic`),
                 iasGata.map(z => o.default.createElement("button", {
                     key: z.elev.id,
@@ -6279,7 +6308,15 @@ function Vk({
     }, o.default.createElement(fa, {
         size: 14
     }), "Raport")), o.default.createElement("div", {
-        className: "px-4 mb-3"
+        /* Bara de căutare rămâne lipită de marginea de sus când derulezi lista:
+           cu cincizeci de elevi, altfel trebuie să urci tot drumul înapoi ca
+           să cauți pe cineva. Fundalul e plin, ca numele să nu treacă pe sub ea. */
+        className: "sticky z-20 px-4 pt-2 pb-3 -mt-2",
+        style: {
+            top: "calc(env(safe-area-inset-top, 0px))",
+            background: "var(--bg)",
+            boxShadow: "0 6px 12px -10px rgba(0,0,0,.45)"
+        }
     }, o.default.createElement("div", {
         className: "relative"
     }, o.default.createElement(Oi, {
@@ -7133,12 +7170,16 @@ function Wk({
     o.default.createElement(Jn, {
         /* Steluța pe rândul „Examene" spune de unde vine semnul de pe nume și
            unde ai de umblat, dacă vrei s-o faci singur. */
-        title: iasAsteaptaSala(t, iasSesiuni) ? "* Examene" : "Examene",
+        title: "Examene",
+        /* Semnul stă în colțul din stânga sus al rândului, nu lipit de cuvânt:
+           se vede ca înștiințare, nu ca parte din titlu. */
+        semn: iasAsteaptaSala(t, iasSesiuni) ? o.default.createElement(IasSemnNou, { size: 13 }) : null,
         forteaza: !!iasLaExamene,
         summary: c.examDate ? qe(c.examDate)
             : iasAsteaptaSala(t, iasSesiuni) ? "gata de teoretic" : "neprogramat"
     }, o.default.createElement(IasFile, {
         etichete: ["Practic", "Teoretic"],
+        dela: iasLaExamene ? 1 : 0,
         copii: [o.default.createElement("div", null, o.default.createElement("div", {
         className: "grid grid-cols-2 gap-3"
     }, o.default.createElement(xe, {
@@ -10606,6 +10647,14 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.38.5",
+    titlu: "Bara de c\u0103utare r\u0103m\xE2ne sus",
+    puncte: ["\xCEn fila Elevi, bara de c\u0103utare \u0219i sortarea r\u0103m\xE2n lipite de marginea de sus c\xE2t derulezi lista \u2014 nu mai urci tot drumul \xEEnapoi ca s\u0103 cau\u021Bi pe cineva.", "Semnul de \xEEn\u0219tiin\u021Bare a trecut \xEEn col\u021Bul din dreapta sus, ca bulina de pe aplica\u021Biile de mail."]
+}, {
+    v: "v2.38.4",
+    titlu: "Semnul desenat \u0219i saltul drept la teoretic",
+    puncte: ["Semnul de \xEEn\u0219tiin\u021Bare e acum desenat \u2014 \u0219ase bra\u021Be dintr-un punct, ca o floricic\u0103 \u2014 \u0219i st\u0103 \xEEn col\u021Bul din st\xE2nga sus, nu lipit de cuv\xE2nt.", "Din \xEEn\u0219tiin\u021Barea de pe Acas\u0103, fi\u0219a se deschide cu sec\u021Biunea Examene adus\u0103 \xEEn c\xE2mpul vizual \u0219i cu fila Teoretic deja aleas\u0103."]
+}, {
     v: "v2.38.3",
     titlu: "Anun\u021Bul de dup\u0103 adeverin\u021B\u0103, doar c\xE2nd trebuie",
     puncte: ["\u201E\u0218edin\u021Be obligatorii dup\u0103 adeverin\u021B\u0103\u201D nu mai apare pe fi\u0219a elevului c\u0103ruia i-ai prins deja o dat\u0103 de examen care n-a trecut. R\u0103m\xE2ne doar c\xE2t timp chiar a\u0219teapt\u0103 reprogramarea, \u0219i revine dac\u0103 data a trecut."]
