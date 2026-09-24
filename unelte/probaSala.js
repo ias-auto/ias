@@ -74,8 +74,11 @@ const pauza = (ms) => new Promise(r => setTimeout(r, ms));
     (text().match(/\d+ ședințe efectuate — așteaptă programare la sală/) || ['—'])[0]);
   cer('  scrie câte ședințe are', /12 ședințe efectuate/.test(text()), '12, nu 10');
   cer('  doar cine e gata', !/Începător Radu/.test(text().split('Gata de teoretic')[1] || ''));
-  cer('asteriscul e pe numele lui', (text().match(/\*/g) || []).length >= 1,
-    'semn de înștiințare, nu stea');
+  /* Semnul e desenat, nu scris: șase brațe dintr-un punct. Îl căutăm ca atare. */
+  const semne = () => [...doc().querySelectorAll('svg')]
+    .filter(x => x.querySelectorAll('line[transform^="rotate"]').length === 6);
+  cer('semnul desenat e pe numele lui', semne().length >= 1,
+    semne().length + ' semne cu șase brațe');
 
   /* atingi anunțul → fișa, drept la Examene */
   clic([...doc().querySelectorAll('button')].find(x => /așteaptă programare la sală/.test(x.textContent)));
@@ -90,8 +93,14 @@ const pauza = (ms) => new Promise(r => setTimeout(r, ms));
   cer('formularul se deschide la Examene',
     !!g && /Practic/.test(g.textContent) && /Teoretic/.test(g.textContent),
     'secțiunea e desfăcută, nu strânsă');
-  cer('  rândul Examene poartă asteriscul', !!g && /\* Examene/.test(g.textContent),
-    'știi de unde vine semnul');
+  const semneG = g ? [...g.querySelectorAll('svg')]
+    .filter(x => x.querySelectorAll('line[transform^="rotate"]').length === 6) : [];
+  cer('  rândul Examene poartă semnul', semneG.length >= 1, 'în colțul din stânga sus');
+  const file = g ? [...g.querySelectorAll('button')].filter(x => /^(Practic|Teoretic)$/.test(x.textContent.trim())) : [];
+  const teo = file.find(x => /Teoretic/.test(x.textContent));
+  cer('  se deschide direct pe Teoretic',
+    !!teo && /bg-slate-900/.test(teo.className),
+    'nu pe Practic, unde n-ai treabă acum');
   cer('  și spune că e gata de teoretic', !!g && /gata de teoretic/.test(g.textContent));
 
   console.log('');
