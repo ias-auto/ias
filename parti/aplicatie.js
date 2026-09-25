@@ -1206,6 +1206,14 @@ function iasPlusCod(text, langaLat, langaLng) {
 /* Reperul pentru codurile scurte: primul loc cu punct pe hartă din Setări.
    Codul scurt spune „unde, în ultimii patruzeci de kilometri" — restul se ia
    de aici. Fără niciun loc salvat, doar codurile lungi se pot citi. */
+/* Punctul, scris înapoi ca Plus Code — cum l-ai introdus. Coordonatele goale nu
+   spun nimic omului; codul se poate citi, copia și lipi în hartă. */
+function iasPlusDinPunct(p) {
+    if (!Fn(p)) return "";
+    var c = iasPlusScrie(Number(p.lat), Number(p.lng), 10);
+    return c.slice(0, 8) + "+" + c.slice(8)
+}
+
 function iasReper(setari) {
     var l = ((setari || {}).locations || []).filter(x => Fn(x))[0];
     return l ? [l.lat, l.lng] : [null, null]
@@ -1627,6 +1635,68 @@ function bw(n, e, t, a) {
    Nu e o regulă de fier: dacă la ora aceea nu se poate, planul așază elevul
    unde încape, ca până acum. E doar o preferință, ca să nimerească din prima
    ora la care omul chiar poate. */
+/* ============ DRUMUL TĂU DE DIMINEAȚĂ ȘI DE SEARĂ ============
+   Ziua ta începe de acasă și se termină acasă. Dacă primul elev din zi stă la
+   celălalt capăt al orașului, faci drumul acela de două ori degeaba — o dată
+   dus dimineața, o dată întors seara.
+
+   De aceea, după ce planul s-a umplut, ziua se așază puțin altfel: cel mai
+   apropiat de casa ta prinde prima oră, iar următorul ca apropiere prinde
+   ultima. Cine stă departe rămâne la mijloc, unde oricum ești deja pe drum.
+
+   Nu se schimbă CINE lucrează în ziua aceea și nici câte ore face cineva — doar
+   ordinea, și numai dacă amândoi elevii pot la ora celuilalt. */
+function iasPunctElev(elev) {
+    return Fn(elev) ? { lat: Number(elev.lat), lng: Number(elev.lng) } : null
+}
+
+function iasCatDeAproape(acasa, elev) {
+    var p = iasPunctElev(elev);
+    if (!p || !Fn(acasa)) return null;
+    return QA(acasa, p)
+}
+
+/* Pentru drumul tău nu contează unde locuiește elevul, ci unde îl chemi. Cel din
+   Corbu sau de lângă Tulcea vine la Năvodari și conduce de acolo spre Constanța
+   — deci pentru tine e un elev de aproape, nu unul de la capătul lumii.
+
+   Așadar socoteala se face după locul de întâlnire de pe fișa lui. Domiciliul
+   rămâne doar ca sprijin, pentru cine n-are încă un loc fix stabilit. */
+function iasPunctIntalnire(elev, setari) {
+    if (!elev) return null;
+    var nume = (elev.defaultLocation || "").trim();
+    if (nume) {
+        var loc = ((setari || {}).locations || []).filter(function (x) {
+            return (x.name || "").trim() === nume
+        })[0];
+        if (Fn(loc)) return { lat: Number(loc.lat), lng: Number(loc.lng), dinLoc: !0, nume: nume }
+    }
+    var acasaLui = iasPunctElev(elev);
+    return acasaLui ? { lat: acasaLui.lat, lng: acasaLui.lng, dinLoc: !1 } : null
+}
+
+/* Încotro și cât de departe, spus pe înțelesul omului: „25 km sud de tine" se
+   citește dintr-o privire, un cod de hartă nu. */
+var IAS_DIRECTII = ["nord", "nord-est", "est", "sud-est", "sud", "sud-vest", "vest", "nord-vest"];
+
+function iasIncotro(acasa, punct) {
+    if (!Fn(acasa) || !Fn(punct)) return "";
+    var rad = function (x) { return Number(x) * Math.PI / 180 },
+        f1 = rad(acasa.lat), f2 = rad(punct.lat), dl = rad(punct.lng - acasa.lng),
+        y = Math.sin(dl) * Math.cos(f2),
+        x = Math.cos(f1) * Math.sin(f2) - Math.sin(f1) * Math.cos(f2) * Math.cos(dl),
+        grade = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+    return IAS_DIRECTII[Math.round(grade / 45) % 8]
+}
+
+function iasCatSiIncotro(acasa, punct) {
+    if (!Fn(acasa) || !Fn(punct)) return "";
+    var d = QA(acasa, punct);
+    if (d == null) return "";
+    if (d < 1) return "sub 1 km de tine";
+    return `${d < 10 ? d.toFixed(1) : Math.round(d)} km ${iasIncotro(acasa, punct)} de tine`
+}
+
 function iasOreleLui(sesiuni, idElev) {
     return (sesiuni || []).filter(function (x) {
         return x.studentId === idElev && x.status !== "cancelled" && !x.otherInstructor
@@ -1774,6 +1844,56 @@ function uk({
             C = X
         }
     }
+    /* Ziua se așază acum după drumul tău: cel mai apropiat de casă dimineața,
+       următorul ca apropiere seara. Nu schimbă cine lucrează, doar ordinea. */
+    (function iasAsazaDupaCasa() {
+        var acasa = t.acasa;
+        if (!Fn(acasa) || !k.length) return;
+        var elevul = function (id) { return i.filter(function (x) { return x.id === id })[0] };
+        var departe = function (prop) {
+            /* Distanța se ia până la locul unde îl chemi, nu până la casa lui:
+               elevul din Corbu vine la Năvodari, deci pentru drumul tău e un
+               elev de aproape. */
+            var p2 = iasPunctIntalnire(elevul(prop.studentId), t);
+            var d2 = p2 ? QA(acasa, p2) : null;
+            return d2 == null ? 1e9 : d2
+        };
+        /* Schimbul e îngăduit doar dacă amândoi pot la ora celuilalt: fereastra
+           lor de disponibilitate și ședințele pe care le au deja. */
+        var potSchimba = function (a2, b2, zi) {
+            var ea = elevul(a2.studentId), eb = elevul(b2.studentId);
+            if (!ea || !eb) return !1;
+            if (!A(ea, b2.startMin, !0) || !A(eb, a2.startMin, !0)) return !1;
+            if (C0(ea, zi, b2.startMin, s) || C0(eb, zi, a2.startMin, s)) return !1;
+            return !0
+        };
+        var schimba = function (a2, b2) {
+            var t2 = a2.studentId;
+            a2.studentId = b2.studentId, b2.studentId = t2;
+            var w2 = a2.offWindow;
+            a2.offWindow = b2.offWindow, b2.offWindow = w2
+        };
+        var peZile = {};
+        k.forEach(function (x) { (peZile[x.date] = peZile[x.date] || []).push(x) });
+        Object.keys(peZile).forEach(function (zi) {
+            var ale = peZile[zi].sort(function (x, y) { return x.startMin - y.startMin });
+            if (ale.length < 2) return;
+            var ocupate = {};
+            // dimineața: cel mai apropiat de casa ta prinde prima oră
+            [0, ale.length - 1].forEach(function (poz) {
+                if (ocupate[poz]) return;
+                var celMaiBun = poz, minim = departe(ale[poz]);
+                for (var j = 0; j < ale.length; j++) {
+                    if (j === poz || ocupate[j]) continue;
+                    var d2 = departe(ale[j]);
+                    if (d2 < minim - .3 && potSchimba(ale[poz], ale[j], zi)) minim = d2, celMaiBun = j
+                }
+                if (celMaiBun !== poz) schimba(ale[poz], ale[celMaiBun]);
+                ocupate[poz] = !0, ocupate[celMaiBun] = !0
+            })
+        })
+    })();
+
     let N = i.filter(C => l[C.id] > 0).map(C => ({
         id: C.id,
         name: C.name,
@@ -7763,11 +7883,44 @@ Te rog confirm\u0103. Mul\u021Bumesc!`;
         className: "text-xs text-slate-400 mb-0.5"
     }, "Nr. \xEEnregistrare"), o.default.createElement("div", {
         className: "text-slate-800"
-    }, e.regNumber || "\u2014")), e.defaultLocation && o.default.createElement("div", {
+    }, e.regNumber || "\u2014")),
+    /* Domiciliul elevului, scris ca Plus Code — cum l-ai introdus. Până acum
+       punctul se salva, dar nu se vedea nicăieri, așa că nu puteai ști dacă a
+       intrat sau ce ai pus. Din el se socotește și cine e aproape de casa ta. */
+    /* Domiciliul, ca rând întreg pe care poți apăsa: te duce drept în hartă.
+       Scris pe înțeles — „25 km sud de tine" — cu codul dedesubt, pentru cine
+       vrea să-l copieze. */
+    Fn(e) ? o.default.createElement("a", {
+        href: `https://maps.google.com/?q=${e.lat},${e.lng}`,
+        target: "_blank", rel: "noopener noreferrer",
+        className: "col-span-2 flex items-center gap-2.5 rounded-xl px-3 py-2.5 -mx-0.5",
+        style: { background: "var(--surface-2)", border: "1px solid var(--line)" }
+    },
+        o.default.createElement(dn, { size: 16, className: "shrink-0", style: { color: "var(--accent)" } }),
+        o.default.createElement("span", { className: "flex-1 min-w-0" },
+            o.default.createElement("span", {
+                className: "block text-xs text-slate-400"
+            }, "Domiciliu"),
+            o.default.createElement("span", {
+                className: "block text-sm", style: { color: "var(--text)" }
+            }, iasCatSiIncotro(a.acasa, e) || "punct pe hart\u0103"),
+            o.default.createElement("span", {
+                className: "block font-mono-time text-xs", style: { color: "var(--muted-2)" }
+            }, iasPlusDinPunct(e))),
+        o.default.createElement(un, { size: 15, className: "shrink-0 text-slate-300" })) : null,
+    e.defaultLocation && o.default.createElement("div", {
         className: "col-span-2"
     }, o.default.createElement("div", {
         className: "text-xs text-slate-400 mb-0.5"
-    }, "Loca\u021Bie de start implicit\u0103"), o.default.createElement("a", {
+    }, "Loca\u021Bie de start implicit\u0103",
+        (() => {
+            /* Distanța de aici hotărăște dacă planul îl pune la început, la
+               sfârșit sau la mijlocul zilei — deci merită scrisă. */
+            let iasP = iasPunctIntalnire(e, a), iasT = iasP ? iasCatSiIncotro(a.acasa, iasP) : "";
+            return iasT ? o.default.createElement("span", {
+                style: { color: "var(--accent-ink)" }
+            }, " \xB7 ", iasT) : null
+        })()), o.default.createElement("a", {
         href: wu(xo(a, e.defaultLocation), e.defaultLocation, "dir"),
         target: "_blank",
         rel: "noopener noreferrer",
@@ -10090,7 +10243,56 @@ function e3({
                 className: "w-full py-2.5 rounded-xl border border-dashed border-slate-300 text-slate-500 text-sm flex items-center justify-center gap-1.5"
             }, o.default.createElement(dn, {
                 size: 14
-            }), "Loca\u021Bie nou\u0103")) : ne === "masini" ? o.default.createElement(IasMasiniEditor, {
+            }), "Loca\u021Bie nou\u0103"),
+            /* Casa ta. Din ea se socotește cine e aproape și cine departe, ca
+               planul să-ți pună dimineața și seara elevii din vecinătate —
+               altfel faci drumul lung de două ori, dus și întors. */
+            o.default.createElement("div", {
+                className: "mt-5 pt-4",
+                style: { borderTop: "1px solid var(--line)" }
+            },
+                o.default.createElement("div", {
+                    className: "text-xs font-medium text-slate-500 mb-1.5"
+                }, "Casa ta"),
+                o.default.createElement("p", { className: "text-xs text-slate-400 mb-2.5" },
+                    "Pus\u0103 aici, planul \xEEncearc\u0103 s\u0103-\u021Bi dea prima \u0219i ultima \u0219edin\u021B\u0103 a zilei cu elevii care stau mai aproape de tine. Nu schimb\u0103 cine lucreaz\u0103, doar ordinea. Ajunge \u0219i cu aproxima\u021Bie."),
+                Fn(J.acasa) ? o.default.createElement("div", {
+                    className: "rounded-xl px-3.5 py-2.5 mb-2 flex items-center gap-2",
+                    style: { background: "var(--accent-soft)", border: "1px solid var(--accent-line)" }
+                },
+                    o.default.createElement(dn, { size: 14, className: "shrink-0", style: { color: "var(--accent)" } }),
+                    o.default.createElement("span", {
+                        className: "flex-1 min-w-0 font-mono-time text-xs truncate",
+                        style: { color: "var(--accent-ink)" }
+                    }, iasPlusDinPunct(J.acasa)),
+                    o.default.createElement("a", {
+                        href: `https://maps.google.com/?q=${J.acasa.lat},${J.acasa.lng}`,
+                        target: "_blank", rel: "noopener noreferrer",
+                        className: "shrink-0 text-xs px-2 py-1 rounded-lg",
+                        style: { color: "var(--accent-ink)", border: "1px solid var(--accent-line)" }
+                    }, "vezi"),
+                    o.default.createElement("button", {
+                        onClick: () => e({ acasa: null }),
+                        "aria-label": "\u0218terge casa",
+                        className: "shrink-0 p-1.5 text-slate-400"
+                    }, o.default.createElement(lo, { size: 14 }))) : null,
+                o.default.createElement("input", {
+                    className: ie,
+                    placeholder: "link de hart\u0103, coordonate sau Plus Code",
+                    onChange: (H) => {
+                        let iasR = iasReper(J), L = Xw(H.target.value, iasR[0], iasR[1]);
+                        L && (e({ acasa: { lat: L.lat, lng: L.lng } }), H.target.value = "")
+                    }
+                }),
+                (J.locations || []).filter(H => Fn(H)).length
+                    ? o.default.createElement("div", { className: "flex flex-wrap gap-1.5 mt-2" },
+                        o.default.createElement("span", { className: "text-xs text-slate-400 py-1" }, "sau ia-o de la:"),
+                        (J.locations || []).filter(H => Fn(H)).map(H => o.default.createElement("button", {
+                            key: H.id,
+                            onClick: () => e({ acasa: { lat: Number(H.lat), lng: Number(H.lng) } }),
+                            className: "px-2.5 py-1 rounded-lg text-xs border border-slate-200 text-slate-600"
+                        }, H.name)))
+                    : null)) : ne === "masini" ? o.default.createElement(IasMasiniEditor, {
                 masini: iasMasini(J),
                 onChange: (lista) => e({ masini: lista }),
                 implicita: J.masinaImplicita || "",
@@ -10647,6 +10849,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.39.1",
+    titlu: "Drumul t\u0103u de diminea\u021B\u0103 \u0219i de sear\u0103",
+    puncte: ["\xCEn Set\u0103ri \u2192 Loca\u021Bii \xEE\u021Bi pui casa, cu aproxima\u021Bie \u2014 link de hart\u0103, coordonate, Plus Code sau luat\u0103 de la o loca\u021Bie salvat\u0103.", "Cu ea pus\u0103, planul \xEE\u021Bi d\u0103 prima \u0219i ultima \u0219edin\u021B\u0103 a zilei cu elevii pe care \xEEi chemi mai aproape de tine \u2014 socoteala se face dup\u0103 locul de \xEEnt\xE2lnire de pe fi\u0219a fiec\u0103ruia, nu dup\u0103 unde locuie\u0219te, iar cei de departe r\u0103m\xE2n la mijloc, c\xE2nd e\u0219ti oricum pe drum. Nu se schimb\u0103 cine lucreaz\u0103 \u0219i nici c\xE2te ore face cineva \u2014 doar ordinea, \u0219i numai dac\u0103 am\xE2ndoi elevii pot la ora cel\u0103lalt.", "Domiciliul elevului se vede pe fi\u0219a lui, ca r\xE2nd \xEEntreg pe care ape\u0219i \u0219i te duce \xEEn hart\u0103: \u201E25 km sud de tine\u201D, cu codul dedesubt. Locul de \xEEnt\xE2lnire \xEE\u0219i arat\u0103 \u0219i el distan\u021Ba, ca s\u0103 \u0219tii de ce planul \xEEl pune unde-l pune.", "F\u0103r\u0103 casa pus\u0103, planul lucreaz\u0103 exact ca p\xE2n\u0103 acum."]
+}, {
     v: "v2.38.5",
     titlu: "Bara de c\u0103utare r\u0103m\xE2ne sus",
     puncte: ["\xCEn fila Elevi, bara de c\u0103utare \u0219i sortarea r\u0103m\xE2n lipite de marginea de sus c\xE2t derulezi lista \u2014 nu mai urci tot drumul \xEEnapoi ca s\u0103 cau\u021Bi pe cineva.", "Semnul de \xEEn\u0219tiin\u021Bare a trecut \xEEn col\u021Bul din dreapta sus, ca bulina de pe aplica\u021Biile de mail."]
