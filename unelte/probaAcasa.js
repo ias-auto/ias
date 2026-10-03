@@ -139,9 +139,16 @@ const pauza = (ms) => new Promise(r => setTimeout(r, ms));
   const z1 = zile[0], ale1 = peZile[z1].sort((x, y) => x.ora.localeCompare(y.ora));
   cer('prima și ultima ședință sunt cu cei de aproape', bune === total,
     `${bune} din ${total} zile`);
-  cer('  prima e cel mai apropiat loc de întâlnire',
-    departe(ale1[0].cine) <= Math.min(...ale1.slice(1).map(x => departe(x.cine))),
-    `${ale1[0].ora} ${ale1[0].cine} — ${departe(ale1[0].cine).toFixed(1)} km`);
+  /* Verificăm toate zilele, nu una aleasă la nimereală: prima ședință nu are
+     voie să fie mai departe decât vreuna din mijloc. */
+  let primeBune = 0;
+  zile.forEach(z => {
+    const ale = peZile[z].sort((x, y) => x.ora.localeCompare(y.ora));
+    const mijloc = ale.slice(1, -1).map(x => departe(x.cine));
+    if (departe(ale[0].cine) <= Math.min(...mijloc)) primeBune++;
+  });
+  cer('  prima e cel mai apropiat loc de întâlnire', primeBune === zile.length,
+    `${primeBune} din ${zile.length} zile`);
   cer('  ultima nu e mai departe decât mijlocul',
     departe(ale1[ale1.length - 1].cine) <= Math.max(...ale1.slice(1, -1).map(x => departe(x.cine))),
     `${ale1[ale1.length-1].ora} ${ale1[ale1.length-1].cine} — ${departe(ale1[ale1.length-1].cine).toFixed(1)} km`);
@@ -151,6 +158,92 @@ const pauza = (ms) => new Promise(r => setTimeout(r, ms));
   cer('elevul de lângă Tulcea nu mai cade la mijloc',
     !ale1.slice(1, -1).some(x => /Departe nord/.test(x.cine)),
     'e chemat la Năvodari, deci e elev de aproape');
+
+  /* ---- gruparea pe hartă: doi elevi chemați în același loc sunt vecini ---- */
+  {
+    const iQA2 = linii.findIndex(l => /^function QA\(/.test(l));
+    const iYw2 = linii.findIndex((l, k) => k > iQA2 && /^var Yw = /.test(l));
+    const iAp2 = linii.findIndex(l => /^function iasPunctElev\(/.test(l));
+    const iOr2 = linii.findIndex((l, k) => k > iAp2 && /^function iasOreleLui\(/.test(l));
+    const g = {};
+    new Function('exports',
+      'var Fn = n => !!(n && n.lat != null && n.lng != null && n.lat !== "" && n.lng !== "");\n'
+      + linii.slice(iQA2, iYw2).join('\n') + '\n'
+      + linii.slice(iAp2, iOr2).join('\n')
+      + '\n;exports.p = iasPunctIntalnire; exports.q = QA;')(g);
+
+    const corbu = students.find(x => x.name === 'Corbu');
+    const tulcea = students.find(x => x.name === 'Departe nord');
+    const dupaCasa = g.q(corbu, tulcea);
+    const dupaIntalnire = g.q(g.p(corbu, settings), g.p(tulcea, settings));
+    cer('după domiciliu, cei doi păreau departe unul de altul',
+      dupaCasa > 40, Math.round(dupaCasa) + ' km între case');
+    cer('după locul de întâlnire, sunt în același loc',
+      dupaIntalnire < 1, 'amândoi vin la Năvodari');
+    cer('  deci gruparea pe hartă îi poate pune unul după altul',
+      dupaIntalnire <= 5, 'sub pragul de 5 km al grupării');
+  }
+
+  /* ---- gruparea pe hartă socotește tot după locul de întâlnire ---- */
+  const src2 = fs.readFileSync('parti/aplicatie.js', 'utf8');
+  cer('gruparea pe hartă măsoară între locurile de întâlnire',
+    /QA\(iasPunctIntalnire\(re, t\), iasPunctIntalnire\(he, t\)\)/.test(src2),
+    'nu între casele lor');
+  cer('  deci Corbu și cel de lângă Tulcea se grupează',
+    (() => {
+      const pCorbu = settings.locations.find(x => x.name === 'Năvodari');
+      const pTulcea = settings.locations.find(x => x.name === 'Năvodari');
+      return m.d(pCorbu, pTulcea) < 5;
+    })(), 'amândoi vin la Năvodari — pentru tine, același loc');
+  cer('  iar cei chemați în Constanța fac alt grup',
+    m.d(settings.locations.find(x => x.name === 'Năvodari'),
+        settings.locations.find(x => x.name === 'Constanța')) > 5,
+    'Năvodari și Constanța sunt la 14 km, deci nu se amestecă');
+
+  /* ---- locul preferat de început ---- */
+  const d3 = new JSDOM(html, {
+    runScripts: 'dangerously', pretendToBeVisual: true, url: 'https://x/',
+    beforeParse(w3) {
+      /* Casa în Năvodari, dar începi ziua de la Constanța: elevii chemați acolo
+         trebuie să prindă prima oră, chiar dacă Năvodari e mai aproape de casă. */
+      const cuStart = { ...settings, locStart: 'Constanța' };
+      w3.localStorage.setItem('ias:app-data', JSON.stringify({ students, sessions: [], settings: cuStart }));
+      w3.localStorage.setItem('ias:licenta', JSON.stringify({
+        cod: 'IAS9F3K7QX2', stare: 'ok', rol: 'proprietar', pana: '2099-12-31', verificatLa: azi, drepturi: ['*'],
+      }));
+      w3.localStorage.setItem('ias:backup', azi);
+      w3.ResizeObserver = function () { this.observe = () => {}; this.disconnect = () => {}; };
+      w3.scrollBy = () => {};
+    },
+  });
+  await pauza(3000);
+  const dd = () => d3.window.document;
+  const cc = (el) => el && el.dispatchEvent(new d3.window.MouseEvent('click', { bubbles: true }));
+  [...dd().querySelectorAll('.ecran-peste')].forEach(f =>
+    cc([...f.querySelectorAll('button')].find(x => /Am înțeles|Închide/.test(x.textContent))));
+  await pauza(500);
+  cc([...dd().querySelectorAll('nav button')].find(x => /Plan/.test(x.textContent)));
+  await pauza(800);
+  cc([...dd().querySelectorAll('button')].find(x => /Generează plan/.test(x.textContent)));
+  await pauza(1600);
+  const t3 = dd().body.textContent.replace(/\s+/g, ' ');
+  const p3 = [...t3.matchAll(/(\w{3} \d+) · (\d\d:\d\d)(Năvodari centru|Corbu|Departe nord|Tomis III|Gara|Agigea)/g)];
+  const zile3 = {};
+  p3.forEach(x => { (zile3[x[1]] = zile3[x[1]] || []).push({ ora: x[2], cine: x[3] }) });
+  const pline = Object.keys(zile3).filter(z => zile3[z].length >= 4);
+  const chemat = (nume) => students.find(x => x.name === nume).defaultLocation;
+  let primeleLaStart = 0;
+  pline.forEach(z => {
+    const ale = zile3[z].sort((x, y) => x.ora.localeCompare(y.ora));
+    if (chemat(ale[0].cine) === 'Constanța') primeleLaStart++;
+  });
+  cer('cu loc de început ales, prima ședință e chiar acolo',
+    pline.length > 0 && primeleLaStart === pline.length,
+    `${primeleLaStart} din ${pline.length} zile încep din Constanța`);
+  const z3 = pline[0], ale3 = zile3[z3].sort((x, y) => x.ora.localeCompare(y.ora));
+  cer('  iar ultima rămâne către casă',
+    chemat(ale3[ale3.length - 1].cine) === 'Năvodari',
+    `${ale3[0].cine} → … → ${ale3[ale3.length-1].cine}`);
 
   /* ---- fără casa pusă, planul rămâne exact cum era ---- */
   const d2 = new JSDOM(html, {

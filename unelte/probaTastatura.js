@@ -16,7 +16,7 @@ cer('cu tastatura sus, urcă în capul zonei',
   /html\.ias-tastatura \.sheet-wrap \{[^}]*align-items: flex-start/.test(html));
 cer('măsoară zona rămasă', /visualViewport/.test(html) && /--ias-vazut/.test(html));
 cer('câmpurile de căutare se aduc în vedere',
-  /onFocus: iasAdu/.test(html) && /scrollIntoView\(\{ block: "center"/.test(html));
+  /onFocus: iasAdu/.test(html) && /scrollIntoView\(\{ block: "start"/.test(html));
 cer('pragul deosebește tastatura de bara browserului',
   /innerHeight - iasVV\.height\) > 120/.test(html), 'peste 120 de puncte');
 
@@ -67,6 +67,22 @@ const pauza = (ms) => new Promise(r => setTimeout(r, ms));
     r.style.getPropertyValue('--ias-vazut') === '508px',
     r.style.getPropertyValue('--ias-vazut') + ' din 844');
   cer('  aplicația știe că e tastatura sus', r.classList.contains('ias-tastatura'));
+
+  /* ---- cele trei lucruri din poză ---- */
+  /* În fișa ședinței, „Elev" se scria de două ori: o dată de la lista care își
+     poartă singură titlul, o dată de la mine. Cele rămase în cod sunt capete de
+     tabel din rapoarte, care n-au legătură. */
+  cer('câmpurile de căutare nu cheamă bara cu cheia',
+    (html.match(/name: "cauta-elev"/g) || []).length === 1
+    && (html.match(/name: "cauta-loc"/g) || []).length >= 1
+    && (html.match(/autoComplete: "off"/g) || []).length >= 2,
+    'declarate ca „search", fără completare automată');
+  cer('listele se potrivesc după cât se vede',
+    /maxHeight: "min\(220px, calc\(var\(--ias-vazut, 100vh\) \* 0\.5\)\)"/.test(html)
+    && /calc\(var\(--ias-vazut, 100vh\) - 250px\)/.test(html),
+    'lista de elevi și cea de locuri');
+  cer('telefonul culcat strânge marginile',
+    /@media \(orientation: landscape\) and \(max-height: 520px\)/.test(html));
 
   console.log('');
   rez.forEach(([s, n, dt]) => console.log('  ' + s + ' ' + n.padEnd(38) + (dt || '')));

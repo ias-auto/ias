@@ -82,7 +82,7 @@ const GRUPURI = ['Persoana', 'Dosar', 'Școlarizare', 'Setări programare', 'Dis
   const trebuie = ['Nume de familie', 'Prenume', 'Sex', 'Telefon', 'Data nașterii', 'Județ',
     'Zona de domiciliu', 'Nr. înregistrare', 'Grupa', 'OS', 'Categoria de permis',
     'Data înscrierii', 'Situație', 'Alege pachet', 'Ședințe incluse', 'Ședințe suplimentare',
-    'Cutie de viteze', 'Mașina lui', 'Locație de start', 'Limba ședințelor',
+    'Mașina lui', 'Locație de start', 'Limba ședințelor',
     'Limită ședințe', 'Tură de lucru', 'Indisponibil o perioadă', 'Notițe',
     'Mementouri', 'Practic', 'Teoretic'];
   const lipsa = trebuie.filter(x => !tot.includes(x));

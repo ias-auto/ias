@@ -60,9 +60,12 @@ const pauza = (ms) => new Promise(r => setTimeout(r, ms));
   await pauza(800);
 
   const t = text();
-  cer('cifra își spune numele adevărat', /Ore suplimentare\s*200\s*lei de încasat/.test(t),
-    (t.match(/Ore suplimentare\s*[\d.]+\s*lei de încasat/) || ['—'])[0]);
-  cer('  nu se mai numește „de la elevi"', !/De la elevi 200/.test(t));
+  /* Banii pe ore suplimentare au fost scoși din card: nu ajutau la nimic.
+     În locul lor stă munca lunii, iar încasările se văd tot mai jos. */
+  cer('cardul nu mai arată banii pe suplimentare',
+    !/Ore suplimentare\s*\d+\s*lei de încasat/.test(t));
+  cer('  arată munca lunii', /Ședințe luna asta/.test(t),
+    (t.match(/Ședințe luna asta\s*[\d /]+/) || ['—'])[0].trim());
   cer('încasările lunii se văd separat', /încasat 1.150 lei/.test(t),
     (t.match(/Detalii de la elevi\s*încasat [\d.]+ lei/) || ['—'])[0]);
 

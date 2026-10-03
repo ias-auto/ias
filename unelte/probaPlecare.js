@@ -27,14 +27,19 @@ const students = [
 /* ---- 1. planificatorul, pe codul din sursă ---- */
 const src = fs.readFileSync('parti/aplicatie.js', 'utf8');
 const linii = src.split('\n');
-const start = linii.findIndex(l => /^function uk\(/.test(l));
-let adanc = 0, stop = start;
-for (let i = start; i < linii.length; i++) {
-  for (const ch of linii[i]) { if (ch === '{') adanc++; else if (ch === '}') adanc--; }
-  if (adanc === 0 && i > start) { stop = i; break; }
+/* Luăm partea de socoteală după repere din text, nu după numere de linie.
+   Iconițele din ea au nevoie de biblioteci, așa că le declarăm goale — nu ne
+   trebuie decât calculul. */
+const iStart = linii.findIndex(l => /^var yo = \[/.test(l));
+const iPlan = linii.findIndex(l => /^function uk\(/.test(l));
+let adPlan = 0, iPlanEnd = iPlan;
+for (let i = iPlan; i < linii.length; i++) {
+  for (const ch of linii[i]) { if (ch === '{') adPlan++; else if (ch === '}') adPlan-- }
+  if (adPlan === 0 && i > iPlan) { iPlanEnd = i; break }
 }
-const cod = linii.slice(0, 140).join('\n') + '\n' + linii.slice(200, start).join('\n') + '\n'
-  + linii.slice(start, stop + 1).join('\n');
+const brut = linii.slice(iStart, iPlanEnd + 1).join('\n');
+const lipsa = [...new Set([...brut.matchAll(/\bicon: ([A-Za-z_$][\w$]*)/g)].map(m => m[1]))];
+const cod = (lipsa.length ? 'var ' + lipsa.join(', ') + ';\n' : '') + brut;
 const mediu = {};
 new Function('exports', cod + '\n;exports.uk = uk;')(mediu);
 

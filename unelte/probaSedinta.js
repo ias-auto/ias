@@ -74,7 +74,7 @@ const pauza = (ms) => new Promise(r => setTimeout(r, ms));
     `${f.querySelectorAll('svg').length} semne desenate`);
 
   const stari = [...f.querySelectorAll('button')].filter(x =>
-    /^(Programată|Așteaptă confirmare|Efectuată|Anulată)$/.test(x.textContent.trim()));
+    /^(Programată|Așteaptă|Efectuată|Anulată)$/.test(x.textContent.trim()));
   cer('  toate cele patru statusuri', stari.length === 4, stari.map(x => x.textContent.trim()).join(' · '));
 
   const ore = [...f.querySelectorAll('button')].filter(x => /^\d\d:\d\d$/.test(x.textContent.trim()));
@@ -84,7 +84,10 @@ const pauza = (ms) => new Promise(r => setTimeout(r, ms));
   cer('  locul e un singur rând', !!btn(/OMV Pescărie/), 'OMV Pescărie');
   cer('  detaliile avansate sunt strânse',
     /Detalii avansate/.test(f.textContent) && !/Numele instructorului/.test(f.textContent));
-  cer('  rezumatul se vede', /Rezumat/.test(f.textContent));
+  // rezumatul a fost scos: nu spunea nimic ce nu se vedea deja mai sus
+  cer('  fără rezumat și fără card de sus',
+    !/Rezumat/.test(f.textContent) && !/^Editează ședința\s*\w+ \w+/.test(f.textContent.trim()),
+    'formularul e mai scurt');
   cer('  notițele n-au dispărut', (() => { clic(btn(/Detalii avansate/)); return true })());
   await pauza(300);
   f = fata();
@@ -115,7 +118,7 @@ const pauza = (ms) => new Promise(r => setTimeout(r, ms));
   cer('ședință nouă se deschide', !!f && /Ședință nouă/.test(f.textContent));
   cer('  nu are fișa de editare', !/Editează ședința/.test(f.textContent));
   cer('  are doar două statusuri', [...f.querySelectorAll('button')]
-    .filter(x => /^(Programată|Așteaptă confirmare|Efectuată|Anulată)$/.test(x.textContent.trim())).length === 2);
+    .filter(x => /^(Programată|Așteaptă|Efectuată|Anulată)$/.test(x.textContent.trim())).length === 2);
 
   // alegem elevul
   clic(btn(/Alege elevul/)); await pauza(400);
@@ -125,11 +128,11 @@ const pauza = (ms) => new Promise(r => setTimeout(r, ms));
   cer('  elevul se alege', /Vasilescu Mihai/.test(f.textContent));
 
   // locul, din fereastra compactă
-  clic(btn(/Alege punctul de întâlnire|OMV|Rompetrol/)); await pauza(600);
+  clic(btn(/Toate locurile|Alt loc, scris de tine/)); await pauza(700);
   const fl = fata();
-  cer('  locurile se aleg din fereastră', /Punct de întâlnire/.test(fl.textContent)
-    && /Carrefour Năvodari/.test(fl.textContent), '6 locuri, cu căutare');
-  const camp = fl.querySelector('input');
+  cer('  restul locurilor se aleg din listă', /Punct de întâlnire/.test(fl.textContent)
+    && /Carrefour Năvodari/.test(fl.textContent), 'lista întâi, căutarea dedesubt');
+  const camp = [...fl.querySelectorAll('input')].pop();
   const set = Object.getOwnPropertyDescriptor(d.window.HTMLInputElement.prototype, 'value').set;
   set.call(camp, 'Ferdinand');
   camp.dispatchEvent(new d.window.Event('input', { bubbles: true }));
