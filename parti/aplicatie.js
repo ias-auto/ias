@@ -75,6 +75,27 @@ var yo = ["ianuarie", "februarie", "martie", "aprilie", "mai", "iunie", "iulie",
 /* Elevii care dau teoreticul în ziua asta. Teoreticul nu ocupă mașina, deci nu
    bară intervale ca practicul — dar tot trebuie să știi de el: îl poți întreba
    cum a fost, iar dacă pică, ședințele lui se așază altfel. */
+/* Istoricul examenelor: ce a dat elevul, în ce zi și cu ce rezultat. Fără el,
+   ziua unui examen picat dispărea cu totul — data se ștergea ca să-l poți
+   reprograma, iar calendarul rămânea gol în ziua aceea, de parcă n-ar fi fost
+   nimic. */
+function iasAdaugaLaIstoric(elev, intrare) {
+    var vechi = Array.isArray(elev.examIstoric) ? elev.examIstoric : [];
+    if (!intrare || !intrare.data) return vechi;
+    return vechi.concat([{ ...intrare, id: Vt("ex") }])
+}
+
+function iasExameneDate(elevi, data) {
+    if (!data || !elevi) return [];
+    var out = [];
+    elevi.forEach(function (el) {
+        (Array.isArray(el.examIstoric) ? el.examIstoric : []).forEach(function (x) {
+            if (x && x.data === data) out.push({ elev: el, ...x })
+        })
+    });
+    return out
+}
+
 function iasTeoreticeZi(elevi, data) {
     return !data || !elevi ? [] : elevi.filter(function (x) {
         return !x.withdrawn && x.theoryExamDate === data
@@ -856,18 +877,43 @@ function Hw(n, e, t) {
     return Ow(n, e, t) - M0(n)
 }
 
+/* Pachetele cu ore suplimentare ale unui elev, fiecare cu ziua în care l-ai
+   pus. Cele vechi, puse înainte să ținem minte ziua, se socotesc „dintotdeauna"
+   — ca să nu se schimbe nimic la elevii de dinainte. */
+function iasPacheteleLui(elev, setari) {
+    var jurnal = Array.isArray(elev.feeLog) ? elev.feeLog : [],
+        out = [];
+    ii(setari).forEach(function (taxa) {
+        if (ur(taxa) !== "extra") return;
+        var ore = Number(taxa.hours) || 0;
+        if (!ore) return;
+        var cate = Df(elev, taxa.id),
+            zile = jurnal.filter(function (x) { return x && x.feeId === taxa.id })
+                .map(function (x) { return x.date || "" }).sort(),
+            faraZi = Math.max(0, cate - zile.length);
+        for (var k = 0; k < faraZi; k++) out.push({ dela: "", ore: ore });
+        zile.slice(0, cate).forEach(function (z) { out.push({ dela: z, ore: ore }) })
+    });
+    return out.sort(function (x, y) { return (x.dela || "").localeCompare(y.dela || "") })
+}
+
 function jA(n, e, t) {
     let a = {};
     t.rateTypes.forEach(u => {
         a[u.id] = Number(u.price) || 0
     });
     let r = e.filter(u => u.studentId === n.id && u.status !== "cancelled" && !u.otherInstructor && u.type !== "included").sort((u, d) => (u.date + Se(u.startMin)).localeCompare(d.date + Se(d.startMin))),
-        i = zw(n, t),
+        /* Fiecare pachet acoperă ședințe de la ziua lui încolo. Înainte se
+           adunau toate orele într-o oală și se dădeau celor mai vechi ședințe —
+           așa un pachet pus azi plătea ședințe de acum trei luni, iar cele
+           pentru care l-ai pus rămâneau „de plată". */
+        iasPachete = iasPacheteleLui(n, t),
         s = Math.max(0, M0(n) - _f(n, t)),
         l = {};
-    return r.forEach((u, d) => {
-        if (d < i) {
-            l[u.id] = "package";
+    return r.forEach(u => {
+        let iasP = iasPachete.filter(x => x.ore > 0 && (!x.dela || x.dela <= u.date))[0];
+        if (iasP) {
+            iasP.ore--, l[u.id] = "package";
             return
         }
         let f = a[u.type] || 0;
@@ -1601,6 +1647,62 @@ function Qw(n, e) {
     return !(Array.isArray(a) && a.length && !a.includes(t.getDay()) || n.availParity === "even" && t.getDate() % 2 !== 0 || n.availParity === "odd" && t.getDate() % 2 !== 1)
 }
 
+/* ============ CÂND POATE ELEVUL, PE FIECARE ZI ============
+   Elevii nu scriu „disponibil 14:00–20:00". Scriu cum trăiesc:
+
+     „luni până la 13:30, miercuri de la 16:30, weekend oricând"
+     „pot după liceu, după 14"
+     „în fiecare zi între 13 și 15, sâmbătă după 13"
+
+   De aceea fiecare zi are felul ei, nu un singur interval pentru toată
+   săptămâna: oricând, până la o oră, de la o oră, între două ore, sau deloc.
+   Ziua pe care n-ai atins-o merge după regula generală de sus, așa că pentru
+   cei simpli nu ai de completat nimic în plus. */
+var IAS_FEL_DISP = ["ca", "oricand", "dupa", "pana", "intre", "nu"];
+
+function iasZiuaLui(elev, zi) {
+    var t = ((elev || {}).dispZile || {})[zi];
+    return t && IAS_FEL_DISP.indexOf(t.fel) >= 0 ? t : null
+}
+
+/* Ce fereastră are elevul într-o zi anume. Întoarce:
+     { fel: "nespus" }            — n-a zis nimic, deci nu-l îngrădim
+     { fel: "nu" }                — nu poate în ziua aceea
+     { fel: "ok", lo, hi }        — poate începe între lo și hi                */
+function iasFereastraZi(elev, dataISO, durata) {
+    var d = durata || si,
+        zi = Ue(dataISO).getDay(),
+        zile = (elev || {}).availDays;
+    if (Array.isArray(zile) && zile.length && zile.indexOf(zi) < 0) return { fel: "nu" };
+
+    var pe = iasZiuaLui(elev, zi),
+        lo = null, hi = null;
+    if (pe && pe.fel === "nu") return { fel: "nu" };
+    if (pe && pe.fel === "oricand") return { fel: "nespus" };
+    if (pe && pe.fel === "dupa") lo = Number(pe.lo);
+    else if (pe && pe.fel === "pana") hi = Number(pe.hi);
+    else if (pe && pe.fel === "intre") lo = Number(pe.lo), hi = Number(pe.hi);
+    else {
+        // ziua merge după regula generală
+        var gf = (elev || {}).availFrom, gt = (elev || {}).availTo;
+        if (gf !== "" && gf != null) lo = Number(gf);
+        if (gt !== "" && gt != null) hi = Number(gt)
+    }
+    if (lo == null && hi == null) return { fel: "nespus" };
+    var start = lo == null ? 0 : lo,
+        gata = (hi == null ? 1440 : hi) - d;
+    if (gata < start) return { fel: "nu" };
+    return { fel: "ok", lo: start, hi: gata }
+}
+
+/* Poate elevul la ora asta, în ziua asta? */
+function iasPoateAtunci(elev, dataISO, ora, durata) {
+    var f = iasFereastraZi(elev, dataISO, durata);
+    if (f.fel === "nespus") return !0;
+    if (f.fel === "nu") return !1;
+    return ora >= f.lo && ora <= f.hi
+}
+
 function bw(n, e, t, a) {
     let r = a || si,
         i = t && t.availFrom,
@@ -1662,6 +1764,29 @@ function iasCatDeAproape(acasa, elev) {
 
    Așadar socoteala se face după locul de întâlnire de pe fișa lui. Domiciliul
    rămâne doar ca sprijin, pentru cine n-are încă un loc fix stabilit. */
+/* De unde îți începe ziua și unde o închei. Locul preferat de început e cel pe
+   care ți-l alegi tu în Setări — benzinăria de la care pleci de obicei, școala,
+   orice. Dacă n-ai ales niciunul, dimineața se socotește tot de acasă.
+
+   Seara e invers: te întorci acasă, deci ultima ședință se măsoară față de casă;
+   iar dacă n-ai pus casa, se ia locul de început. */
+function iasLoculDeStart(setari) {
+    var nume = ((setari || {}).locStart || "").trim();
+    if (!nume) return null;
+    var loc = ((setari || {}).locations || []).filter(function (x) {
+        return (x.name || "").trim() === nume
+    })[0];
+    return Fn(loc) ? { lat: Number(loc.lat), lng: Number(loc.lng), nume: nume } : null
+}
+
+function iasAncoraDimineata(setari) {
+    return iasLoculDeStart(setari) || ((setari || {}).acasa) || null
+}
+
+function iasAncoraSeara(setari) {
+    return ((setari || {}).acasa) || iasLoculDeStart(setari) || null
+}
+
 function iasPunctIntalnire(elev, setari) {
     if (!elev) return null;
     var nume = (elev.defaultLocation || "").trim();
@@ -1769,7 +1894,18 @@ function uk({
         B = ft(E),
         $ = E.getHours() * 60 + E.getMinutes() + 60,
         G = (C, W) => !C.window || W >= C.window.lo && W <= C.window.hi,
-        A = (C, W, X) => C.window && (C.window.stated || X) ? G(C, W) : !0;
+        /* Disponibilitatea spusă de elev, pe ziua aceea, are ultimul cuvânt:
+           dacă a zis „miercuri de la 16:30", planul nu-l mai pune la 10.
+           Fereastra ghicită din istoricul lui rămâne doar un sprijin, folosită
+           când omul n-a spus nimic. */
+        A = (C, W, X, iasZi) => {
+            if (iasZi) {
+                var f = iasFereastraZi(C, iasZi, s);
+                if (f.fel === "nu") return !1;
+                if (f.fel === "ok") return W >= f.lo && W <= f.hi
+            }
+            return C.window && (C.window.stated || X) ? G(C, W) : !0
+        };
 
     function O(C, W, X) {
         let R = pn(Gi(Ue(a)), W * 7);
@@ -1796,7 +1932,14 @@ function uk({
                                 if (l[he.id] <= 0 || f[`${he.id}_${z}`] || iasLipseste(he, z) || !Qw(he, z) || !v(he, z)) continue;
                                 if (fe) {
                                     if (ze === "harta") {
-                                        let T = QA(re, he);
+                                        /* Gruparea pe hartă măsura până la casa
+                                           elevului. Dar doi elevi pe care îi
+                                           chemi amândoi la Năvodari sunt, pentru
+                                           tine, în același loc — chiar dacă unul
+                                           stă în Corbu și altul lângă Tulcea.
+                                           Deci măsurăm între locurile de
+                                           întâlnire, ca peste tot. */
+                                        let T = QA(iasPunctIntalnire(re, t), iasPunctIntalnire(he, t));
                                         if (T == null || T > Yw) continue
                                     } else if (ze === "masina") {
                                         // aceeași mașină la rând, ca să n-o schimbi între ședințe
@@ -1810,7 +1953,7 @@ function uk({
                                     let T = Sf(z, he.examDate);
                                     if (T < 1 || T > 5) continue
                                 } else if (he.examDate && z >= he.examDate) continue;
-                                if (!((p[`${he.id}_${ne}`] || 0) >= u[he.id]) && A(he, Ne, C)) iasBuni.push(he)
+                                if (!((p[`${he.id}_${ne}`] || 0) >= u[he.id]) && A(he, Ne, C, z)) iasBuni.push(he)
                             }
                             if (!iasBuni.length) return null;
                             /* Dintre cei care pot la ora asta, îl luăm pe cel
@@ -1847,24 +1990,55 @@ function uk({
     /* Ziua se așază acum după drumul tău: cel mai apropiat de casă dimineața,
        următorul ca apropiere seara. Nu schimbă cine lucrează, doar ordinea. */
     (function iasAsazaDupaCasa() {
-        var acasa = t.acasa;
-        if (!Fn(acasa) || !k.length) return;
+        var dim = iasAncoraDimineata(t), sea = iasAncoraSeara(t),
+            locPref = (t.locStart || "").trim();
+        if ((!Fn(dim) && !Fn(sea)) || !k.length) return;
         var elevul = function (id) { return i.filter(function (x) { return x.id === id })[0] };
+        /* Distanța până la o ancoră — dimineața locul de început, seara casa. */
+        var departeDe = function (ancora, prop) {
+            if (!Fn(ancora)) return 1e9;
+            var p3 = iasPunctIntalnire(elevul(prop.studentId), t);
+            var d3 = p3 ? QA(ancora, p3) : null;
+            return d3 == null ? 1e9 : d3
+        };
+        /* Elevul chemat chiar la locul tău de început are întâietate dimineața:
+           nu mai ai nimic de condus până la el. */
+        var chiarAcolo = function (prop) {
+            if (!locPref) return !1;
+            var el = elevul(prop.studentId);
+            return !!el && (el.defaultLocation || "").trim() === locPref
+        };
         var departe = function (prop) {
             /* Distanța se ia până la locul unde îl chemi, nu până la casa lui:
                elevul din Corbu vine la Năvodari, deci pentru drumul tău e un
                elev de aproape. */
-            var p2 = iasPunctIntalnire(elevul(prop.studentId), t);
-            var d2 = p2 ? QA(acasa, p2) : null;
-            return d2 == null ? 1e9 : d2
+            return departeDe(sea, prop)
         };
         /* Schimbul e îngăduit doar dacă amândoi pot la ora celuilalt: fereastra
            lor de disponibilitate și ședințele pe care le au deja. */
         var potSchimba = function (a2, b2, zi) {
             var ea = elevul(a2.studentId), eb = elevul(b2.studentId);
             if (!ea || !eb) return !1;
-            if (!A(ea, b2.startMin, !0) || !A(eb, a2.startMin, !0)) return !1;
+            /* Ținem cont de orele pe care le-ai stabilit tu pentru elev, dar nu
+               și de cele ghicite din istoricul lui — altfel schimbul se refuza
+               aproape întotdeauna, iar seara rămânea cu cine se nimerea. */
+            if (!A(ea, b2.startMin, !1, zi) || !A(eb, a2.startMin, !1, zi)) return !1;
             if (C0(ea, zi, b2.startMin, s) || C0(eb, zi, a2.startMin, s)) return !1;
+            return !0
+        };
+        /* Dacă ai cerut gruparea pe hartă, ziua e deja un lanț de elevi aflați
+           unul lângă altul. Mutarea capetelor n-are voie să rupă lanțul: după
+           schimb, vecinii trebuie să rămână la fel de aproape ca înainte.
+           Altfel cele două ar trage în direcții diferite. */
+        var lantulTine = function (ale, i1, i2) {
+            if ((t.grupare || "fara") !== "harta") return !0;
+            var copie = ale.slice();
+            copie[i1] = ale[i2], copie[i2] = ale[i1];
+            var pct = function (x) { return iasPunctIntalnire(elevul(x.studentId), t) };
+            for (var k2 = 0; k2 < copie.length - 1; k2++) {
+                var d2 = QA(pct(copie[k2]), pct(copie[k2 + 1]));
+                if (d2 != null && d2 > Yw) return !1
+            }
             return !0
         };
         var schimba = function (a2, b2) {
@@ -1879,17 +2053,31 @@ function uk({
             var ale = peZile[zi].sort(function (x, y) { return x.startMin - y.startMin });
             if (ale.length < 2) return;
             var ocupate = {};
-            // dimineața: cel mai apropiat de casa ta prinde prima oră
+            /* Dimineața se măsoară de la locul tău de început, seara de acasă.
+               Iar dacă ai un loc preferat de pornire, elevul pe care-l chemi
+               chiar acolo are întâietate: n-ai nimic de condus până la el. */
+            /* Întâi dimineața, apoi seara. Poziția de dimineață rămâne fixată
+               după ce am ales-o; restul zilei e liber pentru seară — altfel,
+               dacă dimineața lua chiar elevul de la ultima oră, seara rămânea
+               fără ce alege și ziua se închidea cu cine se nimerea. */
+            var fixate = {};
             [0, ale.length - 1].forEach(function (poz) {
-                if (ocupate[poz]) return;
-                var celMaiBun = poz, minim = departe(ale[poz]);
+                if (fixate[poz]) return;
+                var dimineata = poz === 0,
+                    masoara = function (x) { return dimineata ? departeDe(dim, x) : departeDe(sea, x) },
+                    celMaiBun = poz,
+                    minim = masoara(ale[poz]),
+                    amGasitLocul = dimineata && chiarAcolo(ale[poz]);
                 for (var j = 0; j < ale.length; j++) {
-                    if (j === poz || ocupate[j]) continue;
-                    var d2 = departe(ale[j]);
-                    if (d2 < minim - .3 && potSchimba(ale[poz], ale[j], zi)) minim = d2, celMaiBun = j
+                    if (j === poz || fixate[j]) continue;
+                    if (!potSchimba(ale[poz], ale[j], zi) || !lantulTine(ale, poz, j)) continue;
+                    var d2 = masoara(ale[j]), laLoc = dimineata && chiarAcolo(ale[j]);
+                    if (amGasitLocul && !laLoc) continue;
+                    if ((laLoc && !amGasitLocul) || d2 < minim - .3)
+                        minim = d2, celMaiBun = j, amGasitLocul = amGasitLocul || laLoc
                 }
                 if (celMaiBun !== poz) schimba(ale[poz], ale[celMaiBun]);
-                ocupate[poz] = !0, ocupate[celMaiBun] = !0
+                fixate[poz] = !0
             })
         })
     })();
@@ -5091,6 +5279,8 @@ function Hk({
             // intervalul de examen din grila orei
             iasEx = v0(n.students, A).length > 0,
             iasTeo = iasTeoreticeZi(n.students, A).length > 0,
+            // ziua în care s-a dat deja examen rămâne însemnată
+            iasExTrecut = iasExameneDate(n.students, A).length > 0,
             /* Zilele pe care le-ai barat cu mâna se văd din bandă, fără să
                intri în ele: un semn de exclamare în colț și o umbră caldă peste
                căsuță. Pauzele de masă nu se socotesc aici — ele sunt în fiecare
@@ -5111,14 +5301,14 @@ function Hk({
             className: `relative overflow-hidden flex-1 flex flex-col items-center py-2 rounded-xl border transition-colors ${C?"bg-slate-900 border-slate-900":"bg-white border-slate-200"}`,
             /* Ziua cu examen poartă chenar mov — plin la practic, punctat la
                teoretic, fiindcă teoreticul nu-ți ocupă mașina. */
-            style: (iasEx || iasTeo) ? {
+            style: (iasEx || iasTeo || iasExTrecut) ? {
                 borderColor: "var(--violet)",
                 borderWidth: 2,
-                borderStyle: iasEx ? "solid" : "dashed",
+                borderStyle: (iasEx || (iasExTrecut && !iasTeo)) ? "solid" : "dashed",
                 boxShadow: C ? "none" : "0 0 0 2px color-mix(in srgb, var(--violet) 18%, transparent)"
             } : void 0,
             title: [
-                iasEx ? "Examen practic" : iasTeo ? "Examen teoretic" : "",
+                iasEx ? "Examen practic" : iasTeo ? "Examen teoretic" : iasExTrecut ? "S-a dat examen" : "",
                 iasZiBarata ? "zi indisponibil\u0103" : iasAreBlocaj ? "interval indisponibil" : ""
             ].filter(Boolean).join(" \xB7 ") || void 0
         },
@@ -5170,6 +5360,40 @@ function Hk({
     }, "Zi liber\u0103 conform programului t\u0103u de lucru \u2014 po\u021Bi programa oricum dac\u0103 e nevoie."),
     /* Teoreticele zilei: nu ocup\u0103 ma\u0219ina, deci nu bar\u0103 nimic, dar apar scrise
        aici ca s\u0103 \u0219tii de ele \u0219i s\u0103-i po\u021Bi \xEEntreba cum a fost. */
+    /* Ce s-a dat în ziua asta, oricare ar fi fost rezultatul. Rămâne scris și
+       după ce data de examen s-a golit pentru reprogramare — altfel ziua arăta
+       goală, de parcă n-ar fi fost nimic. */
+    (() => {
+        let iasDate = iasExameneDate(n.students, r);
+        if (!iasDate.length) return null;
+        return o.default.createElement("div", {
+            className: "mx-4 mb-3 rounded-xl px-3.5 py-3",
+            style: {
+                background: "color-mix(in srgb, var(--violet) 8%, transparent)",
+                border: "1px solid var(--violet)"
+            }
+        },
+            o.default.createElement("div", {
+                className: "text-xs font-semibold uppercase tracking-wide mb-1.5",
+                style: { color: "var(--violet)" }
+            }, iasDate.length === 1 ? "Examen dat \xEEn ziua asta" : `${iasDate.length} examene date \xEEn ziua asta`),
+            iasDate.map(x => o.default.createElement("div", {
+                key: x.id,
+                className: "flex items-center gap-2 py-1"
+            },
+                o.default.createElement("span", {
+                    className: "text-sm flex-1 min-w-0 truncate text-slate-900"
+                }, x.elev.name),
+                o.default.createElement("span", {
+                    className: "text-xs shrink-0", style: { color: "var(--muted-2)" }
+                }, x.fel === "teoretic" ? "teoretic" : "practic"),
+                o.default.createElement("span", {
+                    className: "text-xs font-medium px-2 py-0.5 rounded-full shrink-0",
+                    style: x.rezultat === "promovat"
+                        ? { background: "var(--ok-soft)", color: "var(--ok)", border: "1px solid var(--ok-line)" }
+                        : { background: "var(--bad-soft)", color: "var(--bad)", border: "1px solid var(--bad-line)" }
+                }, x.rezultat === "promovat" ? "promovat" : "respins"))))
+    })(),
     (() => {
         /* Teoreticele zilei, cu aceleași butoane ca practicul: îl notezi din
            calendar, fără să mai intri pe fișa elevului. Ziua trebuie să fi
@@ -7066,8 +7290,17 @@ function Wk({
     })),
     o.default.createElement(Jn, {
         title: "Disponibilitate",
-        summary: c.plecatPana ? `plecat p\xE2n\u0103 pe ${qe(c.plecatPana)}` : (c.availDays || []).length ? `${c.availDays.length} zile alese` : "oric\xE2nd"
-    }, o.default.createElement("div", {
+        summary: (() => {
+            if (c.plecatPana) return `plecat p\xE2n\u0103 pe ${qe(c.plecatPana)}`;
+            let iasN = Object.keys(c.dispZile || {}).filter(z => iasZiuaLui(c, Number(z))).length;
+            if (iasN) return `${iasN} ${iasN === 1 ? "zi aparte" : "zile aparte"}`;
+            if (c.availFrom || c.availTo) return `${c.availFrom ? Se(Number(c.availFrom)) : "oric\xE2nd"}\u2013${c.availTo ? Se(Number(c.availTo)) : "oric\xE2nd"}`;
+            return "oric\xE2nd"
+        })()
+    },
+    /* Regula generală: valabilă în orice zi pe care n-ai pus altceva. Pentru
+       elevii simpli — „pot după 14" — nu mai ai nimic de completat dedesubt. */
+    o.default.createElement("div", {
         className: "grid grid-cols-2 gap-3"
     }, o.default.createElement(xe, {
         label: "Disponibil de la"
@@ -7109,7 +7342,73 @@ function Wk({
             },
             className: `flex-1 py-2 rounded-xl text-xs font-medium border ${E?"bg-slate-900 text-white border-slate-900":"bg-white text-slate-400 border-slate-200"}`
         }, xu[S])
-    }))), o.default.createElement(xe, {
+    }))),
+    /* Zilele care ies din tipar. Elevii nu scriu „disponibil 14:00–20:00", ci
+       „luni până la 13:30, miercuri de la 16:30" — așa că fiecare zi are felul
+       ei, cu aceleași cuvinte pe care le folosesc ei. Ziua lăsată pe „ca de
+       obicei" merge după regula generală de sus. */
+    o.default.createElement("div", { className: "mt-1 mb-3.5" },
+        o.default.createElement("span", {
+            className: "block text-xs font-medium text-slate-500 mb-1"
+        }, "Zile care ies din tipar"),
+        o.default.createElement("p", { className: "text-xs text-slate-400 mb-2" },
+            "Las\u0103-le pe \u201Eca de obicei\u201D dac\u0103 merg dup\u0103 regula de sus."),
+        po.map(iasZ => {
+            let iasP = iasZiuaLui(c, iasZ) || { fel: "ca" },
+                iasPune = (chei) => {
+                    let iasT = { ...(c.dispZile || {}) };
+                    if (chei.fel === "ca") delete iasT[iasZ];
+                    else iasT[iasZ] = { ...iasP, ...chei };
+                    b("dispZile", iasT)
+                },
+                iasAltfel = iasP.fel !== "ca";
+            return o.default.createElement("div", {
+                key: iasZ,
+                className: "rounded-xl px-2.5 py-2 mb-1.5",
+                style: {
+                    background: iasAltfel ? "var(--accent-soft)" : "var(--surface)",
+                    border: `1px solid ${iasAltfel ? "var(--accent-line)" : "var(--line)"}`
+                }
+            },
+                o.default.createElement("div", { className: "flex items-center gap-2" },
+                    o.default.createElement("span", {
+                        className: "text-xs font-medium shrink-0",
+                        style: { width: 42, color: iasAltfel ? "var(--accent-ink)" : "var(--muted)" }
+                    }, Tw[iasZ].slice(0, 3)),
+                    o.default.createElement("select", {
+                        className: ie + " text-xs", style: { padding: "6px 8px" },
+                        value: iasP.fel,
+                        onChange: (S) => iasPune({
+                            fel: S.target.value,
+                            lo: iasP.lo == null ? 840 : iasP.lo,
+                            hi: iasP.hi == null ? 1200 : iasP.hi
+                        })
+                    },
+                        o.default.createElement("option", { value: "ca" }, "ca de obicei"),
+                        o.default.createElement("option", { value: "oricand" }, "oric\xE2nd"),
+                        o.default.createElement("option", { value: "dupa" }, "de la\u2026"),
+                        o.default.createElement("option", { value: "pana" }, "p\xE2n\u0103 la\u2026"),
+                        o.default.createElement("option", { value: "intre" }, "\xEEntre\u2026"),
+                        o.default.createElement("option", { value: "nu" }, "nu poate")),
+                    (iasP.fel === "dupa" || iasP.fel === "intre")
+                        ? o.default.createElement("select", {
+                            className: ie + " text-xs", style: { padding: "6px 8px", width: 86 },
+                            value: iasP.lo == null ? 840 : iasP.lo,
+                            onChange: (S) => iasPune({ lo: Number(S.target.value) })
+                        }, mu.map(L => o.default.createElement("option", { key: L, value: L }, Se(L))))
+                        : null,
+                    (iasP.fel === "intre")
+                        ? o.default.createElement("span", { className: "text-xs text-slate-400" }, "\u2013")
+                        : null,
+                    (iasP.fel === "pana" || iasP.fel === "intre")
+                        ? o.default.createElement("select", {
+                            className: ie + " text-xs", style: { padding: "6px 8px", width: 86 },
+                            value: iasP.hi == null ? 1200 : iasP.hi,
+                            onChange: (S) => iasPune({ hi: Number(S.target.value) })
+                        }, mu.map(L => o.default.createElement("option", { key: L, value: L }, Se(L))))
+                        : null))
+        })),
+    o.default.createElement(xe, {
         label: "Tur\u0103 de lucru"
     }, o.default.createElement("select", {
         className: ie,
@@ -8355,6 +8654,13 @@ function jk({
             lat: C.lat,
             lng: C.lng,
             availParity: C.availParity,
+            /* Disponibilitatea pe zile trebuie să ajungă la plan, altfel
+               editorul din fișă n-ar schimba nimic: planul primește doar
+               câmpurile scrise aici, nu elevul întreg. */
+            dispZile: C.dispZile,
+            availFrom: C.availFrom,
+            availTo: C.availTo,
+            defaultLocation: C.defaultLocation,
             includeRezerva: u.has(C.id),
             window: bw(n.sessions, C.id, C, r)
         }));
@@ -10292,7 +10598,33 @@ function e3({
                             onClick: () => e({ acasa: { lat: Number(H.lat), lng: Number(H.lng) } }),
                             className: "px-2.5 py-1 rounded-lg text-xs border border-slate-200 text-slate-600"
                         }, H.name)))
-                    : null)) : ne === "masini" ? o.default.createElement(IasMasiniEditor, {
+                    : null,
+                /* Tot aici, nu într-o secțiune a ei: de obicei pleci de acasă,
+                   dar dacă începi ziua dintr-un anume loc — o benzinărie, școala
+                   — planul îți dă prima ședință cu un elev chemat acolo. Seara
+                   te întorci oricum acasă, deci ultima rămâne către casă. */
+                o.default.createElement("div", { className: "mt-3.5" },
+                    o.default.createElement("span", {
+                        className: "block text-xs font-medium text-slate-500 mb-1.5"
+                    }, "Ziua \xEEncepe din"),
+                    o.default.createElement("select", {
+                        className: ie,
+                        value: J.locStart || "",
+                        onChange: (H) => e({ locStart: H.target.value })
+                    },
+                        o.default.createElement("option", { value: "" }, "De acas\u0103"),
+                        (J.locations || []).map(H => o.default.createElement("option", {
+                            key: H.id, value: H.name
+                        }, H.name, Fn(H) ? "" : " (f\u0103r\u0103 punct pe hart\u0103)"))),
+                    (J.locStart && !Fn((J.locations || []).filter(H => H.name === J.locStart)[0]))
+                        ? o.default.createElement("p", {
+                            className: "text-xs mt-1.5", style: { color: "var(--bad)" }
+                        }, "Locul \u0103sta n-are punct pe hart\u0103, deci nu se pot socoti distan\u021Be de la el. Pune-i unul mai sus.")
+                        : o.default.createElement("p", {
+                            className: "text-xs mt-1.5", style: { color: "var(--muted-2)" }
+                        }, J.locStart
+                            ? "Prima \u0219edin\u021B\u0103 a zilei merge c\u0103tre un elev chemat acolo; ultima, c\u0103tre cas\u0103."
+                            : "Prima \u0219edin\u021B\u0103 a zilei se socote\u0219te de acas\u0103, ca \u0219i ultima.")))) : ne === "masini" ? o.default.createElement(IasMasiniEditor, {
                 masini: iasMasini(J),
                 onChange: (lista) => e({ masini: lista }),
                 implicita: J.masinaImplicita || "",
@@ -10849,9 +11181,25 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
-    v: "v2.39.1",
+    v: "v2.40.0",
+    titlu: "Disponibilitatea elevului, pe fiecare zi",
+    puncte: ["\xCEn fi\u0219a elevului, la Disponibilitate, fiecare zi poate avea felul ei: ca de obicei, oric\xE2nd, de la o or\u0103, p\xE2n\u0103 la o or\u0103, \xEEntre dou\u0103 ore, sau nu poate deloc. Zilele l\u0103sate pe \u201Eca de obicei\u201D merg dup\u0103 regula general\u0103 de sus, deci pentru elevii simpli n-ai nimic de completat \xEEn plus.", "Planul ascult\u0103 ce ai scris: dac\u0103 un elev poate miercuri doar de la 16:30, nu-l mai pune la 10.", "C\xE2nd elevul n-a spus nimic, r\u0103m\xE2ne ca p\xE2n\u0103 acum \u2014 planul se bizuie pe orele la care a venit de obicei."]
+}, {
+    v: "v2.39.5",
+    titlu: "De unde \xEE\u021Bi \xEEncepi ziua",
+    puncte: ["\xCEn Set\u0103ri \u2192 Loca\u021Bii, la \u201ECasa ta\u201D, po\u021Bi alege acum \u0219i locul din care \xEE\u021Bi \xEEncepe ziua \u2014 o benzin\u0103rie, \u0219coala, orice loc de-al t\u0103u. Planul \xEE\u021Bi d\u0103 prima \u0219edin\u021B\u0103 cu un elev chemat acolo, iar ultima c\u0103tre cas\u0103.", "Dac\u0103 nu alegi niciunul, diminea\u021Ba se socote\u0219te tot de acas\u0103, ca p\xE2n\u0103 acum.", "Reparat: dac\u0103 diminea\u021Ba lua chiar elevul de la ultima or\u0103, seara r\u0103m\xE2nea f\u0103r\u0103 ce alege \u0219i ziua se \xEEnchidea cu cine se nimerea."]
+}, {
+    v: "v2.39.4",
+    titlu: "Ziua examenului r\u0103m\xE2ne \xEEnsemnat\u0103",
+    puncte: ["Ziua \xEEn care s-a dat examen r\u0103m\xE2ne colorat\u0103 \xEEn calendar \u0219i dup\u0103 ce notezi rezultatul \u2014 \u0219i la practic, \u0219i la teoretic, promovat sau respins.", "\xCEn ziua aceea apare scris cine a dat examen \u0219i cu ce rezultat. P\xE2n\u0103 acum, la respins data se golea pentru reprogramare \u0219i ziua r\u0103m\xE2nea goal\u0103, de parc\u0103 n-ar fi fost nimic."]
+}, {
+    v: "v2.39.3",
+    titlu: "Pachetul acoper\u0103 \u0219edin\u021Bele de dup\u0103 el",
+    puncte: ["Un pachet cu ore suplimentare acoper\u0103 acum \u0219edin\u021Bele de la ziua \xEEn care l-ai pus \xEEncolo. \xCEnainte, toate orele se adunau \xEEntr-o oal\u0103 \u0219i se d\u0103deau celor mai vechi \u0219edin\u021Be \u2014 a\u0219a un pachet pus azi pl\u0103tea \u0219edin\u021Be de acum trei luni, iar cele pentru care l-ai pus r\u0103m\xE2neau \u201Ede plat\u0103\u201D.", "Suma datorat\u0103 era corect\u0103 \u0219i \xEEnainte; gre\u0219it\u0103 era doar \xEEmp\u0103r\u021Birea pe \u0219edin\u021Be. La elevii de dinainte nu se schimb\u0103 nimic."]
+}, {
+    v: "v2.39.2",
     titlu: "Drumul t\u0103u de diminea\u021B\u0103 \u0219i de sear\u0103",
-    puncte: ["\xCEn Set\u0103ri \u2192 Loca\u021Bii \xEE\u021Bi pui casa, cu aproxima\u021Bie \u2014 link de hart\u0103, coordonate, Plus Code sau luat\u0103 de la o loca\u021Bie salvat\u0103.", "Cu ea pus\u0103, planul \xEE\u021Bi d\u0103 prima \u0219i ultima \u0219edin\u021B\u0103 a zilei cu elevii pe care \xEEi chemi mai aproape de tine \u2014 socoteala se face dup\u0103 locul de \xEEnt\xE2lnire de pe fi\u0219a fiec\u0103ruia, nu dup\u0103 unde locuie\u0219te, iar cei de departe r\u0103m\xE2n la mijloc, c\xE2nd e\u0219ti oricum pe drum. Nu se schimb\u0103 cine lucreaz\u0103 \u0219i nici c\xE2te ore face cineva \u2014 doar ordinea, \u0219i numai dac\u0103 am\xE2ndoi elevii pot la ora cel\u0103lalt.", "Domiciliul elevului se vede pe fi\u0219a lui, ca r\xE2nd \xEEntreg pe care ape\u0219i \u0219i te duce \xEEn hart\u0103: \u201E25 km sud de tine\u201D, cu codul dedesubt. Locul de \xEEnt\xE2lnire \xEE\u0219i arat\u0103 \u0219i el distan\u021Ba, ca s\u0103 \u0219tii de ce planul \xEEl pune unde-l pune.", "F\u0103r\u0103 casa pus\u0103, planul lucreaz\u0103 exact ca p\xE2n\u0103 acum."]
+    puncte: ["\xCEn Set\u0103ri \u2192 Loca\u021Bii \xEE\u021Bi pui casa, cu aproxima\u021Bie \u2014 link de hart\u0103, coordonate, Plus Code sau luat\u0103 de la o loca\u021Bie salvat\u0103.", "Cu ea pus\u0103, planul \xEE\u021Bi d\u0103 prima \u0219i ultima \u0219edin\u021B\u0103 a zilei cu elevii pe care \xEEi chemi mai aproape de tine \u2014 socoteala se face dup\u0103 locul de \xEEnt\xE2lnire de pe fi\u0219a fiec\u0103ruia, nu dup\u0103 unde locuie\u0219te, iar cei de departe r\u0103m\xE2n la mijloc, c\xE2nd e\u0219ti oricum pe drum. Nu se schimb\u0103 cine lucreaz\u0103 \u0219i nici c\xE2te ore face cineva \u2014 doar ordinea, \u0219i numai dac\u0103 am\xE2ndoi elevii pot la ora cel\u0103lalt.", "Domiciliul elevului se vede pe fi\u0219a lui, ca r\xE2nd \xEEntreg pe care ape\u0219i \u0219i te duce \xEEn hart\u0103: \u201E25 km sud de tine\u201D, cu codul dedesubt. Locul de \xEEnt\xE2lnire \xEE\u0219i arat\u0103 \u0219i el distan\u021Ba, ca s\u0103 \u0219tii de ce planul \xEEl pune unde-l pune.", "\u0218i gruparea pe hart\u0103 din Plan socote\u0219te acum dup\u0103 locul de \xEEnt\xE2lnire: doi elevi pe care \xEEi chemi am\xE2ndoi la N\u0103vodari sunt, pentru tine, \xEEn acela\u0219i loc \u2014 chiar dac\u0103 unul st\u0103 \xEEn Corbu \u0219i altul l\xE2ng\u0103 Tulcea.", "F\u0103r\u0103 casa pus\u0103, planul lucreaz\u0103 exact ca p\xE2n\u0103 acum."]
 }, {
     v: "v2.38.5",
     titlu: "Bara de c\u0103utare r\u0103m\xE2ne sus",
@@ -11816,6 +12164,10 @@ function y3() {
                     ...I.fees || {},
                     [F]: (Number((I.fees || {})[F]) || 0) + 1
                 },
+                /* Ținem minte și ziua în care ai pus taxa. Fără ea, un pachet
+                   adăugat azi acoperea ședințe de acum trei luni, iar cele de
+                   acum rămâneau de plată — cum ai pățit. */
+                feeLog: [...I.feeLog || [], { feeId: F, date: Be() }],
                 [ue]: (Number(I[ue]) || 0) + te
             };
         return ee.laScoala && (De.payments = [...I.payments || [], {
@@ -11947,13 +12299,24 @@ function y3() {
                 ...te,
                 students: te.students.map(He => {
                     if (He.id !== I) return He;
-                    let Ae = (ee - Df(He, F)) * De;
+                    let Ae = (ee - Df(He, F)) * De,
+                        iasVechi = Df(He, F),
+                        iasJurnal = [...He.feeLog || []];
+                    /* Câte taxe ai adăugat, atâtea zile ținem minte; când scazi,
+                       dispare cea mai nouă. */
+                    if (ee > iasVechi) for (let iasK = iasVechi; iasK < ee; iasK++) iasJurnal.push({ feeId: F, date: Be() });
+                    else if (ee < iasVechi) {
+                        let iasDeScos = iasVechi - ee;
+                        for (let iasK = iasJurnal.length - 1; iasK >= 0 && iasDeScos > 0; iasK--)
+                            if (iasJurnal[iasK].feeId === F) iasJurnal.splice(iasK, 1), iasDeScos--
+                    }
                     return {
                         ...He,
                         fees: {
                             ...He.fees || {},
                             [F]: ee
                         },
+                        feeLog: iasJurnal,
                         [Te]: Math.max(0, (Number(He[Te]) || 0) + Ae)
                     }
                 })
@@ -11970,6 +12333,14 @@ function y3() {
                     ...ee,
                     theoryExamResult: F,
                     theoryExamAttempts: (Number(ee.theoryExamAttempts) || 0) + 1,
+                    /* Ziua în care a dat examen rămâne scrisă, oricare ar fi
+                       fost rezultatul. Până acum, la respins data se ștergea și
+                       nu mai rămânea nicio urmă că omul a fost acolo. */
+                    examIstoric: iasAdaugaLaIstoric(ee, {
+                        data: ee.theoryExamDate || Be(),
+                        fel: "teoretic",
+                        rezultat: F
+                    }),
                     theoryExamDate: F === "promovat" ? ee.theoryExamDate : ""
                 })
             }));
@@ -11981,14 +12352,22 @@ function y3() {
             students: V.students.map(ee => {
                 if (ee.id !== I) return ee;
                 let te = (Number(ee.examAttempts) || 0) + 1;
+                let iasIst = iasAdaugaLaIstoric(ee, {
+                    data: ee.examDate || Be(),
+                    fel: "practic",
+                    perioada: ee.examPeriod || "",
+                    rezultat: F
+                });
                 return F === "promovat" ? {
                     ...ee,
                     examResult: "promovat",
-                    examAttempts: te
+                    examAttempts: te,
+                    examIstoric: iasIst
                 } : {
                     ...ee,
                     examResult: "respins",
                     examAttempts: te,
+                    examIstoric: iasIst,
                     examDate: "",
                     examPeriod: "",
                     asteptare: !0,
