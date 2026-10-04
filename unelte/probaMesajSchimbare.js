@@ -135,16 +135,22 @@ const yw = (() => {
   cl([...dc().querySelectorAll('nav button')].find(x => /Calendar/.test(x.textContent)));
   await new Promise(r => setTimeout(r, 700));
   // mergem la ziua ședinței
-  for (let k = 0; k < 2; k++) {
-    const t = [...dc().querySelectorAll('button')].find(x => /Topor Mirela/.test(x.textContent));
-    if (t) break;
+  /* Căutăm cardul ședinței, nu orice buton cu numele ei: de când sugestiile
+     rapide arată și ele nume, un chip de sugestie ar fi fost luat drept card. */
+  const cardSedinta = () => [...dc().querySelectorAll('button')]
+    .find(x => /Topor Mirela/.test(x.textContent) && /\d\d:\d\d/.test(x.textContent));
+  /* Mergem la ziua ședinței: o căutăm în bandă după numărul ei, iar dacă nu e
+     în săptămâna afișată, trecem la următoarea. */
+  const casuta = () => [...dc().querySelectorAll('button')]
+    .filter(x => x.className && /flex-col items-center py-2 rounded-xl border/.test(x.className))
+    .find(x => (x.textContent.match(/\d+/) || [''])[0] === String(Number(zi(3).slice(8))));
+  for (let k = 0; k < 3 && !casuta(); k++) {
     cl(dc().querySelector('button[aria-label="Săptămâna viitoare"]'));
-    await new Promise(r => setTimeout(r, 400));
+    await new Promise(r => setTimeout(r, 450));
   }
-  const zile = [...dc().querySelectorAll('button')].filter(x => x.className && /flex-col items-center py-2 rounded-xl border/.test(x.className));
-  const tinta = zile.find(x => (x.textContent.match(/\d+/) || [''])[0] === String(Number(zi(3).slice(8))));
-  cl(tinta); await new Promise(r => setTimeout(r, 600));
-  cl([...dc().querySelectorAll('button')].find(x => /Topor Mirela/.test(x.textContent)));
+  cl(casuta());
+  await new Promise(r => setTimeout(r, 700));
+  cl(cardSedinta());
   await new Promise(r => setTimeout(r, 900));
   const f1 = fe();
   if (f1) {

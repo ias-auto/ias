@@ -14,10 +14,19 @@ const H = (m) => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 
 const minAcum = 15 * 60;
 const CEAS = new Date(); CEAS.setHours(15, 0, 0, 0);
 
-const students = ['Mutis Viktor', 'Petec Cătălin', 'Dincă Ionuț'].map((n, k) => ({
-  id: 's' + k, name: n, lastName: n.split(' ')[0], firstName: n.split(' ')[1] || '',
-  includedHours: 20, weeklyLimit: 7, payments: [],
-}));
+/* Trei elevi cu câte ore diferite rămase, ca să vedem pe cine propune întâi.
+   Niciunul n-are examen prins, deci rămâne doar criteriul orelor rămase. */
+const students = [
+  { id: 's0', name: 'Mutis Viktor', lastName: 'Mutis', firstName: 'Viktor',
+    includedHours: 20, weeklyLimit: 7, payments: [] },          // multe rămase
+  { id: 's1', name: 'Petec Cătălin', lastName: 'Petec', firstName: 'Cătălin',
+    includedHours: 12, weeklyLimit: 7, payments: [] },
+  { id: 's2', name: 'Dincă Ionuț', lastName: 'Dincă', firstName: 'Ionuț',
+    includedHours: 3, weeklyLimit: 7, payments: [] },           // aproape gata
+  // ședințele zilei sunt ale lui, ca ceilalți trei să rămână liberi
+  { id: 's3', name: 'Umplutura Vlad', lastName: 'Umplutura', firstName: 'Vlad',
+    includedHours: 30, weeklyLimit: 7, payments: [] },
+];
 
 const d = new JSDOM(html, {
   runScripts: 'dangerously', pretendToBeVisual: true, url: 'https://x/',
@@ -27,8 +36,8 @@ const d = new JSDOM(html, {
       /* Două ședințe, ca să se nască goluri și înainte, și după ora 15: fără
          pază ar apărea sugestii la toate trei. */
       sessions: [
-        { id: 'x1', studentId: 's0', date: azi, startMin: 540, duration: 90, status: 'scheduled', type: 'included' },
-        { id: 'x2', studentId: 's1', date: azi, startMin: 960, duration: 90, status: 'scheduled', type: 'included' },
+        { id: 'x1', studentId: 's3', date: azi, startMin: 540, duration: 90, status: 'scheduled', type: 'included' },
+        { id: 'x2', studentId: 's3', date: azi, startMin: 960, duration: 90, status: 'scheduled', type: 'included' },
       ],
       // ziua de lucru de la 00:00 la 23:59, ca să avem ore și înainte, și după „acum"
       settings: { workDays: [0,1,2,3,4,5,6], startMin: 0, endMin: 1380, sessionMin: 90,
@@ -98,6 +107,108 @@ const sugestii = () => [...doc().querySelectorAll('div')]
   cer('într-o zi viitoare, sugestiile apar de dimineață',
     maine.some(x => x < minAcum) || maine.length >= 3,
     maine.length + ' ore cu sugestii');
+
+  /* ---- cine e propus întâi ---- */
+  const chipuri = () => {
+    const bloc = [...doc().querySelectorAll('div')]
+      .filter(x => /Umple golul:|Adaugă rapid:/.test(x.textContent) && x.querySelector('button'))
+      .filter((x, k, arr) => !arr.some(y => y !== x && x.contains(y)))[0];
+    return bloc ? [...bloc.querySelectorAll('button')].map(x => x.textContent.replace(/^\+\s*/, '').trim()) : [];
+  };
+  const c = chipuri();
+  cer('întâi cel cu cele mai puține ore rămase',
+    c.length > 0 && /Dincă/.test(c[0]),
+    c.join(' · ') + '   (3, 12, 20 ore)');
+
+  /* ---- și ascultă disponibilitatea ---- */
+  const d2 = new JSDOM(html, {
+    runScripts: 'dangerously', pretendToBeVisual: true, url: 'https://x/',
+    beforeParse(w2) {
+      /* Cel aproape gata poate doar de la 18:00, deci la 18:00 el trebuie să fie
+         primul, dar într-un gol de dimineață n-are ce căuta. */
+      const altii = students.map(x => x.id === 's2'
+        ? { ...x, availFrom: 1080, availTo: 1320 } : x);
+      w2.localStorage.setItem('ias:app-data', JSON.stringify({
+        students: altii,
+        sessions: [{ id: 'x1', studentId: 's3', date: azi, startMin: 960, duration: 90, status: 'scheduled', type: 'included' }],
+        settings: { workDays: [0,1,2,3,4,5,6], startMin: 0, endMin: 1380, sessionMin: 90,
+          stepMin: 60, currency: 'lei', defaultWeeklyLimit: 7 },
+      }));
+      w2.localStorage.setItem('ias:licenta', JSON.stringify({
+        cod: 'IAS9F3K7QX2', stare: 'ok', rol: 'proprietar', pana: '2099-12-31', verificatLa: azi, drepturi: ['*'],
+      }));
+      w2.localStorage.setItem('ias:backup', azi);
+      w2.ResizeObserver = function () { this.observe = () => {}; this.disconnect = () => {}; };
+      w2.scrollBy = () => {};
+      const DA = w2.Date;
+      function DF(...a2) { return a2.length ? new DA(...a2) : new DA(CEAS.getTime()) }
+      DF.prototype = DA.prototype; DF.now = () => CEAS.getTime();
+      DF.parse = DA.parse; DF.UTC = DA.UTC; w2.Date = DF;
+    },
+  });
+  await pauza(3000);
+  const dc = () => d2.window.document;
+  const cl = (el) => el && el.dispatchEvent(new d2.window.MouseEvent('click', { bubbles: true }));
+  [...dc().querySelectorAll('.ecran-peste')].forEach(f =>
+    cl([...f.querySelectorAll('button')].find(x => /Am înțeles|Închide/.test(x.textContent))));
+  await pauza(500);
+  cl([...dc().querySelectorAll('nav button')].find(x => /Calendar/.test(x.textContent)));
+  await pauza(900);
+  const blocuri = [...dc().querySelectorAll('div')]
+    .filter(x => /Umple golul:|Adaugă rapid:/.test(x.textContent) && x.querySelector('button'))
+    .filter((x, k, arr) => !arr.some(y => y !== x && x.contains(y)))
+    .map(x => {
+      let p = x.previousElementSibling, o2 = p ? (p.textContent.match(/(\d\d):(\d\d)/) || null) : null;
+      return { ora: o2 ? Number(o2[1]) * 60 + Number(o2[2]) : null,
+               cine: [...x.querySelectorAll('button')].map(y => y.textContent.replace(/^\+\s*/, '').trim()) };
+    }).filter(x => x.ora != null);
+  const devreme = blocuri.filter(x => x.ora < 1080);
+  const tarziu = blocuri.filter(x => x.ora >= 1080);
+  cer('cine poate doar seara nu e propus dimineața',
+    devreme.every(x => !x.cine.some(y => /Dincă/.test(y))),
+    devreme.length ? devreme.map(x => H(x.ora) + ': ' + x.cine.join(',')).join(' | ') : 'niciun gol de dimineață');
+  cer('  dar seara e primul propus',
+    tarziu.length === 0 || /Dincă/.test(tarziu[0].cine[0] || ''),
+    tarziu.length ? H(tarziu[0].ora) + ': ' + tarziu[0].cine.join(', ') : 'niciun gol seara');
+
+  /* ---- cu rezerva pornită, ea chiar ține ore deoparte ---- */
+  const d3 = new JSDOM(html, {
+    runScripts: 'dangerously', pretendToBeVisual: true, url: 'https://x/',
+    beforeParse(w3) {
+      w3.localStorage.setItem('ias:app-data', JSON.stringify({
+        students,
+        sessions: [{ id: 'x1', studentId: 's3', date: azi, startMin: 960, duration: 90, status: 'scheduled', type: 'included' }],
+        settings: { workDays: [0,1,2,3,4,5,6], startMin: 0, endMin: 1380, sessionMin: 90,
+          stepMin: 60, currency: 'lei', defaultWeeklyLimit: 7,
+          rezervaActiva: true, rezervaExamen: 3 },
+      }));
+      w3.localStorage.setItem('ias:licenta', JSON.stringify({
+        cod: 'IAS9F3K7QX2', stare: 'ok', rol: 'proprietar', pana: '2099-12-31', verificatLa: azi, drepturi: ['*'],
+      }));
+      w3.localStorage.setItem('ias:backup', azi);
+      w3.ResizeObserver = function () { this.observe = () => {}; this.disconnect = () => {}; };
+      w3.scrollBy = () => {};
+      const DA = w3.Date;
+      function DF(...a2) { return a2.length ? new DA(...a2) : new DA(CEAS.getTime()) }
+      DF.prototype = DA.prototype; DF.now = () => CEAS.getTime();
+      DF.parse = DA.parse; DF.UTC = DA.UTC; w3.Date = DF;
+    },
+  });
+  await pauza(3000);
+  const de = () => d3.window.document;
+  const ce2 = (el) => el && el.dispatchEvent(new d3.window.MouseEvent('click', { bubbles: true }));
+  [...de().querySelectorAll('.ecran-peste')].forEach(f =>
+    ce2([...f.querySelectorAll('button')].find(x => /Am înțeles|Închide/.test(x.textContent))));
+  await pauza(500);
+  ce2([...de().querySelectorAll('nav button')].find(x => /Calendar/.test(x.textContent)));
+  await pauza(900);
+  const cu = [...de().querySelectorAll('div')]
+    .filter(x => /Umple golul:|Adaugă rapid:/.test(x.textContent) && x.querySelector('button'))
+    .filter((x, k, arr) => !arr.some(y => y !== x && x.contains(y)))
+    .flatMap(x => [...x.querySelectorAll('button')].map(y => y.textContent.replace(/^\+\s*/, '').trim()));
+  cer('cu rezerva pornită, cel cu exact 3 ore se ține deoparte',
+    !cu.some(x => /Dincă/.test(x)),
+    cu.length ? 'propuși: ' + [...new Set(cu)].join(', ') : 'niciunul');
 
   console.log('');
   rez.forEach(([s, n, dt]) => console.log('  ' + s + ' ' + n.padEnd(42) + (dt || '')));

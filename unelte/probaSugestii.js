@@ -16,9 +16,13 @@ const students = [
   // are ședință ieri și cere pauză de 3 zile: azi nu trebuie propus
   { id: 's3', name: 'Ritm Cezar', lastName: 'Ritm', firstName: 'Cezar', includedHours: 8, weeklyLimit: 5,
     minGapDays: 3, payments: [] },
-  // vine doar în zilele pare/impare opuse zilei de azi
+  /* Vine doar în zilele cu paritatea opusă celei pe care o privim — iar noi
+     privim ziua de mâine, fiindcă azi orele trecute n-au sugestii. */
   { id: 's4', name: 'Paritate Dan', lastName: 'Paritate', firstName: 'Dan', includedHours: 8, weeklyLimit: 5,
-    availParity: (new Date().getDate() % 2 === 0) ? 'odd' : 'even', payments: [] },
+    availParity: (() => {
+      const m = new Date(); m.setDate(m.getDate() + 1);
+      return m.getDate() % 2 === 0 ? 'odd' : 'even';
+    })(), payments: [] },
 ];
 const sessions = [
   { id: 'x1', studentId: 's3', date: zi(-1), startMin: 540, duration: 90, status: 'completed', type: 'included' },
@@ -70,6 +74,21 @@ const pauza = (ms) => new Promise(r => setTimeout(r, ms));
 
   // sugestiile din calendar
   clic([...doc().querySelectorAll('nav button')].find(x => /Calendar/.test(x.textContent)));
+  await pauza(800);
+  /* Ne mutăm pe ziua următoare: la orele trecute din ziua curentă nu mai apar
+     sugestii, și pe bună dreptate — n-ai ce programa în urmă. */
+  /* Alegem ziua după numărul ei, nu „cea de după cea aprinsă": dacă azi e
+     ultima din bandă, pasul acela cădea alături, iar proba privea altă zi
+     decât cea pentru care am pregătit elevii. */
+  const maine = (() => { const d2 = new Date(); d2.setDate(d2.getDate() + 1); return d2 })();
+  const casutaZilei = () => [...doc().querySelectorAll('button')]
+    .filter(x => x.className && /flex-col items-center py-2 rounded-xl border/.test(x.className))
+    .find(x => (x.textContent.match(/\d+/) || [''])[0] === String(maine.getDate()));
+  for (let k = 0; k < 2 && !casutaZilei(); k++) {
+    clic(doc().querySelector('button[aria-label="Săptămâna viitoare"]'));
+    await pauza(500);
+  }
+  clic(casutaZilei());
   await pauza(800);
   const t = text();
   const propus = (nume) => new RegExp('\\+ ' + nume).test(t);
