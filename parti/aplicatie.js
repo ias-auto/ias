@@ -539,10 +539,14 @@ var Pf = n => !!n && !n.withdrawn && n.examResult !== "promovat" && !ho(n),
         return t >= 1 && t <= 5
     };
 
-function GA(n, e, t) {
+function GA(n, e, t, iasSet) {
     let a = kf(n, e);
     if (a <= 0) return 0;
-    let r = Math.min(iasRezerva(n.__setari || null) || Nf, bo(n));
+    /* Rezerva de examen e la alegerea ta și e oprită din pornire. Aici se lua
+       oricum trei ore deoparte, fiindcă setările nu ajungeau până la funcția
+       asta — așa că elevul cu exact trei ore rămase ieșea cu zero libere și nu
+       era propus niciodată. Tocmai cel pe care vrei să-l închei. */
+    let r = Math.min(iasRezerva(iasSet || null), bo(n));
     return n.examDate ? t >= n.examDate ? 0 : Mf(n, t) ? a : Math.max(0, a - r) : Math.max(0, a - r)
 }
 
@@ -1491,7 +1495,7 @@ function iasRitmOk(sesiuni, elev, zi) {
 function ok(n, e) {
     return n.students.map(t => ({
         s: t,
-        free: GA(t, n.sessions, e)
+        free: GA(t, n.sessions, e, n.settings)
     })).filter(({
         s: t,
         free: a
@@ -1501,7 +1505,11 @@ function ok(n, e) {
             i = a.s.examDate ? Sf(e, a.s.examDate) : 9999,
             s = Mf(t.s, e) ? 0 : 1,
             l = Mf(a.s, e) ? 0 : 1;
-        return s !== l ? s - l : r !== i ? r - i : a.free - t.free
+        /* Întâi cei grăbiți, apoi cei cu examenul mai aproape — astea nu se
+           ating. La urmă, dintre cei rămași, îi propunem pe cei cărora le-au
+           mai rămas puține ore: îi închei și rămâi cu mintea liberă pentru cei
+           noi. Înainte era pe dos — veneau primii cei cu cele mai multe ore. */
+        return s !== l ? s - l : r !== i ? r - i : t.free - a.free
     }).map(t => t.s)
 }
 var mu = Array.from({
@@ -1669,6 +1677,16 @@ function iasZiuaLui(elev, zi) {
      { fel: "nespus" }            — n-a zis nimic, deci nu-l îngrădim
      { fel: "nu" }                — nu poate în ziua aceea
      { fel: "ok", lo, hi }        — poate începe între lo și hi                */
+/* Ora care a trecut deja azi. Sugestiile de umplere n-au ce căuta acolo: nu mai
+   poți programa pe cineva la zece dimineața când e trei după-amiaza. Ziua
+   rămâne deschisă, ca să poți trece o ședință făcută mai devreme — doar
+   propunerile se opresc. */
+function iasOraTrecuta(dataISO, ora) {
+    if (dataISO !== Be()) return !1;
+    var acum = new Date();
+    return Number(ora) < acum.getHours() * 60 + acum.getMinutes()
+}
+
 function iasFereastraZi(elev, dataISO, durata) {
     var d = durata || si,
         zi = Ue(dataISO).getDay(),
@@ -5769,11 +5787,11 @@ function Hk({
         }, "Liber"), o.default.createElement(cn, {
             size: 14,
             className: "ml-auto"
-        })), $ && ne && E.length > 0 && o.default.createElement("div", {
+        })), $ && ne && !iasOraTrecuta(r, A) && E.length > 0 && o.default.createElement("div", {
             className: "flex flex-wrap items-center gap-1.5 pl-4 mt-1"
         }, o.default.createElement("span", {
             className: "text-xs text-slate-400"
-        }, K ? "Umple golul:" : "Adaug\u0103 rapid:"), E.filter(Y => !C0(Y, r, A, h)).slice(0, 2).map(Y => o.default.createElement("button", {
+        }, K ? "Umple golul:" : "Adaug\u0103 rapid:"), E.filter(Y => !C0(Y, r, A, h) && iasPoateAtunci(Y, r, A, h)).slice(0, 2).map(Y => o.default.createElement("button", {
             key: Y.id,
             onClick: () => e("create", {
                 date: r,
@@ -11181,6 +11199,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.40.1",
+    titlu: "Sugestiile rapide, \xEEn ordinea potrivit\u0103",
+    puncte: ["La sugestiile din calendar apar acum \xEEnt\xE2i elevii c\u0103rora le-au mai r\u0103mas pu\u021Bine ore \u2014 \xEEi \xEEnchei \u0219i r\u0103m\xE2i cu mintea liber\u0103 pentru cei noi. Cei gr\u0103bi\u021Bi \u0219i cei cu examenul aproape r\u0103m\xE2n \xEEnaintea tuturor, ca p\xE2n\u0103 acum.", "Sugestiile \u021Bin cont \u0219i de ora la care poate elevul: cine poate doar de la 18:00 nu mai apare \xEEntr-un gol de diminea\u021B\u0103.", "Reparat: sugestiile rapide \u021Bineau deoparte trei \u0219edin\u021Be chiar \u0219i cu rezerva de examen oprit\u0103 \u2014 a\u0219a c\u0103 elevul cu exact trei ore r\u0103mase nu era propus niciodat\u0103. Tocmai cel pe care vrei s\u0103-l \xEEnchei."]
+}, {
     v: "v2.40.0",
     titlu: "Disponibilitatea elevului, pe fiecare zi",
     puncte: ["\xCEn fi\u0219a elevului, la Disponibilitate, fiecare zi poate avea felul ei: ca de obicei, oric\xE2nd, de la o or\u0103, p\xE2n\u0103 la o or\u0103, \xEEntre dou\u0103 ore, sau nu poate deloc. Zilele l\u0103sate pe \u201Eca de obicei\u201D merg dup\u0103 regula general\u0103 de sus, deci pentru elevii simpli n-ai nimic de completat \xEEn plus.", "Planul ascult\u0103 ce ai scris: dac\u0103 un elev poate miercuri doar de la 16:30, nu-l mai pune la 10.", "C\xE2nd elevul n-a spus nimic, r\u0103m\xE2ne ca p\xE2n\u0103 acum \u2014 planul se bizuie pe orele la care a venit de obicei."]
