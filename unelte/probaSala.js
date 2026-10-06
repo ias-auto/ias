@@ -70,17 +70,26 @@ const pauza = (ms) => new Promise(r => setTimeout(r, ms));
   await pauza(3000);
   inchide(); await pauza(500);
 
-  cer('anunțul apare pe Acasă', /Gata de teoretic/.test(text()),
-    (text().match(/\d+ ședințe efectuate — așteaptă programare la sală/) || ['—'])[0]);
+  cer('anunțul apare pe Acasă', /gata de teoretic/i.test(text()),
+    (text().match(/\d* ?[Gg]ata de teoretic/) || ['—'])[0]);
+  /* Numărul de ședințe se vede după ce desfaci grupul. */
+  clic([...doc().querySelectorAll('button')].find(x => /gata de teoretic/i.test(x.textContent)));
+  await pauza(500);
   cer('  scrie câte ședințe are', /12 ședințe efectuate/.test(text()), '12, nu 10');
-  cer('  doar cine e gata', !/Începător Radu/.test(text().split('Gata de teoretic')[1] || ''));
-  /* Semnul e desenat, nu scris: șase brațe dintr-un punct. Îl căutăm ca atare. */
+  cer('  doar cine e gata', !/Începător Radu/.test(text().split('gata de teoretic')[1] || ''));
+  clic([...doc().querySelectorAll('button')].find(x => /gata de teoretic/i.test(x.textContent)));
+  await pauza(400);
+
+  /* Semnul e desenat, nu scris: șase brațe dintr-un punct. */
   const semne = () => [...doc().querySelectorAll('svg')]
     .filter(x => x.querySelectorAll('line[transform^="rotate"]').length === 6);
   cer('semnul desenat e pe numele lui', semne().length >= 1,
     semne().length + ' semne cu șase brațe');
 
   /* atingi anunțul → fișa, drept la Examene */
+  /* Blocul stă strâns acum; îl desfacem înainte să căutăm rândul elevului. */
+  clic([...doc().querySelectorAll('button')].find(x => /gata de teoretic/i.test(x.textContent)));
+  await pauza(500);
   clic([...doc().querySelectorAll('button')].find(x => /așteaptă programare la sală/.test(x.textContent)));
   await pauza(1000);
   const f = fata();
