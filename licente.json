@@ -1,5 +1,5 @@
 {
-  "actualizat": "2026-08-28",
+  "actualizat": "2026-10-06",
   "tipuri": {
     "vip": {
       "nume": "VIP",
@@ -49,6 +49,13 @@
       "tip": "completa",
       "pana": "2026-09-30",
       "dispozitiv": "T7GOBKAED"
+    },
+    {
+      "cod": "IAS-GT45-GDXT",
+      "nume": "PN-CO-MM7N",
+      "tip": "vip",
+      "pana": "2026-10-31",
+      "dispozitiv": "TXTFKFYL3"
     }
   ]
 }
