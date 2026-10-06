@@ -2100,6 +2100,55 @@ function uk({
         })
     })();
 
+    /* Golurile în care oricum n-ar încăpea altă ședință se închid: ședința se
+       împinge mai târziu, lipită de cea care urmează. Un sfert de oră rămas
+       singur între două ore nu-ți folosește la nimic — mai bine pleci de acasă
+       mai târziu.
+
+       Se mută doar în jos pe ceas și numai dacă elevul poate la ora aceea, dacă
+       nu cade pe o pauză sau pe un interval barat, și dacă nu se lipește de cea
+       dinainte. Ordinea zilei rămâne întocmai. */
+    (function iasStrangeZiua() {
+        if (!k.length) return;
+        var peZi = {};
+        k.forEach(function (p2) { (peZi[p2.date] = peZi[p2.date] || []).push(p2) });
+        Object.keys(peZi).forEach(function (zi) {
+            var vechi2 = e.filter(function (x) {
+                    return x.date === zi && x.status !== "cancelled" && !x.otherInstructor
+                }).map(function (x) {
+                    return { start: Number(x.startMin) || 0, dur: Number(x.duration) || s, fix: !0 }
+                }),
+                noi = peZi[zi].map(function (p2) {
+                    return { start: p2.startMin, dur: s, fix: !1, prop: p2 }
+                }),
+                toate = vechi2.concat(noi).sort(function (a2, b2) { return a2.start - b2.start }),
+                orele = Tf(t, zi),
+                blocaje = b0(t, zi);
+            if (toate.length < 2) return;
+            // de la coadă spre cap, ca ședințele de la urmă să se așeze întâi
+            for (var idx = toate.length - 2; idx >= 0; idx--) {
+                var cur = toate[idx];
+                if (cur.fix) continue;
+                var urm = toate[idx + 1],
+                    gol = urm.start - (cur.start + cur.dur);
+                if (gol <= 0 || gol >= s) continue;   // nu e un gol irosit
+                var limita = urm.start - cur.dur,
+                    inainte = idx > 0 ? toate[idx - 1].start + toate[idx - 1].dur : -1e9,
+                    elev = i.filter(function (x) { return x.id === cur.prop.studentId })[0],
+                    ales = null;
+                for (var q = 0; q < orele.length; q++) {
+                    var ora = orele[q];
+                    if (ora <= cur.start || ora > limita || ora < inainte) continue;
+                    if (bf(blocaje, ora, cur.dur)) continue;
+                    if (elev && !A(elev, ora, !1, zi)) continue;
+                    if (elev && C0(elev, zi, ora, cur.dur)) continue;
+                    ales = ora   // ținem cea mai târzie oră care încape
+                }
+                if (ales != null) cur.start = ales, cur.prop.startMin = ales
+            }
+        })
+    })();
+
     let N = i.filter(C => l[C.id] > 0).map(C => ({
         id: C.id,
         name: C.name,
@@ -4400,18 +4449,17 @@ function IasSemn({ fel: iasF, size: iasS = 34, stins: iasSt }) {
     var o_ = iasSt ? .32 : 1;
     var comun = { width: iasS, height: iasS, viewBox: "0 0 40 40", style: { opacity: o_, display: "block" } };
     if (iasF === "cancelled") {
+        /* ACCESUL INTERZIS: cerc roșu cu bară albă pe mijloc. Era desenat ca un
+           octogon — adică forma lui STOP — dar cu bara de la „interzis"
+           înăuntru. Două semne diferite amestecate într-unul singur. Cercul e
+           cel potrivit aici: ședința nu se mai ține, nu e un semn de oprire. */
         return o.default.createElement("svg", comun,
-            o.default.createElement("polygon", {
-                points: "13,2 27,2 38,13 38,27 27,38 13,38 2,27 2,13",
+            o.default.createElement("circle", {
+                cx: 20, cy: 20, r: 17.5,
                 fill: "#c0392b", stroke: "#fff", strokeWidth: 2.5
             }),
-            /* Scrisul „STOP" e desenat din linii, nu ca text: altfel se lipea
-               de numele statusului când se citea butonul. */
             o.default.createElement("rect", {
-                x: 8, y: 18, width: 24, height: 4.4, rx: 1, fill: "#fff"
-            }),
-            o.default.createElement("rect", {
-                x: 11, y: 24.4, width: 18, height: 2.6, rx: 1, fill: "#fff", opacity: .55
+                x: 7.5, y: 17.4, width: 25, height: 5.2, rx: 1.2, fill: "#fff"
             }))
     }
     if (iasF === "pending") {
@@ -4772,6 +4820,8 @@ function zk({
     onGoToCalendar: s,
     onOpenExamene: iasLaExamene
 }) {
+    let [iasSalaDesfacuta, iasDesfaSala] = (0, o.useState)(!1),
+        [iasPromovatiDesfacuti, iasDesfaPromovati] = (0, o.useState)(!1);
     let l = Be(),
         u = l.slice(0, 7),
         d = n.sessions.filter(z => z.date === l && z.status !== "cancelled").sort((z, q) => z.startMin - q.startMin),
@@ -4915,12 +4965,25 @@ function zk({
                 className: "rounded-2xl overflow-hidden",
                 style: { border: "1px solid var(--accent-line)", background: "var(--accent-soft)" }
             },
-                o.default.createElement("div", {
-                    className: "px-3.5 pt-3 pb-1.5 text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5",
+                /* Titlul e un buton: lista se strânge sub el. Cu nouă elevi gata
+                   de sală îți lua tot ecranul și nu mai vedeai nimic altceva. Se
+                   deschide strânsă, fiindcă ce contează e numărul — pe cine
+                   anume cauți abia când te apuci de telefoane. */
+                o.default.createElement("button", {
+                    onClick: () => iasDesfaSala(!iasSalaDesfacuta),
+                    className: "w-full px-3.5 py-3 text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5",
                     style: { color: "var(--accent-ink)" }
                 }, o.default.createElement(IasSemnNou, { size: 15 }),
-                    iasGata.length === 1 ? "Gata de teoretic" : `${iasGata.length} gata de teoretic`),
-                iasGata.map(z => o.default.createElement("button", {
+                    o.default.createElement("span", { className: "flex-1 text-left" },
+                        iasGata.length === 1 ? "Gata de teoretic" : `${iasGata.length} gata de teoretic`),
+                    o.default.createElement(un, {
+                        size: 14, className: "shrink-0",
+                        style: {
+                            transform: iasSalaDesfacuta ? "rotate(90deg)" : "none",
+                            transition: "transform .2s"
+                        }
+                    })),
+                iasSalaDesfacuta && iasGata.map(z => o.default.createElement("button", {
                     key: z.elev.id,
                     /* Fișa se deschide după identificatorul elevului, nu după obiectul lui:
                        aplicația ține minte cine e deschis printr-un id. */
@@ -5028,35 +5091,46 @@ function zk({
     }, h, " \u0219edin\u021Be trecute f\u0103r\u0103 status final"), o.default.createElement(un, {
         size: 15,
         className: "text-amber-600 shrink-0"
-    })), S.map((z, q) => o.default.createElement("button", {
-        key: `${z.student.id}_${z.kind}_${q}`,
-        onClick: () => i(z.student.id),
-        className: "w-full flex items-center gap-2.5 bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-left",
-        style: z.due ? {
-            borderColor: "var(--violet)"
-        } : void 0
-    }, o.default.createElement(ni, {
-        size: 15,
-        className: "shrink-0",
-        style: {
-            color: z.due ? "var(--violet)" : "var(--muted-2)"
-        }
-    }), o.default.createElement("span", {
-        className: "flex-1 min-w-0"
-    }, o.default.createElement("span", {
-        className: "block text-sm text-slate-700 truncate"
-    }, z.student.name, " \xB7 examen ", z.kind, " ", qe(z.date)), z.due && o.default.createElement("span", {
-        className: "block text-xs",
-        style: {
-            color: "var(--violet)"
-        }
-    }, "noteaz\u0103 rezultatul \u2014 promovat sau respins")), z.due && o.default.createElement(un, {
-        size: 15,
-        className: "shrink-0",
-        style: {
-            color: "var(--violet)"
-        }
-    }))), ne.map(z => o.default.createElement("button", {
+    })), (() => {
+        /* Examenele, grupate pe feluri: practicul îți ocupă ziua cu ședințe,
+           teoreticul nu — n-au ce căuta amestecate într-o singură înșiruire,
+           mai ales când ai zece elevi deodată. Fiecare grup se desface la
+           atingere, ca să nu-ți umple ecranul.
+
+           Cele la care trebuie să notezi rezultatul rămân la vedere oricum:
+           acelea chiar cer ceva de la tine azi. */
+        let iasGrup = (fel, titlu) => {
+            let ale = S.filter(x => x.kind === fel);
+            if (!ale.length) return null;
+            let deNotat = ale.filter(x => x.due),
+                restul = ale.filter(x => !x.due),
+                iasRand = (z, q) => o.default.createElement("button", {
+                    key: `${z.student.id}_${z.kind}_${q}`,
+                    onClick: () => i(z.student.id),
+                    className: "w-full flex items-center gap-2.5 bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-left",
+                    style: z.due ? { borderColor: "var(--violet)" } : void 0
+                }, o.default.createElement(ni, {
+                    size: 15, className: "shrink-0",
+                    style: { color: z.due ? "var(--violet)" : "var(--muted-2)" }
+                }), o.default.createElement("span", { className: "flex-1 min-w-0" },
+                    o.default.createElement("span", {
+                        className: "block text-sm text-slate-700 truncate"
+                    }, z.student.name, " \xB7 ", qe(z.date)),
+                    z.due && o.default.createElement("span", {
+                        className: "block text-xs", style: { color: "var(--violet)" }
+                    }, "noteaz\u0103 rezultatul \u2014 promovat sau respins")),
+                    z.due && o.default.createElement(un, {
+                        size: 15, className: "shrink-0", style: { color: "var(--violet)" }
+                    }));
+            return o.default.createElement("div", { key: fel, className: "space-y-1.5" },
+                deNotat.map(iasRand),
+                restul.length ? o.default.createElement(Jn, {
+                    title: `${titlu} \xB7 ${restul.length}`,
+                    summary: restul.length === 1 ? qe(restul[0].date) : `p\xE2n\u0103 pe ${qe(restul[restul.length - 1].date)}`
+                }, o.default.createElement("div", { className: "space-y-1.5" }, restul.map(iasRand))) : null)
+        };
+        return [iasGrup("practic", "Examene practice"), iasGrup("teoretic", "Examene teoretice")]
+    })(), ne.map(z => o.default.createElement("button", {
         key: z.reminder.id,
         onClick: () => i(z.student.id),
         className: "w-full flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-left border",
@@ -5083,20 +5157,55 @@ function zk({
         className: "px-4 mt-5"
     }, o.default.createElement("div", {
         className: "text-xs font-medium text-slate-400 uppercase tracking-wide mb-2"
-    }, "Statistici"), o.default.createElement("div", {
-        className: "bg-white rounded-xl border border-slate-200 px-4 py-3.5 mb-2"
+    }, "Statistici"), o.default.createElement("button", {
+        /* Cardul se apasă: se desface lista celor promovați, iar de acolo
+           deschizi fișa oricăruia. Până acum era doar un procent — vedeai cât,
+           dar nu și cine. */
+        onClick: () => iasDesfaPromovati(!iasPromovatiDesfacuti),
+        className: "w-full text-left bg-white rounded-xl border border-slate-200 px-4 py-3.5 mb-2"
     }, o.default.createElement("div", {
         className: "flex items-center justify-between mb-2"
     }, o.default.createElement("div", null, o.default.createElement("div", {
-        className: "text-sm font-medium text-slate-800"
-    }, "Elevi promova\u021Bi"), o.default.createElement("div", {
+        className: "text-sm font-medium text-slate-800 flex items-center gap-1.5"
+    }, "Elevi promova\u021Bi", o.default.createElement(un, {
+        size: 13, className: "text-slate-400",
+        style: {
+            transform: iasPromovatiDesfacuti ? "rotate(90deg)" : "none",
+            transition: "transform .2s"
+        }
+    })), o.default.createElement("div", {
         className: "text-xs text-slate-400 mt-0.5"
     }, B, " din ", E, " elevi")), o.default.createElement("div", {
         className: "font-mono-time text-2xl font-semibold text-emerald-600"
     }, $, "%")), o.default.createElement(Cf, {
         value: $,
         colorCls: "bg-emerald-500"
-    })), o.default.createElement("div", {
+    })),
+    iasPromovatiDesfacuti ? o.default.createElement("div", { className: "space-y-1.5 mb-2" },
+        (() => {
+            let iasLista = n.students.filter(x => x.examResult === "promovat" && !x.withdrawn)
+                .sort((x, y) => (x.name || "").localeCompare(y.name || "", "ro"));
+            if (!iasLista.length) return o.default.createElement("div", {
+                className: "text-xs text-slate-400 px-3.5 py-2"
+            }, "Niciun elev promovat \xEEnc\u0103.");
+            return iasLista.map(x => o.default.createElement("button", {
+                key: x.id,
+                onClick: () => i(x.id),
+                className: "w-full flex items-center gap-2.5 bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-left"
+            },
+                o.default.createElement("span", { className: "flex-1 min-w-0" },
+                    o.default.createElement("span", {
+                        className: "block text-sm text-slate-800 truncate"
+                    }, x.name),
+                    o.default.createElement("span", {
+                        className: "block text-xs text-slate-400 truncate"
+                    }, [x.group ? `gr. ${x.group}` : "", x.examDate ? qe(x.examDate) : ""].filter(Boolean).join(" \xB7 "))),
+                o.default.createElement("span", {
+                    className: "text-xs font-medium px-2 py-0.5 rounded-full shrink-0",
+                    style: { background: "var(--ok-soft)", color: "var(--ok)", border: "1px solid var(--ok-line)" }
+                }, "promovat"),
+                o.default.createElement(un, { size: 15, className: "shrink-0 text-slate-300" })))
+        })()) : null, o.default.createElement("div", {
         className: "bg-white rounded-xl border border-slate-200 px-4 py-3.5"
     }, o.default.createElement("div", {
         className: "text-sm font-medium text-slate-800 mb-2.5"
@@ -7388,10 +7497,13 @@ function Wk({
                     border: `1px solid ${iasAltfel ? "var(--accent-line)" : "var(--line)"}`
                 }
             },
+                /* Ziua și felul pe un rând, orele pe rândul următor: pe telefon
+                   nu încăpeau toate trei, iar orele ieșeau tăiate — „1…" — deci
+                   nu vedeai ce ai ales. */
                 o.default.createElement("div", { className: "flex items-center gap-2" },
                     o.default.createElement("span", {
                         className: "text-xs font-medium shrink-0",
-                        style: { width: 42, color: iasAltfel ? "var(--accent-ink)" : "var(--muted)" }
+                        style: { width: 38, color: iasAltfel ? "var(--accent-ink)" : "var(--muted)" }
                     }, Tw[iasZ].slice(0, 3)),
                     o.default.createElement("select", {
                         className: ie + " text-xs", style: { padding: "6px 8px" },
@@ -7407,24 +7519,34 @@ function Wk({
                         o.default.createElement("option", { value: "dupa" }, "de la\u2026"),
                         o.default.createElement("option", { value: "pana" }, "p\xE2n\u0103 la\u2026"),
                         o.default.createElement("option", { value: "intre" }, "\xEEntre\u2026"),
-                        o.default.createElement("option", { value: "nu" }, "nu poate")),
-                    (iasP.fel === "dupa" || iasP.fel === "intre")
-                        ? o.default.createElement("select", {
-                            className: ie + " text-xs", style: { padding: "6px 8px", width: 86 },
-                            value: iasP.lo == null ? 840 : iasP.lo,
-                            onChange: (S) => iasPune({ lo: Number(S.target.value) })
-                        }, mu.map(L => o.default.createElement("option", { key: L, value: L }, Se(L))))
-                        : null,
-                    (iasP.fel === "intre")
-                        ? o.default.createElement("span", { className: "text-xs text-slate-400" }, "\u2013")
-                        : null,
-                    (iasP.fel === "pana" || iasP.fel === "intre")
-                        ? o.default.createElement("select", {
-                            className: ie + " text-xs", style: { padding: "6px 8px", width: 86 },
-                            value: iasP.hi == null ? 1200 : iasP.hi,
-                            onChange: (S) => iasPune({ hi: Number(S.target.value) })
-                        }, mu.map(L => o.default.createElement("option", { key: L, value: L }, Se(L))))
-                        : null))
+                        o.default.createElement("option", { value: "nu" }, "nu poate"))),
+                (iasP.fel === "dupa" || iasP.fel === "pana" || iasP.fel === "intre")
+                    ? o.default.createElement("div", {
+                        className: "flex items-center gap-2 mt-1.5",
+                        style: { paddingLeft: 46 }
+                    },
+                        (iasP.fel === "dupa" || iasP.fel === "intre")
+                            ? o.default.createElement("select", {
+                                className: ie + " font-mono-time text-xs",
+                                style: { padding: "6px 8px", flex: "1 1 0", minWidth: 0 },
+                                value: iasP.lo == null ? 840 : iasP.lo,
+                                onChange: (S) => iasPune({ lo: Number(S.target.value) })
+                            }, mu.map(L => o.default.createElement("option", { key: L, value: L }, Se(L))))
+                            : null,
+                        (iasP.fel === "intre")
+                            ? o.default.createElement("span", {
+                                className: "text-xs shrink-0", style: { color: "var(--muted-2)" }
+                            }, "\u2013")
+                            : null,
+                        (iasP.fel === "pana" || iasP.fel === "intre")
+                            ? o.default.createElement("select", {
+                                className: ie + " font-mono-time text-xs",
+                                style: { padding: "6px 8px", flex: "1 1 0", minWidth: 0 },
+                                value: iasP.hi == null ? 1200 : iasP.hi,
+                                onChange: (S) => iasPune({ hi: Number(S.target.value) })
+                            }, mu.map(L => o.default.createElement("option", { key: L, value: L }, Se(L))))
+                            : null)
+                    : null)
         })),
     o.default.createElement(xe, {
         label: "Tur\u0103 de lucru"
@@ -11199,6 +11321,18 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.41.0",
+    titlu: "Anun\u021Burile de pe Acas\u0103, str\xE2nse pe grupuri",
+    puncte: ["Blocul \u201Egata de teoretic\u201D st\u0103 acum str\xE2ns sub titlul lui \u0219i se desface la atingere \u2014 cu nou\u0103 elevi \xEE\u021Bi lua tot ecranul.", "La \u201ENecesit\u0103 aten\u021Bie\u201D, examenele practice \u0219i cele teoretice au fiecare grupul lui. Cele la care trebuie s\u0103 notezi rezultatul r\u0103m\xE2n la vedere oricum.", "\xCEn Statistici, ap\u0103s\xE2nd pe \u201EElevi promova\u021Bi\u201D se desface lista lor, cu grupa \u0219i data examenului; de acolo deschizi fi\u0219a oric\u0103ruia."]
+}, {
+    v: "v2.40.3",
+    titlu: "Semnul de la \u0219edin\u021Ba anulat\u0103",
+    puncte: ["\u0218edin\u021Ba anulat\u0103 purta un octogon cu bar\u0103 alb\u0103 \u2014 adic\u0103 forma lui STOP cu simbolul de la \u201EAccesul interzis\u201D, dou\u0103 semne amestecate \xEEntr-unul. Acum e cerc cu bar\u0103, cum e pe \u0219osea."]
+}, {
+    v: "v2.40.2",
+    titlu: "Ziua, str\xE2ns\u0103 mai bine",
+    puncte: ["Planul \xEEnchide golurile \xEEn care oricum n-ar \xEEnc\u0103pea alt\u0103 \u0219edin\u021B\u0103: dac\u0103 ai pus deja pe cineva la 10, elevul liber diminea\u021Ba intr\u0103 la 8:30, lipit de el, nu la 8 cu o jum\u0103tate de or\u0103 pierdut\u0103 la mijloc. A\u0219a po\u021Bi pleca de acas\u0103 mai t\xE2rziu.", "Se mut\u0103 doar mai t\xE2rziu pe ceas \u0219i numai dac\u0103 elevul poate la ora aceea, dac\u0103 nu cade pe o pauz\u0103 sau pe un interval barat. Ordinea zilei r\u0103m\xE2ne \xEEntocmai.", "\xCEn fi\u0219a elevului, zilele care ies din tipar au acum felul pe un r\xE2nd \u0219i orele pe r\xE2ndul urm\u0103tor \u2014 pe telefon ie\u0219eau t\u0103iate \u0219i nu vedeai ce ai ales."]
+}, {
     v: "v2.40.1",
     titlu: "Sugestiile rapide, \xEEn ordinea potrivit\u0103",
     puncte: ["La sugestiile din calendar apar acum \xEEnt\xE2i elevii c\u0103rora le-au mai r\u0103mas pu\u021Bine ore \u2014 \xEEi \xEEnchei \u0219i r\u0103m\xE2i cu mintea liber\u0103 pentru cei noi. Cei gr\u0103bi\u021Bi \u0219i cei cu examenul aproape r\u0103m\xE2n \xEEnaintea tuturor, ca p\xE2n\u0103 acum.", "Sugestiile \u021Bin cont \u0219i de ora la care poate elevul: cine poate doar de la 18:00 nu mai apare \xEEntr-un gol de diminea\u021B\u0103.", "Reparat: sugestiile rapide \u021Bineau deoparte trei \u0219edin\u021Be chiar \u0219i cu rezerva de examen oprit\u0103 \u2014 a\u0219a c\u0103 elevul cu exact trei ore r\u0103mase nu era propus niciodat\u0103. Tocmai cel pe care vrei s\u0103-l \xEEnchei."]
