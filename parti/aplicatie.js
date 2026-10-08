@@ -4732,14 +4732,27 @@ function Jn({
        desfășoară pe sub marginea de jos și trebuie să derulezi ca să vezi ce e
        înăuntru. Se face lin și doar la deschidere, nu la închidere. */
     function iasUrca() {
-        var el = iasCap.current;
-        if (!el) return;
-        setTimeout(function () {
-            try {
-                var sus = el.getBoundingClientRect().top;
-                if (sus > 90) window.scrollBy({ top: sus - 78, behavior: "smooth" })
-            } catch (x) {}
-        }, 60)
+        /* Fereastra se deschide într-o secundă, cu tot cu animație. Dacă dăm
+           comanda de derulare la 90 de milisecunde, elementul e încă în
+           mișcare: poziția socotită atunci e greșită, iar cutia lui nici nu e
+           încă destul de plină ca să aibă ce derula.
+
+           De aceea încercăm de mai multe ori, până după ce animația s-a
+           terminat, și ne oprim când capul secțiunii a ajuns sus. Folosim
+           scrollIntoView, care găsește el singur containerul potrivit — fie
+           cutia fișei, fie pagina. */
+        var incercari = [120, 420, 780, 1150, 1500];
+        incercari.forEach(function (cand) {
+            setTimeout(function () {
+                try {
+                    var el = iasCap.current;
+                    if (!el) return;
+                    var sus = el.getBoundingClientRect().top;
+                    if (sus >= 0 && sus <= 120) return;   // deja e la vedere
+                    el.scrollIntoView({ block: "start", behavior: "smooth" })
+                } catch (x) {}
+            }, cand)
+        })
     }
     /* Un grup pe care l-ai strâns rămâne strâns — și bine face. Dar la căutare,
        dacă are pe cineva potrivit, se deschide singur: altfel elevul căutat
@@ -4960,7 +4973,9 @@ function zk({
             .filter(z => z.cate > 0)
             .sort((z, q) => q.cate - z.cate);
         if (!iasGata.length) return null;
-        return o.default.createElement("div", { className: "px-4 mb-4" },
+        /* Cardurile de deasupra n-au margine dedesubt, așa că blocul se lipea
+           de ele. Îi dăm aceeași respirație ca între celelalte secțiuni. */
+        return o.default.createElement("div", { className: "px-4 mt-3 mb-4" },
             o.default.createElement("div", {
                 className: "rounded-2xl overflow-hidden",
                 style: { border: "1px solid var(--accent-line)", background: "var(--accent-soft)" }
@@ -5183,8 +5198,24 @@ function zk({
     })),
     iasPromovatiDesfacuti ? o.default.createElement("div", { className: "space-y-1.5 mb-2" },
         (() => {
+            /* În ordinea promovării, cel mai proaspăt în cap — nu alfabetic.
+               Lista asta se citește ca o cronică: „cine a luat permisul de
+               curând", nu „unde e Popescu". La examenele picate data se golește
+               pentru reprogramare, așa că luăm ziua din istoric dacă e acolo;
+               cine n-are nicio dată cade la coadă, după nume. */
+            let iasCand = (x) => {
+                if ((x.examDate || "").trim()) return x.examDate;
+                let ale = (Array.isArray(x.examIstoric) ? x.examIstoric : [])
+                    .filter(y => y && y.fel === "practic" && y.rezultat === "promovat" && y.data)
+                    .map(y => y.data).sort();
+                return ale.length ? ale[ale.length - 1] : ""
+            };
             let iasLista = n.students.filter(x => x.examResult === "promovat" && !x.withdrawn)
-                .sort((x, y) => (x.name || "").localeCompare(y.name || "", "ro"));
+                .sort((x, y) => {
+                    let a2 = iasCand(x), b2 = iasCand(y);
+                    if (a2 !== b2) return (b2 || "").localeCompare(a2 || "");
+                    return (x.name || "").localeCompare(y.name || "", "ro")
+                });
             if (!iasLista.length) return o.default.createElement("div", {
                 className: "text-xs text-slate-400 px-3.5 py-2"
             }, "Niciun elev promovat \xEEnc\u0103.");
@@ -11321,6 +11352,22 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.41.4",
+    titlu: "Derularea, dup\u0103 ce fereastra s-a a\u0219ezat",
+    puncte: ["Comanda de derulare se d\u0103dea la 90 de milisecunde, c\xE2nd fereastra \xEEnc\u0103 se deschide \u2014 animatia ei \u021Bine o secund\u0103. Pozi\u021Bia socotit\u0103 atunci era gre\u0219it\u0103, a\u0219a c\u0103 nu se \xEEnt\xE2mpla nimic. Acum se \xEEncearc\u0103 de mai multe ori, p\xE2n\u0103 dup\u0103 ce s-a a\u0219ezat."]
+}, {
+    v: "v2.41.3",
+    titlu: "Sec\u021Biunea deschis\u0103 vine \xEEn fa\u021Ba ochilor",
+    puncte: ["C\xE2nd apagi \xEEn\u0219tiin\u021Barea \u201Egata de teoretic\u201D, fi\u0219a se deruleaz\u0103 acum p\xE2n\u0103 la Examene, cu Teoretic ales. Derularea se f\u0103cea pe pagin\u0103, dar con\u021Binutul fi\u0219ei se mi\u0219c\u0103 \xEEn cutia lui \u2014 a\u0219a c\u0103 sec\u021Biunea r\u0103m\xE2nea jos, nev\u0103zut\u0103.", "La fel se \xEEndreapt\u0103 \u0219i orice alt\u0103 list\u0103 care se desface \xEEn\u0103untrul unei fi\u0219e."]
+}, {
+    v: "v2.41.2",
+    titlu: "Promova\u021Bii, \xEEn ordinea lor",
+    puncte: ["Lista de elevi promova\u021Bi din Statistici p\u0103streaz\u0103 acum ordinea promov\u0103rii, cel mai proasp\u0103t \xEEn cap \u2014 nu ordinea alfabetic\u0103. La cei la care data s-a golit dup\u0103 o reprogramare, se ia ziua din istoricul examenelor."]
+}, {
+    v: "v2.41.1",
+    titlu: "Un pic de aer pe Acas\u0103",
+    puncte: ["Blocul \u201Egata de teoretic\u201D nu mai st\u0103 lipit de cardurile cu cifre de deasupra."]
+}, {
     v: "v2.41.0",
     titlu: "Anun\u021Burile de pe Acas\u0103, str\xE2nse pe grupuri",
     puncte: ["Blocul \u201Egata de teoretic\u201D st\u0103 acum str\xE2ns sub titlul lui \u0219i se desface la atingere \u2014 cu nou\u0103 elevi \xEE\u021Bi lua tot ecranul.", "La \u201ENecesit\u0103 aten\u021Bie\u201D, examenele practice \u0219i cele teoretice au fiecare grupul lui. Cele la care trebuie s\u0103 notezi rezultatul r\u0103m\xE2n la vedere oricum.", "\xCEn Statistici, ap\u0103s\xE2nd pe \u201EElevi promova\u021Bi\u201D se desface lista lor, cu grupa \u0219i data examenului; de acolo deschizi fi\u0219a oric\u0103ruia."]
