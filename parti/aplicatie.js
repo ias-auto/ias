@@ -3393,7 +3393,16 @@ function Ak({
             display: "flex",
             flexDirection: "column"
         }
-    }, s === "night" && mw.map((p, c) => o.default.createElement("span", {
+    },
+    /* ============ CERUL DIN ANTET ============
+       Soarele urmează drumul lui adevărat: răsare din stânga, la orizont, urcă
+       sus la amiază și coboară în dreapta la apus. Seara se văd amândoi — el
+       apunând într-o parte, luna răsărind în cealaltă —, iar noaptea rămâne
+       doar luna, sus.
+
+       Niciunul nu mai stă în colțul din dreapta sus, unde se încurca cu butonul
+       de schimbat perioada. Butonul a coborât la piciorul antetului. */
+    s === "night" && mw.map((p, c) => o.default.createElement("span", {
         key: c,
         className: "ias-star",
         style: {
@@ -3410,27 +3419,51 @@ function Ak({
             animationDelay: p[2],
             opacity: .5
         }
-    })), s === "night" && o.default.createElement(zi, {
-        size: 26,
+    })),
+    /* Soarele: la zori jos în stânga, la amiază sus la mijloc, la apus jos în
+       dreapta. Noaptea nu se vede deloc. */
+    s !== "night" && (() => {
+        let iasLoc = {
+                dawn: { left: "12%", top: 128, marime: 40, culoare: "#ffd0a1", lumina: "rgba(255,208,161,0.95)" },
+                day: { left: "50%", top: 26, marime: 46, culoare: "#fff0a8", lumina: "rgba(255,240,168,0.95)" },
+                dusk: { left: "84%", top: 132, marime: 42, culoare: "#fb923c", lumina: "rgba(251,146,60,0.9)" }
+            }[s];
+        return o.default.createElement("span", {
+            "aria-hidden": "true",
+            style: {
+                position: "absolute",
+                width: iasLoc.marime,
+                height: iasLoc.marime,
+                top: iasLoc.top,
+                left: iasLoc.left,
+                marginLeft: -iasLoc.marime / 2,
+                borderRadius: 99,
+                background: iasLoc.culoare,
+                boxShadow: `0 0 48px ${iasLoc.lumina}`,
+                transition: "top .8s ease, left .8s ease",
+                pointerEvents: "none"
+            }
+        })
+    })(),
+    /* Luna: seara răsare în stânga, în timp ce soarele apune în dreapta; noaptea
+       e sus, singură pe cer. */
+    (s === "night" || s === "dusk") && o.default.createElement(zi, {
+        size: s === "night" ? 28 : 22,
         color: "#dbe6f5",
+        "aria-hidden": "true",
         style: {
             position: "absolute",
-            top: 16,
-            right: 24,
-            filter: "drop-shadow(0 0 10px rgba(219,230,245,0.8))"
+            top: s === "night" ? 30 : 86,
+            left: s === "night" ? "50%" : "14%",
+            marginLeft: s === "night" ? -14 : -11,
+            opacity: s === "night" ? 1 : .75,
+            filter: "drop-shadow(0 0 10px rgba(219,230,245,0.8))",
+            transition: "top .8s ease, left .8s ease",
+            pointerEvents: "none"
         }
-    }), s === "day" && o.default.createElement(o.default.Fragment, null, o.default.createElement("span", {
-        style: {
-            position: "absolute",
-            width: 44,
-            height: 44,
-            top: 12,
-            right: 22,
-            borderRadius: 99,
-            background: "#fff0a8",
-            boxShadow: "0 0 44px rgba(255,240,168,0.95)"
-        }
-    }), o.default.createElement("span", {
+    }),
+    /* Norii de zi, lăsați unde erau — nu se încurcă cu nimic. */
+    s === "day" && o.default.createElement(o.default.Fragment, null, o.default.createElement("span", {
         style: {
             position: "absolute",
             width: 70,
@@ -3452,18 +3485,7 @@ function Ak({
             background: "rgba(255,255,255,.7)",
             filter: "blur(3px)"
         }
-    })), (s === "dawn" || s === "dusk") && o.default.createElement("span", {
-        style: {
-            position: "absolute",
-            width: 40,
-            height: 40,
-            right: 28,
-            bottom: 8,
-            borderRadius: 99,
-            background: s === "dawn" ? "#ffd0a1" : "#fb923c",
-            boxShadow: "0 0 44px rgba(251,146,60,0.9)"
-        }
-    }), o.default.createElement("div", {
+    })), o.default.createElement("div", {
         className: "absolute inset-0",
         style: {
             zIndex: 0
@@ -3489,19 +3511,27 @@ function Ak({
         }
     }, o.default.createElement(ar, {
         size: 13
-    }), " ", fn.expansion), o.default.createElement("button", {
+    }), " ", fn.expansion)),
+    /* Butonul de perioadă a coborât la piciorul antetului, pe stânga, sub
+       scris: sus se încurca cu soarele și cu luna, care stau acum pe cer, la
+       locul lor. */
+    o.default.createElement("button", {
         onClick: f,
-        className: "flex items-center gap-1 rounded-full px-2 py-1 shrink-0",
+        className: "absolute flex items-center gap-1 rounded-full px-2.5 py-1",
         style: {
+            left: 20,
+            bottom: 14,
+            zIndex: 2,
             fontSize: 10,
             fontWeight: 700,
-            background: "rgba(3,7,18,0.4)",
+            background: "rgba(3,7,18,0.52)",
             border: "1px solid rgba(255,255,255,0.26)",
-            color: "#fff"
+            color: "#fff",
+            backdropFilter: "blur(2px)"
         }
     }, o.default.createElement(u, {
         size: 12
-    }), r ? l.label : `${d} \xB7 ${l.label}`)), o.default.createElement("h1", {
+    }), r ? l.label : `${d} \xB7 ${l.label}`), o.default.createElement("h1", {
         className: "relative font-display uppercase",
         style: {
             marginTop: 12,
@@ -11387,6 +11417,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.42.1",
+    titlu: "Soarele \u0219i luna, la locul lor pe cer",
+    puncte: ["Soarele urmeaz\u0103 acum drumul adev\u0103rat: r\u0103sare jos \xEEn st\xE2nga la zori, urc\u0103 sus la mijloc la amiaz\u0103, coboar\u0103 \xEEn dreapta la apus. Seara se v\u0103d am\xE2ndoi \u2014 el apun\xE2nd \xEEntr-o parte, luna r\u0103s\u0103rind \xEEn cealalt\u0103. Noaptea r\u0103m\xE2ne doar luna, sus.", "Butonul care schimb\u0103 perioada a cobor\xEEt la piciorul antetului, pe st\xE2nga: sus se \xEEncurca cu soarele \u0219i cu luna."]
+}, {
     v: "v2.42.0",
     titlu: "Pragul de \u201Egata de teoretic\u201D, la alegerea ta",
     puncte: ["\xCEn Set\u0103ri \u2192 Program de lucru alegi dup\u0103 c\xE2te \u0219edin\u021Be efectuate \xEE\u021Bi d\u0103 de \u0219tire c\u0103 elevul poate merge la sal\u0103. Zece r\u0103m\xE2ne valoarea de pornire, c\xE2t cere legea \u2014 pune mai pu\u021Bine dac\u0103 vrei s\u0103 afli din vreme, ca s\u0103 apuci s\u0103 prinzi o dat\u0103."]
