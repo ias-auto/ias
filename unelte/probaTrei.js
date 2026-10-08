@@ -8,8 +8,12 @@ const azi = new Date().toISOString().slice(0, 10);
 const rez = [];
 const cer = (n, ok, d) => rez.push([ok ? '✓' : '✕', n, d || '']);
 
+/* Derularea se încearcă de mai multe ori, până după ce fereastra s-a așezat:
+   animația ei ține o secundă, iar la 90 de milisecunde poziția era greșită. */
 cer('listele își urcă capul la deschidere',
-  /window\.scrollBy\(\{ top: sus - 78, behavior: "smooth" \}\)/.test(html));
+  /el\.scrollIntoView\(\{ block: "start", behavior: "smooth" \}\)/.test(html)
+  && /\[120, 420, 780, 1150, 1500\]/.test(html),
+  'cinci încercări, până la 1,5 secunde');
 
 const settings = {
   workDays: [0,1,2,3,4,5,6], startMin: 480, endMin: 1200, sessionMin: 90, stepMin: 30, currency: 'lei',

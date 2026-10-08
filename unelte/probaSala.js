@@ -112,6 +112,28 @@ const pauza = (ms) => new Promise(r => setTimeout(r, ms));
     'nu pe Practic, unde n-ai treabă acum');
   cer('  și spune că e gata de teoretic', !!g && /gata de teoretic/.test(g.textContent));
 
+  /* Secțiunea nu trebuie doar deschisă, ci și adusă în câmpul vizual: fișa își
+     derulează propriul container, nu pagina. */
+  const capExamene = g && [...g.querySelectorAll('button')]
+    .find(x => /^Examene/.test(x.textContent.trim()));
+  cer('  capul secțiunii e în fișă', !!capExamene);
+  const cutie = (() => {
+    for (let p2 = capExamene && capExamene.parentElement; p2; p2 = p2.parentElement) {
+      const st = d.window.getComputedStyle(p2).overflowY;
+      if (st === 'auto' || st === 'scroll') return p2;
+    }
+    return null;
+  })();
+  cer('  fișa are un container care se derulează', !!cutie,
+    cutie ? cutie.className.slice(0, 40) : 'n-am găsit');
+  const src = fs.readFileSync('index.html', 'utf8');
+  cer('  derularea găsește singură containerul',
+    /el\.scrollIntoView\(\{ block: "start", behavior: "smooth" \}\)/.test(src),
+    'scrollIntoView, nu derularea paginii');
+  cer('  și se încearcă până se așază fereastra',
+    /\[120, 420, 780, 1150, 1500\]/.test(src),
+    'animația ferestrei ține 1,05 secunde');
+
   console.log('');
   rez.forEach(([s, n, dt]) => console.log('  ' + s + ' ' + n.padEnd(44) + (dt || '')));
   const cazute = rez.filter(r => r[0] === '✕').length;

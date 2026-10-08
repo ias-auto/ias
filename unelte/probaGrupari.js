@@ -24,12 +24,21 @@ students.push({ id: 't1', name: 'Teoretic Unu', lastName: 'Teoretic', firstName:
   includedHours: 20, weeklyLimit: 7, payments: [], theoryExamDate: zi(7) });
 students.push({ id: 't2', name: 'Teoretic Doi', lastName: 'Teoretic', firstName: 'Doi',
   includedHours: 20, weeklyLimit: 7, payments: [], theoryExamDate: zi(8) });
-/* trei promovați */
-['Promovat Ana', 'Promovat Barbu', 'Promovat Cezar'].forEach((n, k) => students.push({
-  id: 'pr' + k, name: n, lastName: n.split(' ')[0], firstName: n.split(' ')[1],
+/* Trei promovați, cu date anume, ca să se vadă ordinea. Pe nume ar ieși
+   Ana, Barbu, Cezar — dar Cezar a luat permisul cel mai recent. */
+students.push({ id: 'pr0', name: 'Promovat Ana', lastName: 'Promovat', firstName: 'Ana',
   includedHours: 20, weeklyLimit: 7, payments: [], group: '70',
-  examResult: 'promovat', examDate: zi(-20),
-}));
+  examResult: 'promovat', examDate: zi(-30) });
+students.push({ id: 'pr1', name: 'Promovat Barbu', lastName: 'Promovat', firstName: 'Barbu',
+  includedHours: 20, weeklyLimit: 7, payments: [], group: '70',
+  examResult: 'promovat', examDate: zi(-20) });
+/* Cezar n-are examDate — a rămas doar în istoric, cum se întâmplă după
+   reprogramări — dar e cel mai proaspăt promovat. */
+students.push({ id: 'pr2', name: 'Promovat Cezar', lastName: 'Promovat', firstName: 'Cezar',
+  includedHours: 20, weeklyLimit: 7, payments: [], group: '70',
+  examResult: 'promovat',
+  examIstoric: [{ id: 'e1', data: zi(-40), fel: 'practic', rezultat: 'respins' },
+                { id: 'e2', data: zi(-5), fel: 'practic', rezultat: 'promovat' }] });
 
 /* fiecăruia dintre cei nouă îi dăm 10+ ședințe efectuate */
 const sessions = [];
@@ -71,6 +80,12 @@ const pauza = (ms) => new Promise(r => setTimeout(r, ms));
   /* 1. blocul de gata de sală */
   cer('blocul spune câți sunt gata', /9 gata de teoretic/.test(text()),
     (text().match(/\d+ gata de teoretic/) || ['—'])[0]);
+  /* Nu trebuie să stea lipit de cardurile cu cifre de deasupra. */
+  const bloc = [...doc().querySelectorAll('div')]
+    .find(x => /^px-4 /.test(x.className || '') && /gata de teoretic/i.test(x.textContent));
+  cer('  și are spațiu față de cardurile de sus',
+    !!bloc && /\bmt-\d/.test(bloc.className),
+    bloc ? bloc.className : 'nu l-am găsit');
   cer('  dar nu-ți umple ecranul cu toți',
     (text().match(/așteaptă programare la sală/g) || []).length === 0,
     'lista stă strânsă');
@@ -99,6 +114,16 @@ const pauza = (ms) => new Promise(r => setTimeout(r, ms));
   const nume = ['Promovat Ana', 'Promovat Barbu', 'Promovat Cezar'].filter(x => text().includes(x));
   cer('„Elevi promovați" desface lista lor', nume.length === 3, nume.join(', '));
   cer('  cu grupa și data examenului', /gr\. 70/.test(text()));
+  /* Ordinea promovării, nu a numelui: Cezar acum cinci zile, Barbu acum
+     douăzeci, Ana acum treizeci. */
+  const t = text();
+  const poz = (x) => t.indexOf(x);
+  cer('  în ordinea promovării, nu alfabetic',
+    poz('Promovat Cezar') < poz('Promovat Barbu') && poz('Promovat Barbu') < poz('Promovat Ana'),
+    'Cezar → Barbu → Ana');
+  cer('  iar data luată din istoric, când examDate s-a golit',
+    poz('Promovat Cezar') < poz('Promovat Barbu'),
+    'Cezar n-are examDate, dar a promovat acum cinci zile');
   clic(btn(/^Promovat Ana/)); await pauza(900);
   cer('  iar de acolo deschizi fișa',
     [...doc().querySelectorAll('.sheet-anim')].some(x => /Promovat Ana/.test(x.textContent)),
