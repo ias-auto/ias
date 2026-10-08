@@ -2191,7 +2191,16 @@ function dk({
 
    Semnul se stinge de îndată ce i-ai pus o dată de teoretic sau dacă l-a luat
    deja — nu-ți mai amintește de ceva ce ai făcut. */
+/* Câte ședințe efectuate înseamnă „gata de sală". Zece e legea, dar fiecare
+   instructor lucrează altfel: unul îi trimite la sală abia după douăsprezece,
+   altul vrea să știe de la opt, ca să aibă timp să prindă o dată. Pragul se
+   schimbă din Setări, ca rezerva de examen. */
 var IAS_PRAG_TEORETIC = 10;
+
+function iasPragSala(setari) {
+    var n = Number(setari && setari.pragTeoretic);
+    return isNaN(n) || n < 1 ? IAS_PRAG_TEORETIC : Math.min(40, n)
+}
 
 /* Semnul de înștiințare, desenat: șase brațe pornite din același punct, ca o
    floricică. Nu e litera „*" dintr-un rând de text — e un semn de sine
@@ -2214,22 +2223,23 @@ function IasSemnNou({ size: iasS = 14, culoare: iasC = "var(--accent)" }) {
     }))
 }
 
-function iasAsteaptaSala(elev, sesiuni) {
+function iasAsteaptaSala(elev, sesiuni, setari) {
     if (!elev || elev.withdrawn) return 0;
     if (elev.theoryExamResult === "promovat") return 0;
     if ((elev.theoryExamDate || "").trim()) return 0;
     var facute = (sesiuni || []).filter(function (x) {
         return x.studentId === elev.id && x.status === "completed"
     }).length;
-    return facute >= IAS_PRAG_TEORETIC ? facute : 0
+    return facute >= iasPragSala(setari) ? facute : 0
 }
 
 function Lf({
     student: n,
     size: e = 14,
-    sesiuni: iasSes
+    sesiuni: iasSes,
+    setari: iasSet
 }) {
-    var iasSala = iasAsteaptaSala(n, iasSes),
+    var iasSala = iasAsteaptaSala(n, iasSes, iasSet),
         iasZi = BA(n);
     if (!iasZi && !iasSala) return null;
     let t = vu(n.birthDate);
@@ -4969,7 +4979,7 @@ function zk({
        pe măsură ce mai faci ședințe cu el. */
     (() => {
         let iasGata = n.students
-            .map(z => ({ elev: z, cate: iasAsteaptaSala(z, n.sessions) }))
+            .map(z => ({ elev: z, cate: iasAsteaptaSala(z, n.sessions, n.settings) }))
             .filter(z => z.cate > 0)
             .sort((z, q) => q.cate - z.cate);
         if (!iasGata.length) return null;
@@ -5036,7 +5046,8 @@ function zk({
     }, X(z.studentId), o.default.createElement(Lf, {
         student: n.students.find(iasE => iasE.id === z.studentId),
         size: 13,
-                sesiuni: n.sessions
+                sesiuni: n.sessions,
+                setari: n.settings
             }), z.otherInstructor && o.default.createElement("span", {
         className: "ml-1.5 text-xs font-normal text-violet-600"
     }, "\xB7 ", z.instructorName || "alt instr.")), z.location && o.default.createElement("span", {
@@ -5263,7 +5274,8 @@ function zk({
     }, z.name, o.default.createElement(Lf, {
         student: z,
         size: 12,
-                sesiuni: n.sessions
+                sesiuni: n.sessions,
+                setari: n.settings
             })))))), o.default.createElement("div", {
         className: "px-4 mt-5"
     }, o.default.createElement("div", {
@@ -5655,7 +5667,8 @@ function Hk({
         }, W.student.name, o.default.createElement(Lf, {
             student: W.student,
             size: 13,
-                sesiuni: n.sessions
+                sesiuni: n.sessions,
+                setari: n.settings
             })), o.default.createElement("div", {
             className: "text-xs text-slate-500"
         }, W.label.toLowerCase(), " \xB7 ", Se(W.start), "\u2013", Se(W.end)), N && o.default.createElement(o.default.Fragment, null, o.default.createElement("div", {
@@ -5824,7 +5837,8 @@ function Hk({
             }, k(Y.studentId), o.default.createElement(Lf, {
                 student: n.students.find(iasE => iasE.id === Y.studentId),
                 size: 13,
-                sesiuni: n.sessions
+                sesiuni: n.sessions,
+                setari: n.settings
             }), Y.auto && o.default.createElement("span", {
                 className: "ml-1.5 text-xs font-normal",
                 style: {
@@ -5942,7 +5956,8 @@ function Hk({
         }, "+ ", Y.name, o.default.createElement(Lf, {
             student: Y,
             size: 12,
-                sesiuni: n.sessions
+                sesiuni: n.sessions,
+                setari: n.settings
             })))))
     })), o.default.createElement(Ok, {
         open: f != null,
@@ -6037,7 +6052,8 @@ function Uk({
     }, f.name), o.default.createElement(Lf, {
         student: f,
         size: 13,
-                sesiuni: n.sessions
+                sesiuni: n.sessions,
+                setari: n.settings
             }), f.group ? o.default.createElement("span", {
         className: "text-xs text-slate-400 shrink-0"
     }, "gr. ", f.group) : null))), iasAscunsi > 0 ? o.default.createElement("p", {
@@ -6059,7 +6075,8 @@ function Uk({
         className: l ? "text-slate-900 truncate" : "text-slate-400"
     }, l ? l.name : "Alege elevul")), l && o.default.createElement(Lf, {
         student: l,
-                sesiuni: n.sessions
+                sesiuni: n.sessions,
+                setari: n.settings
             }))
 }
 
@@ -6520,7 +6537,8 @@ function Gk({
             }, w.name, o.default.createElement(Lf, {
                 student: w,
                 size: 12,
-                sesiuni: n.sessions
+                sesiuni: n.sessions,
+                setari: n.settings
             })))
         })));
     return o.default.createElement("div", {
@@ -6737,7 +6755,8 @@ function Vk({
             className: "font-medium text-slate-900 text-sm truncate"
         }, E.name), o.default.createElement(Lf, {
             student: E,
-                sesiuni: n.sessions
+                sesiuni: n.sessions,
+                setari: n.settings
             }), o.default.createElement(Bf, {
             student: E,
             county: E.county,
@@ -7763,10 +7782,10 @@ function Wk({
         title: "Examene",
         /* Semnul stă în colțul din stânga sus al rândului, nu lipit de cuvânt:
            se vede ca înștiințare, nu ca parte din titlu. */
-        semn: iasAsteaptaSala(t, iasSesiuni) ? o.default.createElement(IasSemnNou, { size: 13 }) : null,
+        semn: iasAsteaptaSala(t, iasSesiuni, s) ? o.default.createElement(IasSemnNou, { size: 13 }) : null,
         forteaza: !!iasLaExamene,
         summary: c.examDate ? qe(c.examDate)
-            : iasAsteaptaSala(t, iasSesiuni) ? "gata de teoretic" : "neprogramat"
+            : iasAsteaptaSala(t, iasSesiuni, s) ? "gata de teoretic" : "neprogramat"
     }, o.default.createElement(IasFile, {
         etichete: ["Practic", "Teoretic"],
         dela: iasLaExamene ? 1 : 0,
@@ -8128,7 +8147,8 @@ Te rog confirm\u0103. Mul\u021Bumesc!`;
     }, o.default.createElement(Lf, {
         student: e,
         size: 18,
-                sesiuni: n.sessions
+                sesiuni: n.sessions,
+                setari: n.settings
             }), o.default.createElement(Bf, {
         student: e,
         county: e.county,
@@ -8943,7 +8963,8 @@ function jk({
         }, N.name, o.default.createElement(Lf, {
             student: N,
             size: 13,
-                sesiuni: n.sessions
+                sesiuni: n.sessions,
+                setari: n.settings
             })), o.default.createElement("div", {
             className: "text-xs text-slate-400"
         }, N.remaining, " de programat", N.examDate ? ` \xB7 examen ${qe(N.examDate)}` : ""), N.tura && L0(N) && (() => {
@@ -10443,6 +10464,20 @@ function e3({
                         className: ie,
                         onCommit: H => e({ rezervaExamen: H })
                     }))) : null),
+            /* După câte ședințe îți dau de știre că elevul poate merge la sală.
+               Zece e pragul legal, dar unul vrea să afle mai devreme, ca să
+               apuce să prindă o dată, altul abia după ce l-a mai plimbat. */
+            o.default.createElement(xe, {
+                label: "Gata de teoretic dup\u0103"
+            }, o.default.createElement(IasNumar, {
+                value: iasPragSala(J),
+                min: 1,
+                max: 40,
+                className: ie,
+                onCommit: H => e({ pragTeoretic: H })
+            }), o.default.createElement(IasInfo, {
+                text: "De la at\xE2tea \u0219edin\u021Be efectuate \xEEncolo, elevul prime\u0219te semnul de \xEEn\u0219tiin\u021Bare \u0219i apare pe Acas\u0103 la \u201Egata de teoretic\u201D. Legea cere zece; pune mai pu\u021Bine dac\u0103 vrei s\u0103 afli din vreme, ca s\u0103 apuci s\u0103 prinzi o dat\u0103 la sal\u0103."
+            })),
             /* Pauzele de masă: le pui o dată și se repetă singure în fiecare
                zi de lucru. Câte îți trebuie — unul ia trei, altul una. */
             o.default.createElement(Jn, {
@@ -11352,6 +11387,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.42.0",
+    titlu: "Pragul de \u201Egata de teoretic\u201D, la alegerea ta",
+    puncte: ["\xCEn Set\u0103ri \u2192 Program de lucru alegi dup\u0103 c\xE2te \u0219edin\u021Be efectuate \xEE\u021Bi d\u0103 de \u0219tire c\u0103 elevul poate merge la sal\u0103. Zece r\u0103m\xE2ne valoarea de pornire, c\xE2t cere legea \u2014 pune mai pu\u021Bine dac\u0103 vrei s\u0103 afli din vreme, ca s\u0103 apuci s\u0103 prinzi o dat\u0103."]
+}, {
     v: "v2.41.4",
     titlu: "Derularea, dup\u0103 ce fereastra s-a a\u0219ezat",
     puncte: ["Comanda de derulare se d\u0103dea la 90 de milisecunde, c\xE2nd fereastra \xEEnc\u0103 se deschide \u2014 animatia ei \u021Bine o secund\u0103. Pozi\u021Bia socotit\u0103 atunci era gre\u0219it\u0103, a\u0219a c\u0103 nu se \xEEnt\xE2mpla nimic. Acum se \xEEncearc\u0103 de mai multe ori, p\xE2n\u0103 dup\u0103 ce s-a a\u0219ezat."]
