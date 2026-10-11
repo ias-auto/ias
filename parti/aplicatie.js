@@ -1883,10 +1883,27 @@ function uk({
         c = {},
         m = {},
         g = (C, W) => Math.abs(Math.round((Ue(C).getTime() - Ue(W).getTime()) / 864e5)),
-        v = (C, W) => {
+        /* Zilele în care elevul are deja ceva — și din plan, și din calendarul
+           tău. Până acum se uita doar la ce pusese planul în runda asta, deci
+           o ședință pe care o aveai deja în calendar nu se punea la socoteală. */
+        iasZileleLui = (C) => (c[C.id] || []).concat(
+            e.filter(R => R.studentId === C.id && R.status !== "cancelled" && !R.otherInstructor)
+             .map(R => R.date)),
+        /* Pauza cerută: cea de pe fișa elevului, iar dacă n-are, cea pusă în
+           Setări pentru toți. */
+        iasPauzaCeruta = (C) => {
             let X = Number(C.minGapDays) || 0;
-            return X < 2 ? !0 : !(c[C.id] || []).some(R => g(R, W) < X)
-        };
+            return X >= 2 ? X : (Number(t.ritmImplicit) || 0)
+        },
+        v = (C, W) => {
+            let X = iasPauzaCeruta(C);
+            return X < 2 ? !0 : !iasZileleLui(C).some(R => g(R, W) < X)
+        },
+        /* Odihnit = n-a avut ședință nici ieri, nici azi. E o preferință, nu o
+           lege: dacă nimeni altcineva nu poate în ziua aceea, tot el o prinde.
+           Altfel un elev liber de luni până vineri primea luni, marți, miercuri
+           la rând — ceea ce nu-i face bine nimănui. */
+        iasOdihnit = (C, W) => !iasZileleLui(C).some(R => g(R, W) < 2);
 
     function w(C, W, X) {
         d[C] || (d[C] = []), d[C].push([W, W + (X || s)])
@@ -1974,10 +1991,22 @@ function uk({
                                 if (!((p[`${he.id}_${ne}`] || 0) >= u[he.id]) && A(he, Ne, C, z)) iasBuni.push(he)
                             }
                             if (!iasBuni.length) return null;
-                            /* Dintre cei care pot la ora asta, îl luăm pe cel
-                               obișnuit cu ea. Dacă niciunul n-are un obicei
-                               aici, rămâne primul — adică cel mai grăbit, după
-                               ordinea dinainte. */
+                            /* Pauza de o zi între ședințele aceluiași elev.
+                               Planul trece de două ori peste săptămâni: întâi
+                               strâns, apoi larg. La prima trecere pauza e lege,
+                               așa că elevul liber toată săptămâna prinde luni,
+                               miercuri, vineri — nu trei zile la rând.
+
+                               La a doua trecere se lasă: cine poate doar luni,
+                               marți și miercuri le primește pe toate trei. Mai
+                               bine o ședință lipită decât una pierdută. */
+                            var iasOdihniti = iasBuni.filter(function (he) { return iasOdihnit(he, z) });
+                            if (C && !iasOdihniti.length) return null;
+                            if (iasOdihniti.length) iasBuni = iasOdihniti;
+                            /* Dintre cei rămași, îl luăm pe cel obișnuit cu ora
+                               asta. Dacă niciunul n-are un obicei aici, rămâne
+                               primul — adică cel mai grăbit, după ordinea
+                               dinainte. */
                             var iasCelMaiBun = null, iasScorMax = 0;
                             for (var iasJ = 0; iasJ < iasBuni.length; iasJ++) {
                                 var iasS2 = iasScorObisnuinta(iasOreleLui(e, iasBuni[iasJ].id), Ne);
@@ -8879,6 +8908,7 @@ function jk({
                editorul din fișă n-ar schimba nimic: planul primește doar
                câmpurile scrise aici, nu elevul întreg. */
             dispZile: C.dispZile,
+            minGapDays: C.minGapDays,
             availFrom: C.availFrom,
             availTo: C.availTo,
             defaultLocation: C.defaultLocation,
@@ -10599,7 +10629,25 @@ function e3({
                 max: 7,
                 className: ie,
                 onCommit: H => e({ defaultWeeklyLimit: H })
-            })), o.default.createElement(xe, {
+            })),
+            /* Pauza dintre ședințele aceluiași elev. Planul lasă oricum o zi
+               liberă când poate; aici ceri mai mult, dacă vrei. Elevul care are
+               pe fișa lui altă pauză merge după a lui. */
+            o.default.createElement(xe, {
+                label: "Pauz\u0103 \xEEntre \u0219edin\u021Bele aceluia\u0219i elev"
+            }, o.default.createElement("select", {
+                className: ie,
+                value: Number(J.ritmImplicit) || 0,
+                onChange: H => e({ ritmImplicit: Number(H.target.value) })
+            },
+                o.default.createElement("option", { value: 0 }, "o zi \u2014 c\xE2t se poate"),
+                o.default.createElement("option", { value: 3 }, "cel pu\u021Bin dou\u0103 zile"),
+                o.default.createElement("option", { value: 4 }, "cel pu\u021Bin trei zile"),
+                o.default.createElement("option", { value: 7 }, "o dat\u0103 pe s\u0103pt\u0103m\xE2n\u0103")),
+                o.default.createElement(IasInfo, {
+                    text: "Planul las\u0103 oricum o zi liber\u0103 \xEEntre dou\u0103 \u0219edin\u021Be ale aceluia\u0219i elev, c\xE2nd se poate. Dac\u0103 elevul are zile libere doar una dup\u0103 alta, le prime\u0219te oricum \u2014 mai bine o \u0219edin\u021B\u0103 lipit\u0103 dec\xE2t una pierdut\u0103. Cu o pauz\u0103 mai mare aleas\u0103 aici, regula devine strict\u0103."
+                })),
+            o.default.createElement(xe, {
                 label: "Jude\u021B implicit pentru elevi noi"
             }, o.default.createElement("select", {
                 className: ie,
@@ -11417,6 +11465,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.43.0",
+    titlu: "Ritmul \u0219edin\u021Belor, respectat de plan",
+    puncte: ["Planul las\u0103 acum o zi liber\u0103 \xEEntre dou\u0103 \u0219edin\u021Be ale aceluia\u0219i elev. Cine e liber toat\u0103 s\u0103pt\u0103m\xE2na prime\u0219te luni, miercuri, vineri \u2014 nu trei zile la r\xE2nd. Cine are zile libere doar una dup\u0103 alta le prime\u0219te oricum: mai bine o \u0219edin\u021B\u0103 lipit\u0103 dec\xE2t una pierdut\u0103.", "Reparat: pauza pus\u0103 pe fi\u0219a elevului nu ajungea deloc la plan, era folosit\u0103 doar la sugestiile din calendar. \u0218i se uita doar la \u0219edin\u021Bele puse \xEEn runda aceea, nu \u0219i la cele din calendarul t\u0103u.", "\xCEn Set\u0103ri \u2192 Elevi po\u021Bi cere o pauz\u0103 mai mare pentru to\u021Bi; elevul cu pauz\u0103 proprie pe fi\u0219\u0103 merge dup\u0103 a lui."]
+}, {
     v: "v2.42.1",
     titlu: "Soarele \u0219i luna, la locul lor pe cer",
     puncte: ["Soarele urmeaz\u0103 acum drumul adev\u0103rat: r\u0103sare jos \xEEn st\xE2nga la zori, urc\u0103 sus la mijloc la amiaz\u0103, coboar\u0103 \xEEn dreapta la apus. Seara se v\u0103d am\xE2ndoi \u2014 el apun\xE2nd \xEEntr-o parte, luna r\u0103s\u0103rind \xEEn cealalt\u0103. Noaptea r\u0103m\xE2ne doar luna, sus.", "Butonul care schimb\u0103 perioada a cobor\xEEt la piciorul antetului, pe st\xE2nga: sus se \xEEncurca cu soarele \u0219i cu luna."]
