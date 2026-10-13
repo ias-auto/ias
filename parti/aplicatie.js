@@ -11465,37 +11465,21 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
-    v: "v2.43.0",
-    titlu: "Ritmul \u0219edin\u021Belor, respectat de plan",
-    puncte: ["Planul las\u0103 acum o zi liber\u0103 \xEEntre dou\u0103 \u0219edin\u021Be ale aceluia\u0219i elev. Cine e liber toat\u0103 s\u0103pt\u0103m\xE2na prime\u0219te luni, miercuri, vineri \u2014 nu trei zile la r\xE2nd. Cine are zile libere doar una dup\u0103 alta le prime\u0219te oricum: mai bine o \u0219edin\u021B\u0103 lipit\u0103 dec\xE2t una pierdut\u0103.", "Reparat: pauza pus\u0103 pe fi\u0219a elevului nu ajungea deloc la plan, era folosit\u0103 doar la sugestiile din calendar. \u0218i se uita doar la \u0219edin\u021Bele puse \xEEn runda aceea, nu \u0219i la cele din calendarul t\u0103u.", "\xCEn Set\u0103ri \u2192 Elevi po\u021Bi cere o pauz\u0103 mai mare pentru to\u021Bi; elevul cu pauz\u0103 proprie pe fi\u0219\u0103 merge dup\u0103 a lui."]
+    v: "v2.44.0",
+    titlu: "Ritmul \u0219edin\u021Belor",
+    puncte: ["Planul las\u0103 o zi liber\u0103 \xEEntre dou\u0103 \u0219edin\u021Be ale aceluia\u0219i elev. Dac\u0103 elevul poate doar \xEEn zile una dup\u0103 alta, le prime\u0219te oricum.", "\xCEn Set\u0103ri \u2192 Elevi po\u021Bi cere o pauz\u0103 mai mare pentru to\u021Bi; fi\u0219a elevului o poate schimba pentru el."]
 }, {
-    v: "v2.42.1",
-    titlu: "Soarele \u0219i luna, la locul lor pe cer",
-    puncte: ["Soarele urmeaz\u0103 acum drumul adev\u0103rat: r\u0103sare jos \xEEn st\xE2nga la zori, urc\u0103 sus la mijloc la amiaz\u0103, coboar\u0103 \xEEn dreapta la apus. Seara se v\u0103d am\xE2ndoi \u2014 el apun\xE2nd \xEEntr-o parte, luna r\u0103s\u0103rind \xEEn cealalt\u0103. Noaptea r\u0103m\xE2ne doar luna, sus.", "Butonul care schimb\u0103 perioada a cobor\xEEt la piciorul antetului, pe st\xE2nga: sus se \xEEncurca cu soarele \u0219i cu luna."]
+    v: "v2.43.0",
+    titlu: "Pragul de \u201Egata de teoretic\u201D",
+    puncte: ["\xCEn Set\u0103ri alegi dup\u0103 c\xE2te \u0219edin\u021Be efectuate \xEE\u021Bi d\u0103 de \u0219tire c\u0103 elevul poate merge la sal\u0103."]
 }, {
     v: "v2.42.0",
-    titlu: "Pragul de \u201Egata de teoretic\u201D, la alegerea ta",
-    puncte: ["\xCEn Set\u0103ri \u2192 Program de lucru alegi dup\u0103 c\xE2te \u0219edin\u021Be efectuate \xEE\u021Bi d\u0103 de \u0219tire c\u0103 elevul poate merge la sal\u0103. Zece r\u0103m\xE2ne valoarea de pornire, c\xE2t cere legea \u2014 pune mai pu\u021Bine dac\u0103 vrei s\u0103 afli din vreme, ca s\u0103 apuci s\u0103 prinzi o dat\u0103."]
-}, {
-    v: "v2.41.4",
-    titlu: "Derularea, dup\u0103 ce fereastra s-a a\u0219ezat",
-    puncte: ["Comanda de derulare se d\u0103dea la 90 de milisecunde, c\xE2nd fereastra \xEEnc\u0103 se deschide \u2014 animatia ei \u021Bine o secund\u0103. Pozi\u021Bia socotit\u0103 atunci era gre\u0219it\u0103, a\u0219a c\u0103 nu se \xEEnt\xE2mpla nimic. Acum se \xEEncearc\u0103 de mai multe ori, p\xE2n\u0103 dup\u0103 ce s-a a\u0219ezat."]
-}, {
-    v: "v2.41.3",
-    titlu: "Sec\u021Biunea deschis\u0103 vine \xEEn fa\u021Ba ochilor",
-    puncte: ["C\xE2nd apagi \xEEn\u0219tiin\u021Barea \u201Egata de teoretic\u201D, fi\u0219a se deruleaz\u0103 acum p\xE2n\u0103 la Examene, cu Teoretic ales. Derularea se f\u0103cea pe pagin\u0103, dar con\u021Binutul fi\u0219ei se mi\u0219c\u0103 \xEEn cutia lui \u2014 a\u0219a c\u0103 sec\u021Biunea r\u0103m\xE2nea jos, nev\u0103zut\u0103.", "La fel se \xEEndreapt\u0103 \u0219i orice alt\u0103 list\u0103 care se desface \xEEn\u0103untrul unei fi\u0219e."]
-}, {
-    v: "v2.41.2",
-    titlu: "Promova\u021Bii, \xEEn ordinea lor",
-    puncte: ["Lista de elevi promova\u021Bi din Statistici p\u0103streaz\u0103 acum ordinea promov\u0103rii, cel mai proasp\u0103t \xEEn cap \u2014 nu ordinea alfabetic\u0103. La cei la care data s-a golit dup\u0103 o reprogramare, se ia ziua din istoricul examenelor."]
+    titlu: "Anun\u021Burile de pe Acas\u0103",
+    puncte: ["Elevii gata de teoretic stau str\xE2n\u0219i sub titlul lor \u0219i se desfac la atingere.", "Examenele practice \u0219i cele teoretice au fiecare grupul lui \xEEn \u201ENecesit\u0103 aten\u021Bie\u201D.", "\xCEn Statistici, ap\u0103s\xE2nd pe \u201EElevi promova\u021Bi\u201D se desface lista lor, cea mai proasp\u0103t\u0103 promovare \xEEn cap."]
 }, {
     v: "v2.41.1",
-    titlu: "Un pic de aer pe Acas\u0103",
-    puncte: ["Blocul \u201Egata de teoretic\u201D nu mai st\u0103 lipit de cardurile cu cifre de deasupra."]
-}, {
-    v: "v2.41.0",
-    titlu: "Anun\u021Burile de pe Acas\u0103, str\xE2nse pe grupuri",
-    puncte: ["Blocul \u201Egata de teoretic\u201D st\u0103 acum str\xE2ns sub titlul lui \u0219i se desface la atingere \u2014 cu nou\u0103 elevi \xEE\u021Bi lua tot ecranul.", "La \u201ENecesit\u0103 aten\u021Bie\u201D, examenele practice \u0219i cele teoretice au fiecare grupul lui. Cele la care trebuie s\u0103 notezi rezultatul r\u0103m\xE2n la vedere oricum.", "\xCEn Statistici, ap\u0103s\xE2nd pe \u201EElevi promova\u021Bi\u201D se desface lista lor, cu grupa \u0219i data examenului; de acolo deschizi fi\u0219a oric\u0103ruia."]
+    titlu: "Soarele \u0219i luna, la locul lor",
+    puncte: ["Soarele r\u0103sare, urc\u0103 \u0219i apune dup\u0103 ora zilei. Seara se v\u0103d am\xE2ndoi, noaptea doar luna.", "Butonul de perioad\u0103 a cobor\xEEt la piciorul antetului."]
 }, {
     v: "v2.40.3",
     titlu: "Semnul de la \u0219edin\u021Ba anulat\u0103",
@@ -12506,6 +12490,45 @@ function y3() {
         }]), De
     }
 
+    /* Scoate de pe elev un pachet pus mai demult: orele lui, taxa, ziua din
+       jurnal și plata făcută la școală, dacă a adus una. Fără asta, schimbarea
+       pachetului aduna: puneai 15, te răzgândeai la 17 și elevul rămânea cu 32.
+       Se scoate doar ce a adăugat chiar pachetul acela, nimic altceva. */
+    function iasScoatePachet(elev, idPachet, setari) {
+        let taxa = ii(setari).find(x => x.id === idPachet);
+        if (!taxa) return elev;
+        let ore = Number(taxa.hours) || 0,
+            unde = ur(taxa) === "included" ? "includedHours" : "extraHours",
+            cate = Number((elev.fees || {})[idPachet]) || 0,
+            taxeNoi = { ...(elev.fees || {}) };
+        if (cate > 1) taxeNoi[idPachet] = cate - 1;
+        else delete taxeNoi[idPachet];
+        // din jurnal scoatem cea mai nouă intrare a pachetului
+        let jurnal = [...(elev.feeLog || [])];
+        for (let k = jurnal.length - 1; k >= 0; k--)
+            if (jurnal[k] && jurnal[k].feeId === idPachet) { jurnal.splice(k, 1); break }
+        let iesire = {
+            ...elev,
+            fees: taxeNoi,
+            feeLog: jurnal,
+            [unde]: Math.max(0, (Number(elev[unde]) || 0) - ore)
+        };
+        /* Plata pusă automat la școală se retrage odată cu pachetul — dar numai
+           cea pe care a adus-o el: aceeași sumă, de la școală, cea mai nouă. */
+        if (taxa.laScoala) {
+            let plati = [...(elev.payments || [])];
+            for (let k = plati.length - 1; k >= 0; k--) {
+                let pl = plati[k];
+                if (pl && pl.collector === "school" && Number(pl.amount) === (Number(taxa.price) || 0)) {
+                    plati.splice(k, 1);
+                    break
+                }
+            }
+            iesire.payments = plati
+        }
+        return iesire
+    }
+
     function fe(I, F, V) {
         let ee = I.pachet && I.pachet !== (V && V.pachet);
         F === "edit" ? (ce(te => ({
@@ -12516,7 +12539,11 @@ function y3() {
                     ...ue,
                     ...I
                 };
-                return ee ? se(De, I.pachet, te.settings) : De
+                /* Schimbarea pachetului înlocuiește, nu adună: întâi scoatem
+                   pachetul de dinainte, apoi îl punem pe cel nou. */
+                if (!ee) return De;
+                let iasFaraVechi = (V && V.pachet) ? iasScoatePachet(De, V.pachet, te.settings) : De;
+                return se(iasFaraVechi, I.pachet, te.settings)
             }),
             /* Elevul tocmai retras nu mai are ce căuta în calendar: ședințele
                lui de azi înainte trec în „anulată" pe loc, ca intervalele să se
