@@ -56,6 +56,20 @@ const probe = [
   /* Intrările din „Ce e nou" trebuie să-și păstreze versiunea lor. Dacă apar
      două cu același număr, înseamnă că ștampila de versiune a scăpat unde nu
      trebuia — exact defectul care făcea să reapară mesajul „Garajul". */
+  /* Numărul de versiune are un înțeles, nu e un contor: prima cifră —
+     schimbare mare; a doua — o funcție nouă sau alta; a treia — doar înfățișare.
+     Dacă intrarea din „Ce e nou" vorbește despre o funcție, dar s-a mișcat doar
+     a treia cifră, e semn că numărul minte. */
+  ['versiunea se potrivește cu ce scrie în istoric', (() => {
+    const m = html.match(/v:\s*"v(\d+)\.(\d+)\.(\d+)"[\s\S]{0,400}?puncte:\s*\[([\s\S]{0,600}?)\]/);
+    if (!m) return true;
+    const vizual = m[3] !== '0';
+    /* Textul din istoric e scris cu coduri de litere (\u0219, \xEE), nu cu
+       litere adevărate, așa că le căutăm pe amândouă. */
+    const vorbeDeFunctie = /po\\u021Bi |poti |alegi |apare |Set\\u0103ri|Setari|adaug|se desface/i.test(m[4]);
+    return !(vizual && vorbeDeFunctie);
+  })()],
+
   ['istoricul nu a fost ștampilat', (() => {
     const versiuni = (html.match(/v:\s*"(v[0-9.]+)"/g) || []).map(x => x.split('"')[1]);
     return versiuni.length === new Set(versiuni).size;
