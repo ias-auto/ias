@@ -1891,9 +1891,14 @@ function uk({
              .map(R => R.date)),
         /* Pauza cerută: cea de pe fișa elevului, iar dacă n-are, cea pusă în
            Setări pentru toți. */
-        iasPauzaCeruta = (C) => {
+        /* Pauza scrisă pe fișa elevului e lege: ai hotărât-o anume pentru el.
+           Cea cerută din Plan e o dorință pentru generarea asta — se ține la
+           prima trecere și se lasă la a doua, ca elevul care poate doar în zile
+           una după alta să nu rămână cu o singură ședință pe săptămână. */
+        iasPauzaCeruta = (C) => Number(C.minGapDays) || 0,
+        iasPauzaDorita = (C) => {
             let X = Number(C.minGapDays) || 0;
-            return X >= 2 ? X : (Number(t.ritmImplicit) || 0)
+            return X >= 2 ? X : (Number(t.ritmPlan) || 0)
         },
         v = (C, W) => {
             let X = iasPauzaCeruta(C);
@@ -1991,16 +1996,20 @@ function uk({
                                 if (!((p[`${he.id}_${ne}`] || 0) >= u[he.id]) && A(he, Ne, C, z)) iasBuni.push(he)
                             }
                             if (!iasBuni.length) return null;
-                            /* Pauza de o zi între ședințele aceluiași elev.
-                               Planul trece de două ori peste săptămâni: întâi
-                               strâns, apoi larg. La prima trecere pauza e lege,
-                               așa că elevul liber toată săptămâna prinde luni,
-                               miercuri, vineri — nu trei zile la rând.
+                            /* Pauza dintre ședințele aceluiași elev nu se mai
+                               ia din oficiu: o ceri tu, fie pe fișa elevului,
+                               fie din reglajele Planului. Dacă n-ai cerut-o,
+                               planul umple ca înainte.
 
-                               La a doua trecere se lasă: cine poate doar luni,
-                               marți și miercuri le primește pe toate trei. Mai
-                               bine o ședință lipită decât una pierdută. */
-                            var iasOdihniti = iasBuni.filter(function (he) { return iasOdihnit(he, z) });
+                               Când e cerută, se ține în două trepte: la prima
+                               trecere e lege, la a doua se lasă — cine poate
+                               doar în zile una după alta le primește oricum.
+                               Mai bine o ședință lipită decât una pierdută. */
+                            var iasOdihniti = iasBuni.filter(function (he) {
+                                var iasP = iasPauzaDorita(he);
+                                if (iasP < 2) return !0;   // n-a cerut nimeni pauză pentru el
+                                return !iasZileleLui(he).some(function (R) { return g(R, z) < iasP })
+                            });
                             if (C && !iasOdihniti.length) return null;
                             if (iasOdihniti.length) iasBuni = iasOdihniti;
                             /* Dintre cei rămași, îl luăm pe cel obișnuit cu ora
@@ -8809,6 +8818,7 @@ function jk({
     onApplyPlan: t,
     onStergePropuneri: a
 }) {
+    let [iasRitm, iasPuneRitm] = (0, o.useState)(0);
     let r = Fa(n.settings),
         i = n.students.map(N => ({
             ...N,
@@ -8922,7 +8932,8 @@ function jk({
                 ...n.settings,
                 examStudents: n.students,
                 horizonDays: c,
-                grupare: w
+                grupare: w,
+                ritmPlan: iasRitm
             },
             fromDateISO: g || Be()
         }))
@@ -9072,7 +9083,7 @@ function jk({
         className: "px-4 mt-4"
     }, o.default.createElement(Jn, {
         title: "Op\u021Biuni de planificare",
-        summary: `${g === Be() ? "de azi" : qe(g)} \xB7 ${(M.find(N => N.v === c) || {}).l || ""} \xB7 ${w === "fara" ? "f\u0103r\u0103 grupare" : w === "zona" ? "pe zone" : w === "masina" ? "pe ma\u0219ini" : "pe hart\u0103"}`
+        summary: `${g === Be() ? "de azi" : qe(g)} \xB7 ${(M.find(N => N.v === c) || {}).l || ""} \xB7 ${w === "fara" ? "f\u0103r\u0103 grupare" : w === "zona" ? "pe zone" : w === "masina" ? "pe ma\u0219ini" : "pe hart\u0103"}${iasRitm >= 2 ? ` \xB7 pauz\u0103 ${iasRitm - 1} ${iasRitm === 2 ? "zi" : "zile"}` : ""}`
     }, o.default.createElement(xe, {
         label: "\xCEncepe de la"
     }, o.default.createElement("input", {
@@ -9094,7 +9105,22 @@ function jk({
     }, M.map(N => o.default.createElement("option", {
         key: N.v,
         value: N.v
-    }, N.l)))), o.default.createElement(xe, {
+    }, N.l)))),
+    /* Pauza dintre ședințele aceluiași elev, cerută pentru generarea asta. Din
+       oficiu nu e niciuna — planul umple cum apucă. Elevul care are pauza lui
+       scrisă pe fișă merge după a lui, oricât ai cere aici. */
+    o.default.createElement(xe, {
+        label: "Pauz\u0103 \xEEntre \u0219edin\u021Bele aceluia\u0219i elev"
+    }, o.default.createElement("select", {
+        className: ie,
+        value: iasRitm,
+        onChange: N => { iasPuneRitm(Number(N.target.value)), p(null) }
+    },
+        o.default.createElement("option", { value: 0 }, "F\u0103r\u0103 \u2014 c\xE2t de str\xE2ns se poate"),
+        o.default.createElement("option", { value: 2 }, "O zi liber\u0103 \xEEntre ele"),
+        o.default.createElement("option", { value: 3 }, "Dou\u0103 zile libere"),
+        o.default.createElement("option", { value: 4 }, "Trei zile libere"))),
+    o.default.createElement(xe, {
         label: "Cum se grupeaz\u0103"
     }, o.default.createElement("select", {
         className: ie,
@@ -10630,23 +10656,6 @@ function e3({
                 className: ie,
                 onCommit: H => e({ defaultWeeklyLimit: H })
             })),
-            /* Pauza dintre ședințele aceluiași elev. Planul lasă oricum o zi
-               liberă când poate; aici ceri mai mult, dacă vrei. Elevul care are
-               pe fișa lui altă pauză merge după a lui. */
-            o.default.createElement(xe, {
-                label: "Pauz\u0103 \xEEntre \u0219edin\u021Bele aceluia\u0219i elev"
-            }, o.default.createElement("select", {
-                className: ie,
-                value: Number(J.ritmImplicit) || 0,
-                onChange: H => e({ ritmImplicit: Number(H.target.value) })
-            },
-                o.default.createElement("option", { value: 0 }, "o zi \u2014 c\xE2t se poate"),
-                o.default.createElement("option", { value: 3 }, "cel pu\u021Bin dou\u0103 zile"),
-                o.default.createElement("option", { value: 4 }, "cel pu\u021Bin trei zile"),
-                o.default.createElement("option", { value: 7 }, "o dat\u0103 pe s\u0103pt\u0103m\xE2n\u0103")),
-                o.default.createElement(IasInfo, {
-                    text: "Planul las\u0103 oricum o zi liber\u0103 \xEEntre dou\u0103 \u0219edin\u021Be ale aceluia\u0219i elev, c\xE2nd se poate. Dac\u0103 elevul are zile libere doar una dup\u0103 alta, le prime\u0219te oricum \u2014 mai bine o \u0219edin\u021B\u0103 lipit\u0103 dec\xE2t una pierdut\u0103. Cu o pauz\u0103 mai mare aleas\u0103 aici, regula devine strict\u0103."
-                })),
             o.default.createElement(xe, {
                 label: "Jude\u021B implicit pentru elevi noi"
             }, o.default.createElement("select", {
@@ -11465,9 +11474,9 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
-    v: "v2.44.0",
+    v: "v2.45.0",
     titlu: "Ritmul \u0219edin\u021Belor",
-    puncte: ["Planul las\u0103 o zi liber\u0103 \xEEntre dou\u0103 \u0219edin\u021Be ale aceluia\u0219i elev. Dac\u0103 elevul poate doar \xEEn zile una dup\u0103 alta, le prime\u0219te oricum.", "\xCEn Set\u0103ri \u2192 Elevi po\u021Bi cere o pauz\u0103 mai mare pentru to\u021Bi; fi\u0219a elevului o poate schimba pentru el."]
+    puncte: ["\xCEn Plan po\u021Bi cere o pauz\u0103 \xEEntre \u0219edin\u021Bele aceluia\u0219i elev: o zi, dou\u0103 sau trei. Dac\u0103 elevul poate doar \xEEn zile una dup\u0103 alta, le prime\u0219te oricum.", "Pauza scris\u0103 pe fi\u0219a unui elev r\u0103m\xE2ne a lui \u0219i se \u021Bine \xEEntocmai, oricare ar fi alegerea din Plan."]
 }, {
     v: "v2.43.0",
     titlu: "Pragul de \u201Egata de teoretic\u201D",
