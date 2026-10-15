@@ -28,7 +28,8 @@ const clic = (el) => el && el.dispatchEvent(new d.window.MouseEvent('click', { b
 const pauza = (ms) => new Promise(r => setTimeout(r, ms));
 
 const butonul = () => [...doc().querySelectorAll('button')]
-  .find(x => /Zori|^Zi$|Apus|Noapte/.test(x.textContent.trim()) && /rounded-full/.test(x.className || ''));
+  /* Eticheta e „15:41 · Zi" la ora prânzului, nu doar „Zi". */
+  .find(x => /(^|·\s*)(Zori|Zi|Apus|Noapte)$/.test(x.textContent.trim()) && /rounded-full/.test(x.className || ''));
 /* Soarele e un cerc colorat, pus cu poziție absolută. */
 const soarele = () => [...doc().querySelectorAll('span')]
   .find(x => {
