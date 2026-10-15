@@ -586,13 +586,26 @@ function Ow(n, e, t) {
     t.rateTypes.forEach(p => {
         a[p.id] = Number(p.price) || 0
     });
+    /* Banii se socotesc după aceeași împărțire ca etichetele de pe ședințe:
+       fiecare pachet acoperă doar ședințele de la ziua lui încolo.
+
+       Înainte, aici se aduna totul într-o oală: un pachet pus azi ștergea de la
+       plată ședințe de acum două luni, pe care elevul le achitase deja. Datoria
+       sărea în jos cu valoarea lor, iar pe ședințe scria mai departe „de plată"
+       — adică banii spuneau una și etichetele alta. */
     let r = e.filter(p => p.studentId === n.id && p.status !== "cancelled" && !p.otherInstructor && p.type !== "included").sort((p, c) => (p.date + Se(p.startMin)).localeCompare(c.date + Se(c.startMin))),
-        i = zw(n, t),
-        s = Math.min(i, r.length),
-        l = r.slice(s).reduce((p, c) => p + (a[c.type] || 0), 0),
-        u = i - s,
-        d = Math.max(0, (Number(n.extraHours) || 0) - r.length),
-        f = Math.max(0, d - u);
+        pach = iasPacheteleLui(n, t),
+        oreDate = pach.reduce((x, y) => x + y.ore, 0),
+        folosite = 0,
+        l = 0;
+    r.forEach(u2 => {
+        let gasit = pach.filter(x => x.ore > 0 && (!x.dela || x.dela <= u2.date))[0];
+        if (gasit) { gasit.ore--, folosite++; return }
+        l += a[u2.type] || 0
+    });
+    let d = Math.max(0, (Number(n.extraHours) || 0) - r.length),
+        ramase = Math.max(0, oreDate - folosite),
+        f = Math.max(0, d - ramase);
     return l + f * (a.extra || 0) + _f(n, t)
 }
 
@@ -11474,6 +11487,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.45.1",
+    titlu: "Datoria elevului, socotit\u0103 corect",
+    puncte: ["Un pachet pus ast\u0103zi nu mai \u0219terge de la plat\u0103 \u0219edin\u021Be de acum dou\u0103 luni, pe care elevul le-a achitat deja. Acoper\u0103 doar \u0219edin\u021Bele de la ziua lui \xEEncolo."]
+}, {
     v: "v2.45.0",
     titlu: "Ritmul \u0219edin\u021Belor",
     puncte: ["\xCEn Plan po\u021Bi cere o pauz\u0103 \xEEntre \u0219edin\u021Bele aceluia\u0219i elev: o zi, dou\u0103 sau trei. Dac\u0103 elevul poate doar \xEEn zile una dup\u0103 alta, le prime\u0219te oricum.", "Pauza scris\u0103 pe fi\u0219a unui elev r\u0103m\xE2ne a lui \u0219i se \u021Bine \xEEntocmai, oricare ar fi alegerea din Plan."]
