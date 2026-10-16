@@ -98,7 +98,7 @@ function iasExameneDate(elevi, data) {
 
 function iasTeoreticeZi(elevi, data) {
     return !data || !elevi ? [] : elevi.filter(function (x) {
-        return !x.withdrawn && x.theoryExamDate === data
+        return !x.withdrawn && !x.perfectionare && x.theoryExamDate === data
     })
 }
 
@@ -477,9 +477,16 @@ function bo(n) {
     return (Number(n.includedHours) || 0) + (Number(n.extraHours) || 0)
 }
 
-function kf(n, e) {
+/* Câte ședințe mai are de făcut. Fără setări nu se pot socoti pachetele, așa
+   că cine le are la îndemână le dă; ceilalți merg pe socoteala veche. */
+function kf(n, e, iasSet) {
+    if (iasSet) {
+        var t = iasImpartire(n, e, iasSet);
+        return Math.max(0, t.total - Af(e, n.id))
+    }
     return Math.max(0, bo(n) - Af(e, n.id))
 }
+
 /* Câte ședințe se țin deoparte pentru examen. Era o cifră scrisă în cod; acum
    se poate schimba din Setări, fiindcă fiecare instructor lucrează altfel. */
 var Nf = 3,
@@ -489,8 +496,7 @@ var Nf = 3,
 
        Din pornire e OPRITĂ, și așa trebuie să fie: legea cere ca elevul să aibă
        toate ședințele efectuate, iar a-i ține ore nefăcute nu e treaba
-       aplicației să hotărască în locul instructorului. O pornește cine o vrea,
-       cu câte ore îi convin. */
+       aplicației să hotărască în locul instructorului. */
     iasRezerva = (setari) => {
         if (!setari || !setari.rezervaActiva) return 0;
         var n = Number(setari.rezervaExamen);
@@ -512,8 +518,10 @@ function Dw(n) {
     }
 }
 
+/* Ședințele obligatorii după adeverință. Cine vine la perfecționare n-are
+   adeverință și n-are ședințe obligatorii — are permis. */
 function UA(n, e) {
-    return !n || !n.adeverintaDin ? 0 : e.filter(t => t.studentId === n.id && t.status === "completed" && t.date >= n.adeverintaDin).length
+    return !n || n.perfectionare || !n.adeverintaDin ? 0 : e.filter(t => t.studentId === n.id && t.status === "completed" && t.date >= n.adeverintaDin).length
 }
 /* Elevul plecat o perioadă: vacanță, deplasare, orice. Ține două date, ambele
    inclusiv. În ziua în care se întoarce e din nou disponibil. */
@@ -530,7 +538,10 @@ function iasZilePlecat(elev) {
     return { din: elev.plecatDin || azi, pana: elev.plecatPana, revine: ft(pn(Ue(elev.plecatPana), 1)) };
 }
 
-var Pf = n => !!n && !n.withdrawn && n.examResult !== "promovat" && !ho(n),
+/* Cine intră în plan. Elevul promovat iese — a terminat școala. Cel venit la
+   perfecționare are deja permisul, deci „promovat" nu-l scoate: tocmai de-aia
+   e aici, să conducă. */
+var Pf = n => !!n && !n.withdrawn && !ho(n) && (n.perfectionare || n.examResult !== "promovat"),
     RA = 10,
     Sf = (n, e) => Math.round((Ue(e).getTime() - Ue(n).getTime()) / 864e5),
     Mf = (n, e) => {
@@ -540,13 +551,13 @@ var Pf = n => !!n && !n.withdrawn && n.examResult !== "promovat" && !ho(n),
     };
 
 function GA(n, e, t, iasSet) {
-    let a = kf(n, e);
+    let a = kf(n, e, iasSet);
     if (a <= 0) return 0;
     /* Rezerva de examen e la alegerea ta și e oprită din pornire. Aici se lua
        oricum trei ore deoparte, fiindcă setările nu ajungeau până la funcția
        asta — așa că elevul cu exact trei ore rămase ieșea cu zero libere și nu
        era propus niciodată. Tocmai cel pe care vrei să-l închei. */
-    let r = Math.min(iasRezerva(iasSet || null), bo(n));
+    let r = Math.min(iasRezerva(iasSet || null), iasSet ? iasImpartire(n, e, iasSet).total : bo(n));
     return n.examDate ? t >= n.examDate ? 0 : Mf(n, t) ? a : Math.max(0, a - r) : Math.max(0, a - r)
 }
 
@@ -582,36 +593,8 @@ function zw(n, e) {
 }
 
 function Ow(n, e, t) {
-    let a = {};
-    t.rateTypes.forEach(p => {
-        a[p.id] = Number(p.price) || 0
-    });
-    /* Banii se socotesc după aceeași împărțire ca etichetele de pe ședințe:
-       fiecare pachet acoperă doar ședințele de la ziua lui încolo.
-
-       Înainte, aici se aduna totul într-o oală: un pachet pus azi ștergea de la
-       plată ședințe de acum două luni, pe care elevul le achitase deja. Datoria
-       sărea în jos cu valoarea lor, iar pe ședințe scria mai departe „de plată"
-       — adică banii spuneau una și etichetele alta. */
-    let r = e.filter(p => p.studentId === n.id && p.status !== "cancelled" && !p.otherInstructor && p.type !== "included").sort((p, c) => (p.date + Se(p.startMin)).localeCompare(c.date + Se(c.startMin))),
-        pach = iasPacheteleLui(n, t),
-        oreDate = pach.reduce((x, y) => x + y.ore, 0),
-        folosite = 0,
-        l = 0;
-    r.forEach(u2 => {
-        let gasit = pach.filter(x => x.ore > 0 && (!x.dela || x.dela <= u2.date))[0];
-        if (gasit) { gasit.ore--, folosite++; return }
-        l += a[u2.type] || 0
-    });
-    let d = Math.max(0, (Number(n.extraHours) || 0) - r.length),
-        ramase = Math.max(0, oreDate - folosite),
-        f = Math.max(0, d - ramase);
-    return l + f * (a.extra || 0) + _f(n, t)
+    return iasImpartire(n, e, t).deIncasat
 }
-
-/* Mașinile școlii. Fiecare are un nume (de obicei numărul de înmatriculare),
-   cutia și, dacă vrei, combustibilul. Elevul se leagă de o mașină, iar planul
-   îi așază pe cei cu aceeași mașină unul după altul. */
 function iasMasini(setari) {
     return (setari && setari.masini) || [];
 }
@@ -914,30 +897,108 @@ function iasPacheteleLui(elev, setari) {
     return out.sort(function (x, y) { return (x.dela || "").localeCompare(y.dela || "") })
 }
 
-function jA(n, e, t) {
-    let a = {};
-    t.rateTypes.forEach(u => {
-        a[u.id] = Number(u.price) || 0
+/* ============ ÎMPĂRȚIREA ORELOR ȘI A BANILOR ============
+   Una singură, folosită peste tot: și la etichetele de pe ședințe, și la
+   datorie, și la contorul de pe fișă. Altfel ajung să spună lucruri diferite,
+   cum s-a și întâmplat.
+
+   Cum lucrează, pe înțelesul meseriei:
+
+     · Fiecare ședință suplimentară costă, la bucată.
+     · Un pachet aduce doi bani: suma lui de plată și un număr de locuri
+       pre-plătite. Locurile merg întâi la ședințele de după pachet; cele
+       rămase prind ședințe deja făcute, DAR neachitate — asta e cazul în care
+       vinzi pachetul după ce omul a și condus.
+     · Banii primiți sting datoriile în ordinea în care s-au născut, nu „întâi
+       taxele". Fără asta, o plată veche s-ar muta pe o taxă nouă și ședințe
+       achitate de luni de zile ar reveni la „de plată".
+
+   Orele suplimentare scrise de mână pe fișă sunt locuri pe care le dai tu, fără
+   preț — ca orele incluse. Dacă vrei să le și încasezi, pui un pachet. */
+function iasImpartire(elev, sesiuni, setari) {
+    var pret = {};
+    (setari.rateTypes || []).forEach(function (x) { pret[x.id] = Number(x.price) || 0 });
+
+    var sup = (sesiuni || []).filter(function (x) {
+        return x.studentId === elev.id && x.status !== "cancelled"
+            && !x.otherInstructor && x.type !== "included"
+    }).sort(function (a, b) {
+        return (a.date + Se(a.startMin)).localeCompare(b.date + Se(b.startMin))
     });
-    let r = e.filter(u => u.studentId === n.id && u.status !== "cancelled" && !u.otherInstructor && u.type !== "included").sort((u, d) => (u.date + Se(u.startMin)).localeCompare(d.date + Se(d.startMin))),
-        /* Fiecare pachet acoperă ședințe de la ziua lui încolo. Înainte se
-           adunau toate orele într-o oală și se dădeau celor mai vechi ședințe —
-           așa un pachet pus azi plătea ședințe de acum trei luni, iar cele
-           pentru care l-ai pus rămâneau „de plată". */
-        iasPachete = iasPacheteleLui(n, t),
-        s = Math.max(0, M0(n) - _f(n, t)),
-        l = {};
-    return r.forEach(u => {
-        let iasP = iasPachete.filter(x => x.ore > 0 && (!x.dela || x.dela <= u.date))[0];
-        if (iasP) {
-            iasP.ore--, l[u.id] = "package";
-            return
-        }
-        let f = a[u.type] || 0;
-        s >= f ? (l[u.id] = "paid", s -= f) : s > 0 ? (l[u.id] = "partial", s = 0) : l[u.id] = "due"
-    }), l
+
+    var pach = iasPacheteleLui(elev, setari),
+        locuriPachete = pach.reduce(function (c, x) { return c + x.ore }, 0),
+        /* ore suplimentare puse cu mâna, peste cele din pachete */
+        cuMana = Math.max(0, (Number(elev.extraHours) || 0) - locuriPachete);
+    if (cuMana > 0) pach = [{ dela: "", ore: cuMana }].concat(pach);
+    var locuri = locuriPachete + cuMana,
+        acoperit = {};
+
+    // 1. locurile merg la ședințele de la data pachetului încolo
+    pach.forEach(function (pp) {
+        sup.forEach(function (u) {
+            if (pp.ore > 0 && !acoperit[u.id] && (!pp.dela || pp.dela <= u.date))
+                acoperit[u.id] = !0, pp.ore--
+        })
+    });
+
+    // toate datoriile, în ordinea în care s-au născut
+    var datorii = [];
+    ii(setari).forEach(function (taxa) {
+        var cate = Df(elev, taxa.id),
+            zile = (elev.feeLog || []).filter(function (x) { return x && x.feeId === taxa.id })
+                .map(function (x) { return x.date || "" }).sort();
+        for (var k = 0; k < cate; k++)
+            datorii.push({ data: zile[k] == null ? "" : zile[k], suma: Number(taxa.price) || 0, fel: "taxa" })
+    });
+    sup.forEach(function (u) {
+        datorii.push({ data: u.date, suma: pret[u.type] || 0, fel: "sedinta", ses: u })
+    });
+    datorii.sort(function (a, b) { return (a.data || "").localeCompare(b.data || "") });
+
+    var imparteBanii = function () {
+        var bani = M0(elev);
+        datorii.forEach(function (d) {
+            d.platit = 0;
+            if (d.fel === "sedinta" && acoperit[d.ses.id]) return;
+            var ia = Math.min(bani, d.suma);
+            d.platit = ia, bani -= ia
+        })
+    };
+    imparteBanii();
+
+    // 2. locurile rămase prind ședințe deja făcute, dar neachitate
+    pach.forEach(function (pp) {
+        datorii.forEach(function (d) {
+            if (pp.ore > 0 && d.fel === "sedinta" && !acoperit[d.ses.id] && (d.platit || 0) < d.suma)
+                acoperit[d.ses.id] = !0, pp.ore--
+        })
+    });
+    imparteBanii();
+
+    var stare = {}, necoperite = 0, deIncasat = 0;
+    datorii.forEach(function (d) {
+        if (d.fel !== "sedinta") { deIncasat += d.suma; return }
+        if (acoperit[d.ses.id]) { stare[d.ses.id] = "package"; return }
+        necoperite++, deIncasat += d.suma;
+        stare[d.ses.id] = d.platit >= d.suma ? "paid" : d.platit > 0 ? "partial" : "due"
+    });
+
+    return {
+        stare: stare,
+        deIncasat: deIncasat,
+        necoperite: necoperite,
+        locuri: locuri,
+        /* Câte ședințe are dreptul să facă: incluse + locuri din pachete +
+           ședințele la bucată pe care deja i le-ai dat. Cele la bucată nu ies
+           din nicio pungă — le vinzi pe loc. */
+        total: (Number(elev.includedHours) || 0) + locuri + necoperite
+    }
 }
 
+function jA(n, e, t) {
+    return iasImpartire(n, e, t).stare
+}
 function Uw(n) {
     let e = n && n.settings || {};
     return {
@@ -2276,6 +2337,7 @@ function IasSemnNou({ size: iasS = 14, culoare: iasC = "var(--accent)" }) {
 
 function iasAsteaptaSala(elev, sesiuni, setari) {
     if (!elev || elev.withdrawn) return 0;
+    if (elev.perfectionare) return 0;   // n-are sală, are permis
     if (elev.theoryExamResult === "promovat") return 0;
     if ((elev.theoryExamDate || "").trim()) return 0;
     var facute = (sesiuni || []).filter(function (x) {
@@ -4941,10 +5003,11 @@ function zk({
         y = x.length,
         _ = w[0],
         b = x[0],
-        M = n.students.filter(z => kf(z, n.sessions) === 0 && Pf(z)),
+        M = n.students.filter(z => kf(z, n.sessions, n.settings) === 0 && Pf(z)),
         S = [],
         k = ft(pn(Ue(l), 14));
-    n.students.filter(z => !z.withdrawn).forEach(z => {
+    // cine vine la perfecționare n-are examene de dat
+    n.students.filter(z => !z.withdrawn && !z.perfectionare).forEach(z => {
         z.examResult !== "promovat" && z.examDate && (z.examDate <= l ? S.push({
             student: z,
             date: z.examDate,
@@ -5674,7 +5737,10 @@ function Hk({
                 },
                     o.default.createElement("div", {
                         className: "text-sm font-medium text-slate-900 truncate"
-                    }, x.name),
+                    }, x.name, x.theoryExamOra != null && x.theoryExamOra !== ""
+                        ? o.default.createElement("span", {
+                            className: "font-mono-time text-xs ml-1.5", style: { color: "var(--violet)" }
+                        }, Se(Number(x.theoryExamOra))) : null),
                     Number(x.theoryExamAttempts) > 0 ? o.default.createElement("div", {
                         className: "text-xs", style: { color: "var(--muted-2)" }
                     }, x.theoryExamAttempts, Number(x.theoryExamAttempts) === 1 ? " sus\u021Binere" : " sus\u021Bineri") : null,
@@ -5879,6 +5945,12 @@ function Hk({
         className: "px-4 space-y-1.5"
     }, (B = -1e9, null), b.map(A => {
         let O = y0(G, A, _),
+            /* Intervalul în care cade examenul teoretic se colorează la fel ca
+               al celui practic. E doar un semn pentru ochi: teoreticul nu-ți
+               ocupă mașina, deci ora rămâne liberă de programat. */
+            iasTeoAici = iasTeoreticeZi(n.students, r).filter(Y =>
+                Y.theoryExamOra != null && Y.theoryExamOra !== ""
+                && Number(Y.theoryExamOra) >= A && Number(Y.theoryExamOra) < A + _),
             N = bf(c, A, _),
             C = x.filter(Y => Y.startMin >= A && Y.startMin < A + _).sort((Y, J) => Y.startMin - J.startMin);
         if (C.length > 0) return C.map(Y => {
@@ -6014,12 +6086,18 @@ function Hk({
                 date: r,
                 startMin: A
             }) : p(A),
-            className: "w-full flex items-center gap-3 px-3.5 py-2 rounded-xl border border-dashed border-slate-300 text-slate-400 active:border-amber-300 active:text-amber-600"
+            className: "w-full flex items-center gap-3 px-3.5 py-2 rounded-xl border border-dashed border-slate-300 text-slate-400 active:border-amber-300 active:text-amber-600",
+            style: iasTeoAici.length ? {
+                borderColor: "var(--violet)",
+                background: "color-mix(in srgb, var(--violet) 7%, transparent)"
+            } : void 0
         }, o.default.createElement("span", {
             className: "font-mono-time text-xs w-12 text-left"
         }, Se(A)), o.default.createElement("span", {
             className: "text-xs"
-        }, "Liber"), o.default.createElement(cn, {
+        }, iasTeoAici.length
+            ? `Teoretic \xB7 ${iasTeoAici.map(Y => Y.name.split(" ")[0]).join(", ")}`
+            : "Liber"), o.default.createElement(cn, {
             size: 14,
             className: "ml-auto"
         })), $ && ne && !iasOraTrecuta(r, A) && E.length > 0 && o.default.createElement("div", {
@@ -6795,7 +6873,7 @@ function Vk({
            ședințe totale minus cele efectuate. Se lua după cele rămase
            neprogramate — care scad și ședințele doar puse în calendar — așa că
            lista părea amestecată, deși fiecare card arăta altceva. */
-        remaining: g(E => Math.max(0, bo(E) - S0(n.sessions, E.id))),
+        remaining: g(E => Math.max(0, iasImpartire(E, n.sessions, n.settings).total - S0(n.sessions, E.id))),
         efectuate: g(E => S0(n.sessions, E.id)),
         debt: g(E => Hw(E, n.sessions, n.settings)),
         grupa: w,
@@ -6803,7 +6881,7 @@ function Vk({
         area: m(E => E.area),
         place: m(E => E.defaultLocation)
     }, h = x[s] || x.name, y = E => E.examResult === "promovat", _ = n.students.filter(E => p(E) && !E.withdrawn && !y(E) && !ho(E)).sort(h), b = n.students.filter(E => p(E) && !E.withdrawn && ho(E)).sort((E, B) => (E.asteptareDin || "").localeCompare(B.asteptareDin || "") || c(E, B)), M = n.students.filter(E => p(E) && !E.withdrawn && y(E)).sort((E, B) => (B.examDate || "").localeCompare(E.examDate || "") || c(E, B)), S = n.students.filter(E => p(E) && E.withdrawn).sort(c), k = (E, B) => {
-        let $ = bo(E),
+        let $ = iasImpartire(E, n.sessions, n.settings).total,
             G = S0(n.sessions, E.id),
             A = Math.max(0, $ - G),
             O = Bw(E, n.sessions);
@@ -6838,7 +6916,17 @@ function Vk({
             student: E,
                 sesiuni: n.sessions,
                 setari: n.settings
-            }), o.default.createElement(Bf, {
+            }),
+        /* Semn pentru cei veniți la perfecționare: altfel nu-i deosebești de
+           cursanți într-o listă de șaizeci de oameni. */
+        E.perfectionare ? o.default.createElement("span", {
+            className: "shrink-0 text-xs px-1.5 py-0.5 rounded-full font-medium",
+            style: {
+                background: "var(--accent-soft)", color: "var(--accent-ink)",
+                border: "1px solid var(--accent-line)"
+            }
+        }, "perfec\u021Bionare") : null,
+        o.default.createElement(Bf, {
             student: E,
             county: E.county,
             h: 20
@@ -7343,6 +7431,35 @@ function Wk({
         onChange: S => b("group", S.target.value),
         placeholder: "2 cifre"
     }))),
+    /* Omul care vine la perfecționare are deja permisul: nu dă examene, n-are
+       școlarizare, n-are nevoie de adeverință. Tot ce-i trebuie e să-l poți
+       programa. Bifa asta tace tot ce ține de școală și îl ține în plan. */
+    o.default.createElement("button", {
+        type: "button",
+        onClick: () => b("perfectionare", !c.perfectionare),
+        className: "w-full flex items-center gap-3 rounded-2xl px-3.5 py-3 text-left",
+        style: {
+            background: c.perfectionare ? "var(--accent-soft)" : "var(--surface)",
+            border: `${c.perfectionare ? 2 : 1}px solid ${c.perfectionare ? "var(--accent)" : "var(--line)"}`
+        }
+    },
+        o.default.createElement("span", {
+            className: "shrink-0 rounded-md flex items-center justify-center",
+            style: {
+                width: 20, height: 20,
+                background: c.perfectionare ? "var(--accent)" : "transparent",
+                border: `1.5px solid ${c.perfectionare ? "var(--accent)" : "var(--line-2)"}`,
+                color: "#fff", fontSize: 13, fontWeight: 700
+            }
+        }, c.perfectionare ? "\u2713" : ""),
+        o.default.createElement("span", { className: "flex-1 min-w-0" },
+            o.default.createElement("span", {
+                className: "block text-sm font-medium",
+                style: { color: c.perfectionare ? "var(--accent-ink)" : "var(--ink)" }
+            }, "Vine la perfec\u021Bionare"),
+            o.default.createElement("span", {
+                className: "block text-xs", style: { color: "var(--muted-2)" }
+            }, "Are deja permisul. F\u0103r\u0103 examene, f\u0103r\u0103 adeverin\u021B\u0103, f\u0103r\u0103 \u0219edin\u021Be obligatorii \u2014 doar ore la volan."))),
     (() => {
         let S = String(c.group || "").trim().toUpperCase() === "OS";
         return o.default.createElement("button", {
@@ -7432,6 +7549,9 @@ function Wk({
                         pret = Number(E.price) || 0;
                     return o.default.createElement("button", {
                         key: E.id, type: "button",
+                        /* Atingi pachetul ales din nou și îl scoți; ca să-i pui
+                           încă unul la fel — a doua reexaminare, de pildă — ai
+                           butonul „încă unul" de dedesubt. */
                         onClick: () => b("pachet", ales ? "" : E.id),
                         className: "w-full text-left rounded-2xl px-3.5 py-3",
                         style: {
@@ -7440,6 +7560,11 @@ function Wk({
                             boxShadow: ales ? "0 2px 12px -6px var(--accent)" : "var(--shadow)"
                         }
                     },
+                        (Number((c.fees || {})[E.id]) || 0) > 1
+                            ? o.default.createElement("span", {
+                                className: "block text-xs mb-1", style: { color: "var(--accent-ink)" }
+                            }, "pus de ", Number((c.fees || {})[E.id]) || 0, " ori")
+                            : null,
                         o.default.createElement("div", { className: "flex items-baseline gap-2" },
                             o.default.createElement("span", {
                                 className: "text-sm font-semibold flex-1 min-w-0 truncate",
@@ -7458,6 +7583,29 @@ function Wk({
                             style: { color: "var(--accent-ink)" }
                         }, "\u2713 ales") : null)
                 }),
+                /* Al doilea pachet la fel — a doua reexaminare, de pildă.
+                   Atingerea cardului doar alege sau scoate pachetul; ca să mai
+                   pui unul identic peste cel de acum, ai butonul ăsta. Fără el,
+                   reatingeai același card și nu se întâmpla nimic. */
+                c.pachet && k ? o.default.createElement("button", {
+                    type: "button",
+                    onClick: () => b("iasIncaUnPachet", (Number(c.iasIncaUnPachet) || 0) + 1),
+                    className: "w-full py-2.5 rounded-xl text-xs font-medium",
+                    style: {
+                        background: "var(--accent-soft)", color: "var(--accent-ink)",
+                        border: "1px dashed var(--accent-line)"
+                    }
+                }, "+ \xCEnc\u0103 unul la fel (\u201E", k.name, "\u201D)") : null,
+                Number(c.iasIncaUnPachet) > 0 ? o.default.createElement("div", {
+                    className: "flex items-center gap-2 px-1 pt-1.5"
+                },
+                    o.default.createElement("span", {
+                        className: "text-xs flex-1", style: { color: "var(--accent-ink)" }
+                    }, "se mai adaug\u0103 ", Number(c.iasIncaUnPachet), " \xD7 \u201E", k ? k.name : "", "\u201D la salvare"),
+                    o.default.createElement("button", {
+                        type: "button", onClick: () => b("iasIncaUnPachet", 0),
+                        className: "text-xs shrink-0", style: { color: "var(--muted-2)" }
+                    }, "renun\u021B\u0103")) : null,
                 c.pachet ? o.default.createElement("button", {
                     type: "button", onClick: () => b("pachet", ""),
                     className: "w-full py-2 text-xs", style: { color: "var(--muted-2)" }
@@ -7924,7 +8072,19 @@ function Wk({
         className: ie,
         value: c.theoryExamDate || "",
         onChange: S => b("theoryExamDate", S.target.value)
-    })), o.default.createElement(xe, {
+    })),
+    /* Ora examenului teoretic. Nu ocupă mașina și nu schimbă nimic la
+       programare — doar o vezi scrisă, iar în calendar se colorează intervalul
+       în care cade. */
+    o.default.createElement(xe, {
+        label: "Ora"
+    }, o.default.createElement("select", {
+        className: ie,
+        value: c.theoryExamOra == null ? "" : c.theoryExamOra,
+        onChange: S => b("theoryExamOra", S.target.value === "" ? "" : Number(S.target.value))
+    }, o.default.createElement("option", { value: "" }, "nestabilit\u0103"),
+        mu.map(L => o.default.createElement("option", { key: L, value: L }, Se(L))))),
+    o.default.createElement(xe, {
         label: "Nr. sus\u021Bineri"
     }, o.default.createElement("input", {
         type: "number",
@@ -8190,7 +8350,7 @@ function qk({
         }
     }, [n, e, iasVreaExamene]);
     if (!n || !e) return null;
-    let y = bo(e),
+    let y = iasImpartire(e, t, a).total,
         _ = S0(t, e.id),
         b = Math.max(0, Af(t, e.id) - _),
         M = Math.max(0, y - _),
@@ -8835,7 +8995,7 @@ function jk({
     let r = Fa(n.settings),
         i = n.students.map(N => ({
             ...N,
-            remaining: kf(N, n.sessions)
+            remaining: kf(N, n.sessions, n.settings)
         })).filter(N => N.remaining > 0 && Pf(N)).sort((N, C) => N.name.localeCompare(C.name, "ro")),
         [s, l] = (0, o.useState)(() => new Set(i.map(N => N.id))),
         [u, d] = (0, o.useState)(() => new Set),
@@ -11487,6 +11647,18 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.48.0",
+    titlu: "Elevi veni\u021Bi la perfec\u021Bionare",
+    puncte: ["Pe fi\u0219a elevului po\u021Bi bifa \u201EVine la perfec\u021Bionare\u201D, pentru cine are deja permisul \u0219i vrea doar ore la volan. Intr\u0103 \xEEn plan ca oricare, dar f\u0103r\u0103 examene, f\u0103r\u0103 adeverin\u021B\u0103 \u0219i f\u0103r\u0103 \u0219edin\u021Be obligatorii \u2014 nu-l privesc.", "\u0218edin\u021Bele lui sunt suplimentare din start, iar \xEEn list\u0103 poart\u0103 un semn, ca s\u0103-l deosebe\u0219ti dintr-o privire."]
+}, {
+    v: "v2.47.0",
+    titlu: "Contorul de \u0219edin\u021Be \u0219i ora la teoretic",
+    puncte: ["Contorul num\u0103r\u0103 acum altfel: \u0219edin\u021Bele incluse, plus locurile din pachete, plus \u0219edin\u021Bele v\xE2ndute la bucat\u0103. Cele la bucat\u0103 nu mai m\u0103n\xE2nc\u0103 din pachete \u2014 le vinzi pe loc, nu ies din nicio pung\u0103.", "Un pachet pus dup\u0103 ce elevul a \u0219i condus acoper\u0103 \u0219edin\u021Bele nedecontate; pe cele achitate nu le mai atinge.", "Examenul teoretic are acum \u0219i or\u0103. Se vede \xEEn anun\u021Buri, iar \xEEn calendar se coloreaz\u0103 intervalul \xEEn care cade \u2014 doar ca semn, ora r\u0103m\xE2ne liber\u0103 de programat."]
+}, {
+    v: "v2.46.0",
+    titlu: "\xCEnc\u0103 un pachet la fel",
+    puncte: ["Pe fi\u0219a elevului, la \u0218colarizare, po\u021Bi pune \xEEnc\u0103 un pachet identic cu cel de acum \u2014 a doua reexaminare, de pild\u0103. P\xE2n\u0103 acum, reatingeai acela\u0219i card \u0219i nu se \xEEnt\xE2mpla nimic: nici orele, nici taxa nu intrau.", "Cardul arat\u0103 de c\xE2te ori a fost pus pachetul."]
+}, {
     v: "v2.45.1",
     titlu: "Datoria elevului, socotit\u0103 corect",
     puncte: ["Un pachet pus ast\u0103zi nu mai \u0219terge de la plat\u0103 \u0219edin\u021Be de acum dou\u0103 luni, pe care elevul le-a achitat deja. Acoper\u0103 doar \u0219edin\u021Bele de la ziua lui \xEEncolo."]
@@ -12567,9 +12739,15 @@ function y3() {
                 };
                 /* Schimbarea pachetului înlocuiește, nu adună: întâi scoatem
                    pachetul de dinainte, apoi îl punem pe cel nou. */
-                if (!ee) return De;
-                let iasFaraVechi = (V && V.pachet) ? iasScoatePachet(De, V.pachet, te.settings) : De;
-                return se(iasFaraVechi, I.pachet, te.settings)
+                /* Câte pachete identice ai cerut în plus, atâtea se pun acum. */
+                let iasInPlus = Number(I.iasIncaUnPachet) || 0;
+                delete De.iasIncaUnPachet;
+                if (ee) {
+                    let iasFaraVechi = (V && V.pachet) ? iasScoatePachet(De, V.pachet, te.settings) : De;
+                    De = se(iasFaraVechi, I.pachet, te.settings)
+                }
+                for (let iasK = 0; iasK < iasInPlus; iasK++) De = se(De, I.pachet, te.settings);
+                return De
             }),
             /* Elevul tocmai retras nu mai are ce căuta în calendar: ședințele
                lui de azi înainte trec în „anulată" pe loc, ca intervalele să se
