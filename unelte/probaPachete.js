@@ -27,6 +27,7 @@ new Function('exports', `
   ${bucata('_f')}
   ${bucata('M0')}
   ${bucata('iasPacheteleLui')}
+  ${bucata('iasImpartire')}
   ${bucata('jA')}
   exports.j = jA;
 `)(ctx);

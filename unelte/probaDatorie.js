@@ -24,6 +24,7 @@ new Function('exports', `
   ${bucata('M0')}
   ${bucata('zw')}
   ${bucata('iasPacheteleLui')}
+  ${bucata('iasImpartire')}
   ${bucata('Ow')}
   ${bucata('jA')}
   exports.datorie = (el, ses, set) => Ow(el, ses, set) - M0(el);
@@ -55,7 +56,9 @@ pune(['2026-07-28', '2026-07-30', '2026-07-31', '2026-08-01', '2026-08-02'], 'ex
 pune(['2026-08-03', '2026-08-04', '2026-08-05'], 'extra');
 
 const inaintea = {
-  id: 's1', includedHours: 3, extraHours: 8,
+  /* Orele suplimentare vin doar din pachete — aplicația nu le umflă singură
+     când adaugi o ședință în calendar. */
+  id: 's1', includedHours: 3, extraHours: 5,
   pachet: 'p5', fees: { p5: 1 },
   feeLog: [{ feeId: 'p5', date: '2026-07-28' }],
   payments: [
@@ -71,7 +74,7 @@ cer('înainte de pachetul nou, e la zi',
 /* Acum îi pune pachetul de reexaminare, azi. */
 const dupa = {
   ...inaintea,
-  extraHours: 11,
+  extraHours: 8,
   fees: { p5: 1, reexam3: 1 },
   feeLog: [...inaintea.feeLog, { feeId: 'reexam3', date: '2026-10-14' }],
 };

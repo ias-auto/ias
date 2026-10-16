@@ -86,6 +86,45 @@ const btn = (re) => [...doc().querySelectorAll('button')].find(x => re.test(x.te
     zileToate.length - casuteMarcate().length === zileToate.length - 1,
     'doar ziua examenului e marcată');
 
+  /* ---- ora examenului teoretic ---- */
+  const d2 = new JSDOM(html, {
+    runScripts: 'dangerously', pretendToBeVisual: true, url: 'https://x/',
+    beforeParse(w2) {
+      w2.localStorage.setItem('ias:app-data', JSON.stringify({
+        students: [{ id: 't1', name: 'Teoretic Ora', lastName: 'Teoretic', firstName: 'Ora',
+          includedHours: 10, weeklyLimit: 5, payments: [],
+          theoryExamDate: azi, theoryExamOra: 600 }],
+        sessions: [],
+        settings: { workDays: [0,1,2,3,4,5,6], startMin: 480, endMin: 1200, sessionMin: 90,
+          stepMin: 60, currency: 'lei' },
+      }));
+      w2.localStorage.setItem('ias:licenta', JSON.stringify({
+        cod: 'IAS9F3K7QX2', stare: 'ok', rol: 'proprietar', pana: '2099-12-31', verificatLa: azi, drepturi: ['*'],
+      }));
+      w2.localStorage.setItem('ias:backup', azi);
+      w2.ResizeObserver = function () { this.observe = () => {}; this.disconnect = () => {}; };
+      w2.scrollBy = () => {};
+    },
+  });
+  await pauza(3000);
+  const dc = () => d2.window.document;
+  const cl = (el) => el && el.dispatchEvent(new d2.window.MouseEvent('click', { bubbles: true }));
+  [...dc().querySelectorAll('.ecran-peste')].forEach(f =>
+    cl([...f.querySelectorAll('button')].find(x => /Am înțeles|Închide/.test(x.textContent))));
+  await pauza(500);
+  cl([...dc().querySelectorAll('nav button')].find(x => /Calendar/.test(x.textContent)));
+  await pauza(900);
+  const t2 = dc().body.textContent.replace(/\s+/g, ' ');
+  cer('ora teoreticului se vede în anunț', /Teoretic Ora\s*10:00/.test(t2),
+    (t2.match(/Teoretic Ora\s*\d\d:\d\d/) || ['—'])[0]);
+  const randTeo = [...dc().querySelectorAll('button')]
+    .find(x => /Teoretic ·/.test(x.textContent) && /10:00/.test(x.textContent));
+  cer('  intervalul lui e colorat în grilă', !!randTeo,
+    randTeo ? randTeo.textContent.replace(/\s+/g, ' ').trim() : 'nu');
+  cer('  dar rămâne liber de programat',
+    !!randTeo && /violet/.test(randTeo.getAttribute('style') || ''),
+    'doar colorat, nu barat');
+
   console.log('');
   rez.forEach(([s, n, dt]) => console.log('  ' + s + ' ' + n.padEnd(42) + (dt || '')));
   const cazute = rez.filter(r => r[0] === '✕').length;

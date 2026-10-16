@@ -57,7 +57,8 @@ const pauza = (ms) => new Promise(r => setTimeout(r, ms));
 
   const t = doc().body.textContent.replace(/\s+/g, ' ');
   const ziNr = String(Number(MAINE.slice(8)));
-  const randuri = [...t.matchAll(/(\w{3}) (\d+) · (\d\d):(\d\d)(Dimineata Ana|Fix Barbu)/g)]
+  /* Zilele scurte au diacritice — „Sâm", „Dum" —, iar \w nu le prinde. */
+  const randuri = [...t.matchAll(/(Lun|Mar|Mie|Joi|Vin|Sâm|Dum) (\d+) · (\d\d):(\d\d)(Dimineata Ana|Fix Barbu)/g)]
     .filter(x => x[2] === ziNr)
     .map(x => ({ min: Number(x[3]) * 60 + Number(x[4]), cine: x[5] }));
   const ana = randuri.find(x => x.cine === 'Dimineata Ana');

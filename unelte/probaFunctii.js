@@ -19,19 +19,29 @@ const students = [
   { id: 's1', name: 'Achitat Ion', lastName: 'Achitat', firstName: 'Ion', includedHours: 5, extraHours: 0,
     weeklyLimit: 2, cutie: 'manuala', masina: 'm1',
     payments: [{ id: 'p1', date: azi, amount: 5000, collector: 'me' }] },
-  { id: 's2', name: 'Datornic Vasile', lastName: 'Datornic', firstName: 'Vasile', includedHours: 0, extraHours: 6,
+  { id: 's2', name: 'Datornic Vasile', lastName: 'Datornic', firstName: 'Vasile', includedHours: 0, extraHours: 0,
     weeklyLimit: 2, cutie: 'automata', masina: 'm3', payments: [] },
 ];
 const settings = {
   workDays: [0, 1, 2, 3, 4, 5, 6], startMin: 480, endMin: 1200, currency: 'lei',
   masini, locations: [],
+  /* Fără preț la ora suplimentară n-are de unde să se nască datoria. */
+  rateTypes: [{ id: 'included', name: 'Ore incluse', price: 0 },
+              { id: 'extra', name: 'Ore suplimentare', price: 200 }],
 };
 
 const d = new JSDOM(html, {
   runScripts: 'dangerously', pretendToBeVisual: true, url: 'https://x/',
   beforeParse(w) {
     w.localStorage.setItem('ias:app-data', JSON.stringify({
-      students, sessions: [], settings,
+      students,
+      /* Trei ședințe suplimentare făcute și neplătite — de aici datoria. */
+      sessions: [0, 1, 2].map(j => ({
+        id: 'dat' + j, studentId: 's2',
+        date: (() => { const d2 = new Date(); d2.setDate(d2.getDate() - 5 + j); return d2.toISOString().slice(0, 10) })(),
+        startMin: 600, duration: 90, status: 'completed', type: 'extra',
+      })),
+      settings,
       varsaminte: [{ id: 'v1', date: azi, amount: 1200, note: 'chitanța 44' }],
     }));
     w.localStorage.setItem('ias:licenta', JSON.stringify({
