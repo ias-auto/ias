@@ -54,8 +54,10 @@ const genereaza = async (d, pauza) => {
   clic([...doc.querySelectorAll('button')].find(x => /Generează plan/.test(x.textContent)));
   await new Promise(r => setTimeout(r, 2000));
   const t = doc.body.textContent.replace(/\s+/g, ' ');
-  return [...t.matchAll(/(Lun|Mar|Mie|Joi|Vin|Sâm|Dum) (\d+) · (\d\d:\d\d)([A-ZȘȚ][^·\d]{2,24}?)(?=Lun |Mar |Mie |Joi |Vin |Sâm |Dum |$)/g)]
-    .map(x => ({ zi: x[1], nr: Number(x[2]), cine: x[4].trim() }));
+  /* Fiecare scenariu are un singur elev, deci numele nu ne trebuie ca să citim
+     zilele — iar „Sâm" are diacritică, pe care \w n-o prinde. */
+  return [...t.matchAll(/(Lun|Mar|Mie|Joi|Vin|Sâm|Dum) (\d+) · (\d\d):(\d\d)/g)]
+    .map(x => ({ zi: x[1], nr: Number(x[2]) }));
 };
 /* Două ședințe lipite = în zile una după alta. */
 const lipite = (zile) => {

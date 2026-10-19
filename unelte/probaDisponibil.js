@@ -145,6 +145,33 @@ const pauza = (ms) => new Promise(r => setTimeout(r, ms));
   cer('angajatei nu i se dă nicio oră în timpul programului', gresiteIoana.length === 0,
     ioana.map(x => x.zi + ' ' + x.ora).slice(0, 5).join(', ') || 'niciuna');
 
+  /* ---- „nu poate între", felia din mijlocul zilei ---- */
+  const l3 = fs.readFileSync('parti/aplicatie.js', 'utf8').split('\n');
+  const buc3 = (nume) => { const k = l3.findIndex(x => new RegExp('^function ' + nume + '\\(').test(x));
+    let j = k + 1; while (j < l3.length && !/^(function |var |let |const )/.test(l3[j])) j++;
+    return l3.slice(k, j).join('\n') };
+  const m3 = {};
+  new Function('exports', `
+    var si = 90;
+    var Ue = x => new Date(x + "T12:00:00");
+    var IAS_FEL_DISP = ["ca", "oricand", "dupa", "pana", "intre", "afara", "nu"];
+    ${buc3('iasZiuaLui')}${buc3('iasFereastraZi')}${buc3('iasPoateAtunci')}
+    exports.poate = iasPoateAtunci;
+  `)(m3);
+  /* Luni, 19 octombrie 2026. Are cursuri 14–18; în rest poate. */
+  const luni = '2026-10-19';
+  const elev3 = { dispZile: { 1: { fel: 'afara', lo: 840, hi: 1080 } } };
+  const H3 = (x) => String(Math.floor(x / 60)).padStart(2, '0') + ':' + String(x % 60).padStart(2, '0');
+  cer('poate dimineața', m3.poate(elev3, luni, 600, 90), H3(600) + '–' + H3(690));
+  cer('  și chiar până la 12:30', m3.poate(elev3, luni, 750, 90), '12:30–14:00, lipit de cursuri');
+  cer('nu poate în felia de cursuri', !m3.poate(elev3, luni, 900, 90), '15:00 — e la cursuri');
+  cer('  nici cu un capăt înăuntru', !m3.poate(elev3, luni, 780, 90),
+    '13:00–14:30 ar intra peste ore');
+  cer('  nici la capătul celălalt', !m3.poate(elev3, luni, 1020, 90), '17:00–18:30');
+  cer('poate iar după cursuri', m3.poate(elev3, luni, 1080, 90), '18:00–19:30');
+  /* Marțea merge ca de obicei — felia e doar a zilei de luni. */
+  cer('în altă zi felia nu se aplică', m3.poate(elev3, '2026-10-20', 900, 90), 'marți la 15:00');
+
   console.log('');
   rez.forEach(([s2, n2, d2]) => console.log('  ' + s2 + ' ' + n2.padEnd(46) + (d2 || '')));
   const cazute = rez.filter(r => r[0] === '✕').length;

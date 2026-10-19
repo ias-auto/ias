@@ -125,6 +125,37 @@ const btn = (re) => [...doc().querySelectorAll('button')].find(x => re.test(x.te
     !!randTeo && /violet/.test(randTeo.getAttribute('style') || ''),
     'doar colorat, nu barat');
 
+  /* ---- listele de examen, în ordinea numelui ---- */
+  const lf = fs.readFileSync('parti/aplicatie.js', 'utf8').split('\n');
+  const bucf = (nume) => { const k = lf.findIndex(x => new RegExp('^function ' + nume + '\\(').test(x));
+    let j = k + 1; while (j < lf.length && !/^(function |var |let |const )/.test(lf[j])) j++;
+    return lf.slice(k, j).join('\n') };
+  const mf = {};
+  new Function('exports', `
+    var ha = { am: { eticheta: "Diminea\u021B\u0103" }, pm: { eticheta: "Dup\u0103-amiaz\u0103" } };
+    ${bucf('v0')}${bucf('iasTeoreticeZi')}${bucf('iasExameneDate')}
+    exports.practic = v0; exports.teoretic = iasTeoreticeZi; exports.istoric = iasExameneDate;
+  `)(mf);
+  const ziua = '2026-11-10';
+  const amestecati = [
+    { id: 'a', name: 'Zaharia Vlad', examDate: ziua, examPeriod: 'am', theoryExamDate: ziua,
+      examIstoric: [{ data: ziua, fel: 'practic', rezultat: 'respins' }] },
+    { id: 'b', name: 'Anton Maria', examDate: ziua, examPeriod: 'am', theoryExamDate: ziua,
+      examIstoric: [{ data: ziua, fel: 'practic', rezultat: 'promovat' }] },
+    { id: 'c', name: 'Mihai Radu', examDate: ziua, examPeriod: 'am', theoryExamDate: ziua,
+      examIstoric: [{ data: ziua, fel: 'teoretic', rezultat: 'promovat' }] },
+  ];
+  const nume = (lista, cheie) => lista.map(x => (cheie ? x[cheie] : x).name).join(', ');
+  cer('lista de la practic e alfabetică',
+    nume(mf.practic(amestecati, ziua), 'student') === 'Anton Maria, Mihai Radu, Zaharia Vlad',
+    nume(mf.practic(amestecati, ziua), 'student'));
+  cer('  și cea de la teoretic',
+    nume(mf.teoretic(amestecati, ziua)) === 'Anton Maria, Mihai Radu, Zaharia Vlad',
+    nume(mf.teoretic(amestecati, ziua)));
+  cer('  și cei care au dat deja, cu rezultatul lor',
+    nume(mf.istoric(amestecati, ziua), 'elev') === 'Anton Maria, Mihai Radu, Zaharia Vlad',
+    nume(mf.istoric(amestecati, ziua), 'elev'));
+
   console.log('');
   rez.forEach(([s, n, dt]) => console.log('  ' + s + ' ' + n.padEnd(42) + (dt || '')));
   const cazute = rez.filter(r => r[0] === '✕').length;
