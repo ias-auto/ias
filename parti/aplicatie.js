@@ -93,23 +93,28 @@ function iasExameneDate(elevi, data) {
             if (x && x.data === data) out.push({ elev: el, ...x })
         })
     });
-    return out
+    return out.sort(function (a, b) {
+        return ((a.elev || {}).name || "").localeCompare(((b.elev || {}).name || ""), "ro")
+    })
 }
 
 function iasTeoreticeZi(elevi, data) {
     return !data || !elevi ? [] : elevi.filter(function (x) {
         return !x.withdrawn && !x.perfectionare && x.theoryExamDate === data
-    })
+    }).sort(function (a, b) { return (a.name || "").localeCompare(b.name || "", "ro") })
 }
 
 function v0(n, e) {
     /* Elevul retras nu mai ține mașina ocupată: examenul lui iese din calendar
        de îndată ce l-ai retras, ca intervalul să fie iar al tău. */
-    return !e || !n ? [] : n.filter(t => !t.withdrawn && t.examDate === e && ha[t.examPeriod]).map(t => ({
-        student: t,
-        period: t.examPeriod,
-        ...ha[t.examPeriod]
-    }))
+    return !e || !n ? [] : n.filter(t => !t.withdrawn && t.examDate === e && ha[t.examPeriod])
+        // în ordinea numelui: așa îi cauți pe listă, în ziua examenului
+        .sort((t, a) => (t.name || "").localeCompare(a.name || "", "ro"))
+        .map(t => ({
+            student: t,
+            period: t.examPeriod,
+            ...ha[t.examPeriod]
+        }))
 }
 
 function y0(n, e, t) {
@@ -1740,7 +1745,7 @@ function Qw(n, e) {
    săptămâna: oricând, până la o oră, de la o oră, între două ore, sau deloc.
    Ziua pe care n-ai atins-o merge după regula generală de sus, așa că pentru
    cei simpli nu ai de completat nimic în plus. */
-var IAS_FEL_DISP = ["ca", "oricand", "dupa", "pana", "intre", "nu"];
+var IAS_FEL_DISP = ["ca", "oricand", "dupa", "pana", "intre", "afara", "nu"];
 
 function iasZiuaLui(elev, zi) {
     var t = ((elev || {}).dispZile || {})[zi];
@@ -1774,7 +1779,18 @@ function iasFereastraZi(elev, dataISO, durata) {
     if (pe && pe.fel === "dupa") lo = Number(pe.lo);
     else if (pe && pe.fel === "pana") hi = Number(pe.hi);
     else if (pe && pe.fel === "intre") lo = Number(pe.lo), hi = Number(pe.hi);
-    else {
+    else if (pe && pe.fel === "afara") {
+        /* Poate toată ziua, afară de o felie din mijloc — are cursuri de la 14
+           la 18, de pildă. Marginile zilei rămân cele obișnuite; doar felia e
+           scoasă, iar ea se verifică la ora propriu-zisă. */
+        var gf2 = (elev || {}).availFrom, gt2 = (elev || {}).availTo;
+        if (gf2 !== "" && gf2 != null) lo = Number(gf2);
+        if (gt2 !== "" && gt2 != null) hi = Number(gt2);
+        var iasF = { lo: Number(pe.lo), hi: Number(pe.hi) };
+        if (lo == null && hi == null) return { fel: "nespus", fara: iasF };
+        var s2 = lo == null ? 0 : lo, g2 = (hi == null ? 1440 : hi) - d;
+        return g2 < s2 ? { fel: "nu" } : { fel: "ok", lo: s2, hi: g2, fara: iasF }
+    } else {
         // ziua merge după regula generală
         var gf = (elev || {}).availFrom, gt = (elev || {}).availTo;
         if (gf !== "" && gf != null) lo = Number(gf);
@@ -1790,8 +1806,10 @@ function iasFereastraZi(elev, dataISO, durata) {
 /* Poate elevul la ora asta, în ziua asta? */
 function iasPoateAtunci(elev, dataISO, ora, durata) {
     var f = iasFereastraZi(elev, dataISO, durata);
-    if (f.fel === "nespus") return !0;
     if (f.fel === "nu") return !1;
+    /* Felia în care nu poate: ședința n-are voie s-o atingă nici cu un capăt. */
+    if (f.fara && ora < f.fara.hi && ora + (durata || si) > f.fara.lo) return !1;
+    if (f.fel === "nespus") return !0;
     return ora >= f.lo && ora <= f.hi
 }
 
@@ -2016,6 +2034,7 @@ function uk({
             if (iasZi) {
                 var f = iasFereastraZi(C, iasZi, s);
                 if (f.fel === "nu") return !1;
+                if (f.fara && W < f.fara.hi && W + s > f.fara.lo) return !1;
                 if (f.fel === "ok") return W >= f.lo && W <= f.hi
             }
             return C.window && (C.window.stated || X) ? G(C, W) : !0
@@ -7798,13 +7817,16 @@ function Wk({
                         o.default.createElement("option", { value: "dupa" }, "de la\u2026"),
                         o.default.createElement("option", { value: "pana" }, "p\xE2n\u0103 la\u2026"),
                         o.default.createElement("option", { value: "intre" }, "\xEEntre\u2026"),
+                        /* Poate toată ziua, afară de o felie: are cursuri de la
+                           14 la 18, lunea. */
+                        o.default.createElement("option", { value: "afara" }, "nu poate \xEEntre\u2026"),
                         o.default.createElement("option", { value: "nu" }, "nu poate"))),
-                (iasP.fel === "dupa" || iasP.fel === "pana" || iasP.fel === "intre")
+                (iasP.fel === "dupa" || iasP.fel === "pana" || iasP.fel === "intre" || iasP.fel === "afara")
                     ? o.default.createElement("div", {
                         className: "flex items-center gap-2 mt-1.5",
                         style: { paddingLeft: 46 }
                     },
-                        (iasP.fel === "dupa" || iasP.fel === "intre")
+                        (iasP.fel === "dupa" || iasP.fel === "intre" || iasP.fel === "afara")
                             ? o.default.createElement("select", {
                                 className: ie + " font-mono-time text-xs",
                                 style: { padding: "6px 8px", flex: "1 1 0", minWidth: 0 },
@@ -7812,12 +7834,12 @@ function Wk({
                                 onChange: (S) => iasPune({ lo: Number(S.target.value) })
                             }, mu.map(L => o.default.createElement("option", { key: L, value: L }, Se(L))))
                             : null,
-                        (iasP.fel === "intre")
+                        (iasP.fel === "intre" || iasP.fel === "afara")
                             ? o.default.createElement("span", {
                                 className: "text-xs shrink-0", style: { color: "var(--muted-2)" }
                             }, "\u2013")
                             : null,
-                        (iasP.fel === "pana" || iasP.fel === "intre")
+                        (iasP.fel === "pana" || iasP.fel === "intre" || iasP.fel === "afara")
                             ? o.default.createElement("select", {
                                 className: ie + " font-mono-time text-xs",
                                 style: { padding: "6px 8px", flex: "1 1 0", minWidth: 0 },
@@ -11647,6 +11669,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.49.0",
+    titlu: "Ore \xEEn care elevul nu poate, \u0219i listele de examen",
+    puncte: ["La disponibilitate ai acum \u0219i \u201Enu poate \xEEntre\u2026\u201D: elevul cu cursuri de la 14 la 18 lunea e liber tot restul zilei, iar planul \xEEl programeaz\u0103 \xEEnainte sau dup\u0103.", "Elevii cu examen \xEEn aceea\u0219i zi apar \xEEn ordinea numelui \u2014 \u0219i la practic, \u0219i la teoretic, \u0219i la cei care au dat deja."]
+}, {
     v: "v2.48.0",
     titlu: "Elevi veni\u021Bi la perfec\u021Bionare",
     puncte: ["Pe fi\u0219a elevului po\u021Bi bifa \u201EVine la perfec\u021Bionare\u201D, pentru cine are deja permisul \u0219i vrea doar ore la volan. Intr\u0103 \xEEn plan ca oricare, dar f\u0103r\u0103 examene, f\u0103r\u0103 adeverin\u021B\u0103 \u0219i f\u0103r\u0103 \u0219edin\u021Be obligatorii \u2014 nu-l privesc.", "\u0218edin\u021Bele lui sunt suplimentare din start, iar \xEEn list\u0103 poart\u0103 un semn, ca s\u0103-l deosebe\u0219ti dintr-o privire."]
