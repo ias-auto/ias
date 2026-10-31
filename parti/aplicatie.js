@@ -1813,6 +1813,250 @@ function iasPoateAtunci(elev, dataISO, ora, durata) {
     return ora >= f.lo && ora <= f.hi
 }
 
+/* ================= Programul spus chiar de elev =================
+   Îndrumătorul trimite din fișă un link spre disponibilitate.html. Elevul alege
+   pentru fiecare zi cum poate, iar pagina îi deschide WhatsApp cu un mesaj gata
+   scris și cu un link înapoi spre aplicație (#disp=…). Totul călătorește în
+   linkuri, între ei doi: fără server, fără cont. Felurile zilelor sunt exact
+   cele din IAS_FEL_DISP, așa că răspunsul intră direct pe fișă. */
+var IAS_PAGINA_PROGRAM = "disponibilitate.html";
+
+function iasInB64(o) {
+    var bin = encodeURIComponent(JSON.stringify(o)).replace(/%([0-9A-F]{2})/g, function (m, h) {
+        return String.fromCharCode(parseInt(h, 16))
+    });
+    return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
+}
+
+function iasDinB64(t) {
+    t = String(t).replace(/-/g, "+").replace(/_/g, "/");
+    while (t.length % 4) t += "=";
+    var bin = atob(t), pc = "";
+    for (var i = 0; i < bin.length; i++) pc += "%" + bin.charCodeAt(i).toString(16).padStart(2, "0");
+    return JSON.parse(decodeURIComponent(pc))
+}
+
+/* Orele de lucru pe fiecare zi a săptămânii (duminica = 0), după Programul de
+   lucru din Setări. Ziua în care nu lucrezi e 0 — elevul n-o mai completează. */
+function iasProgramSaptamana(setari) {
+    var s = setari || {},
+        lucru = Array.isArray(s.workDays) && s.workDays.length ? s.workDays : [0, 1, 2, 3, 4, 5, 6];
+    return [0, 1, 2, 3, 4, 5, 6].map(function (z) {
+        if (lucru.indexOf(z) < 0) return 0;
+        var pe = (s.programZile || {})[z] || {},
+            a = pe.startMin === "" || pe.startMin == null ? NaN : Number(pe.startMin),
+            b = pe.endMin === "" || pe.endMin == null ? NaN : Number(pe.endMin),
+            lo = isNaN(a) ? Number(s.startMin) : a,
+            hi = isNaN(b) ? Number(s.endMin) : b;
+        if (isNaN(lo)) lo = 480;
+        if (isNaN(hi)) hi = 1200;
+        lo = Math.round(lo), hi = Math.round(hi);
+        return hi > lo ? [lo, hi] : 0
+    })
+}
+
+/* Linkul pentru elev. Duce doar codul fișei, orele tale de lucru, durata unei
+   ședințe, numele tău și numărul tău de WhatsApp — nimic despre elev. */
+function iasLinkCerereProgram(elev, setari) {
+    var s = setari || {},
+        o = {
+            v: 1,
+            e: String((elev || {}).id || ""),
+            w: qw(String(s.telefonulTau || "")),
+            z: iasProgramSaptamana(s),
+            d: Math.round(Number(s.sessionMin) || si),
+            n: String(s.numeleTau || "").trim().slice(0, 60),
+            s: String(s.numeScoala || "").trim().slice(0, 80)
+        };
+    ["e", "w", "n", "s"].forEach(function (k) { o[k] || delete o[k] });
+    var baza = IAS_PAGINA_PROGRAM;
+    try { baza = new URL(IAS_PAGINA_PROGRAM, window.location.href).href } catch (x) {}
+    return baza.split("#")[0].split("?")[0] + "#c=" + iasInB64(o)
+}
+
+/* Răspunsul elevului, scos din link sau din mesajul lipit întreg. Vine de la
+   altcineva, deci se verifică bucată cu bucată; dacă ceva nu se potrivește,
+   nu se folosește nimic din el. */
+function iasDispCiteste(text) {
+    var m = String(text || "").match(/disp=([A-Za-z0-9_-]{6,6000})/);
+    if (!m) return null;
+    var o;
+    try { o = iasDinB64(m[1]) } catch (x) { return null }
+    if (!o || typeof o !== "object" || o.v !== 1 || !o.z || typeof o.z !== "object" || Array.isArray(o.z)) return null;
+    var ora = function (x) { return Number.isInteger(x) && x >= 0 && x <= 1440 },
+        intreg = function (x, a, b) { return Number.isInteger(x) && x >= a && x <= b },
+        data = /^\d{4}-\d{2}-\d{2}$/,
+        zile = {};
+    for (var k of Object.keys(o.z)) {
+        var z = Number(k), r = o.z[k];
+        if (!/^[0-6]$/.test(k) || !Array.isArray(r)) return null;
+        var fel = r[0];
+        if (fel === "oricand" || fel === "nu") zile[z] = { fel: fel };
+        else if (fel === "dupa" && ora(r[1])) zile[z] = { fel: fel, lo: r[1] };
+        else if (fel === "pana" && ora(r[1])) zile[z] = { fel: fel, hi: r[1] };
+        else if ((fel === "intre" || fel === "afara") && ora(r[1]) && ora(r[2]) && r[1] < r[2]) zile[z] = { fel: fel, lo: r[1], hi: r[2] };
+        else return null
+    }
+    var tura = null;
+    if (o.t != null) {
+        var t = o.t;
+        if (!Array.isArray(t) || !Zw[t[0]] || !data.test(t[1]) || !ora(t[2]) || !intreg(t[3], 0, 24)) return null;
+        tura = { tip: t[0], data: t[1], ora: t[2], odihna: t[3] };
+        if (t[0] === "alt") {
+            if (!intreg(t[4], 1, 72) || !intreg(t[5], 0, 240)) return null;
+            tura.lucru = t[4], tura.liber = t[5]
+        }
+    }
+    var plecat = null;
+    if (o.a != null) {
+        if (!Array.isArray(o.a) || !data.test(o.a[0]) || !data.test(o.a[1]) || o.a[0] > o.a[1]) return null;
+        plecat = { din: o.a[0], pana: o.a[1] }
+    }
+    if (o.p != null && o.p !== "even" && o.p !== "odd") return null;
+    return {
+        elev: typeof o.e === "string" && /^[A-Za-z0-9_.-]{1,80}$/.test(o.e) ? o.e : null,
+        zile: zile,
+        tura: tura,
+        plecat: plecat,
+        par: o.p || "all",
+        mesaj: typeof o.m === "string" ? o.m.trim().slice(0, 300) : ""
+    }
+}
+
+/* Toate câmpurile de disponibilitate de pe fișă. Înainte să folosești
+   programul elevului, se ține minte ce era în ele, ca să poți reveni. */
+var IAS_CHEI_DISP = ["dispZile", "availFrom", "availTo", "availDays", "availParity", "tura", "turaData",
+    "turaOra", "turaLucru", "turaLiber", "turaOdihna", "plecatDin", "plecatPana"];
+
+/* Răspunsul, așa cum stă pe fișă: deoparte, fără să schimbe nimic. Ce n-a
+   spus elevul (ture, plecare, zile pare) rămâne gol, nu „nu”. */
+function iasProgramElevNou(r) {
+    return {
+        primit: Be(),
+        zile: Object.assign({}, r.zile),
+        tura: r.tura || null,
+        plecat: r.plecat || null,
+        par: r.par === "even" || r.par === "odd" ? r.par : null,
+        mesaj: r.mesaj || "",
+        folosit: null
+    }
+}
+
+/* Ce se schimbă pe fișă când folosești programul elevului: doar ce a spus el.
+   - Zilele în care lucrezi: le-a spus pe toate, deci iau locul regulii
+     generale și al zilelor bifate. Ca zilele pe care nu le-a avut de ales
+     (cele în care nu lucrezi) să rămână exact cum erau, regula veche se
+     scrie mai întâi pe fiecare dintre ele.
+   - Tura, perioada în care lipsește și zilele pare/impare se schimbă doar
+     dacă a spus ceva despre ele. Ce trecuseși tu rămâne. */
+function iasProgramElevCampuri(elev, p) {
+    var e = elev || {}, f = {}, zile = {}, bifate = e.availDays,
+        gf = e.availFrom, gt = e.availTo,
+        af = gf !== "" && gf != null, at = gt !== "" && gt != null;
+    for (var z = 0; z <= 6; z++) {
+        if (p.zile && p.zile[z]) { zile[z] = Object.assign({}, p.zile[z]); continue }
+        if (Array.isArray(bifate) && bifate.length && bifate.indexOf(z) < 0) { zile[z] = { fel: "nu" }; continue }
+        var pe = iasZiuaLui(e, z);
+        if (pe && pe.fel !== "ca") { zile[z] = Object.assign({}, pe); continue }
+        if (af && at) zile[z] = { fel: "intre", lo: Number(gf), hi: Number(gt) };
+        else if (af) zile[z] = { fel: "dupa", lo: Number(gf) };
+        else if (at) zile[z] = { fel: "pana", hi: Number(gt) }
+    }
+    f.dispZile = zile, f.availFrom = "", f.availTo = "", f.availDays = [];
+    if (p.tura) {
+        f.tura = p.tura.tip, f.turaData = p.tura.data, f.turaOra = p.tura.ora,
+        f.turaOdihna = p.tura.odihna ? String(p.tura.odihna) : "";
+        if (p.tura.tip === "alt") f.turaLucru = String(p.tura.lucru), f.turaLiber = String(p.tura.liber)
+    }
+    if (p.plecat) f.plecatDin = p.plecat.din, f.plecatPana = p.plecat.pana;
+    if (p.par) f.availParity = p.par;
+    return f
+}
+
+/* Folosește programul păstrat pe fișă. Ce era înainte se ține minte. */
+function iasFolosesteProgram(elev) {
+    var p = elev && elev.programElev;
+    if (!p) return elev;
+    var inainte = {};
+    IAS_CHEI_DISP.forEach(function (k) { elev[k] !== void 0 && (inainte[k] = elev[k]) });
+    return { ...elev, ...iasProgramElevCampuri(elev, p), programElevInainte: inainte, programElev: { ...p, folosit: Be() } }
+}
+
+/* „Revino la ce era": disponibilitatea de dinainte, întocmai. Programul
+   elevului rămâne pe fișă, nefolosit. */
+function iasRevinoLaProgram(elev) {
+    var b = elev && elev.programElevInainte;
+    if (!b) return elev;
+    var n = { ...elev };
+    IAS_CHEI_DISP.forEach(function (k) { k in b ? n[k] = b[k] : delete n[k] });
+    delete n.programElevInainte;
+    n.programElev && (n.programElev = { ...n.programElev, folosit: null });
+    return n
+}
+
+function iasZiLuna(iso) {
+    var d = Ue(iso);
+    return d.getDate() + " " + yo[d.getMonth()]
+}
+
+/* Cum arată o zi pe fișă, în cuvinte. Pentru „înainte → după". */
+function iasDispZiText(elev, z) {
+    var e = elev || {}, zile = e.availDays;
+    if (Array.isArray(zile) && zile.length && zile.indexOf(z) < 0) return "nu poate";
+    var pe = iasZiuaLui(e, z);
+    if (pe) switch (pe.fel) {
+        case "nu": return "nu poate";
+        case "oricand": return "oric\xE2nd";
+        case "dupa": return "de la " + Se(Number(pe.lo));
+        case "pana": return "p\xE2n\u0103 la " + Se(Number(pe.hi));
+        case "intre": return "\xEEntre " + Se(Number(pe.lo)) + " \u0219i " + Se(Number(pe.hi));
+        case "afara": return "oric\xE2nd, mai pu\u021Bin " + Se(Number(pe.lo)) + "\u2013" + Se(Number(pe.hi))
+    }
+    var f = e.availFrom, t = e.availTo,
+        af = f !== "" && f != null, at = t !== "" && t != null;
+    if (af && at) return "\xEEntre " + Se(Number(f)) + " \u0219i " + Se(Number(t));
+    if (af) return "de la " + Se(Number(f));
+    if (at) return "p\xE2n\u0103 la " + Se(Number(t));
+    return "oric\xE2nd"
+}
+
+function iasDispTuraText(elev) {
+    var e = elev || {};
+    if (!e.tura) return "f\u0103r\u0103 ture";
+    var t = e.tura === "alt"
+        ? (Number(e.turaLucru) || 0) + " h lucru, " + (Number(e.turaLiber) || 0) + " h liber"
+        : ((Zw[e.tura] || {}).nume || e.tura);
+    if (e.turaData) t += ", din " + iasZiLuna(e.turaData) + " la " + Se(e.turaOra == null ? 420 : Number(e.turaOra));
+    if (Number(e.turaOdihna)) t += ", " + Number(e.turaOdihna) + " h odihn\u0103";
+    return t
+}
+
+function iasDispParText(elev) {
+    var p = (elev || {}).availParity;
+    return p === "even" ? "doar pare" : p === "odd" ? "doar impare" : "toate"
+}
+
+function iasDispPlecatText(elev) {
+    var e = elev || {};
+    return e.plecatPana ? iasZiLuna(e.plecatDin || Be()) + " \u2013 " + iasZiLuna(e.plecatPana) : ""
+}
+
+/* Ce a trimis elevul, rând cu rând, pentru căsuța de pe fișă. */
+function iasProgramElevRanduri(p) {
+    var r = [];
+    if (!p) return r;
+    po.forEach(function (z) {
+        var x = p.zile && p.zile[z];
+        if (x) r.push({ cheie: "z" + z, nume: Tw[z], text: iasDispZiText({ dispZile: { [z]: x } }, z) })
+    });
+    if (p.tura) r.push({ cheie: "tura", nume: "Ture", text: iasDispTuraText({ tura: p.tura.tip, turaData: p.tura.data,
+        turaOra: p.tura.ora, turaOdihna: p.tura.odihna, turaLucru: p.tura.lucru, turaLiber: p.tura.liber }) });
+    if (p.plecat) r.push({ cheie: "plecat", nume: "Lipse\u0219te", text: iasDispPlecatText({ plecatDin: p.plecat.din, plecatPana: p.plecat.pana }) });
+    if (p.par) r.push({ cheie: "par", nume: "Zilele lunii", text: iasDispParText({ availParity: p.par }) });
+    return r
+}
+
+
 function bw(n, e, t, a) {
     let r = a || si,
         i = t && t.availFrom,
@@ -7131,6 +7375,253 @@ function Vk({
     })))
 }
 
+/* Înainte → după, rând cu rând, pentru programul spus de elev. Rândurile care
+   nu se schimbă rămân estompate, ca ochiul să prindă doar ce e nou. */
+function IasDiferenteProgram({ vechi: iasV, nou: iasN }) {
+    let E = o.default.createElement,
+        iasRanduri = po.map(z => ({ cheie: "z" + z, nume: Tw[z], a: iasDispZiText(iasV, z), b: iasDispZiText(iasN, z) }));
+    iasRanduri.push({ cheie: "tura", nume: "Ture", a: iasDispTuraText(iasV), b: iasDispTuraText(iasN) });
+    iasRanduri.push({ cheie: "par", nume: "Zilele lunii", a: iasDispParText(iasV), b: iasDispParText(iasN) });
+    let iasPa = iasDispPlecatText(iasV), iasPb = iasDispPlecatText(iasN);
+    if (iasPa || iasPb) iasRanduri.push({ cheie: "plecat", nume: "Lipse\u0219te", a: iasPa || "\u2014", b: iasPb || "\u2014" });
+    let iasCate = iasRanduri.filter(r => r.a !== r.b).length;
+    return E("div", {
+        className: "rounded-xl px-3 py-2.5 mb-3",
+        style: { background: "var(--surface-2)", border: "1px solid var(--line)" }
+    },
+        E("div", { className: "text-xs font-medium mb-1", style: { color: "var(--muted)" } },
+            iasCate ? (iasCate === 1 ? "Se schimb\u0103 un r\xE2nd" : `Se schimb\u0103 ${iasCate} r\xE2nduri`) : "Nimic nou fa\u021B\u0103 de fi\u0219\u0103"),
+        iasRanduri.map(r => E("div", {
+            key: r.cheie,
+            className: "flex gap-2 py-1.5 text-xs",
+            style: { borderTop: "1px solid var(--line)" }
+        },
+            E("span", {
+                className: "shrink-0 font-medium",
+                style: { width: 74, color: r.a !== r.b ? "var(--text)" : "var(--muted-2)" }
+            }, r.nume),
+            r.a === r.b
+                ? E("span", { className: "flex-1 min-w-0", style: { color: "var(--muted-2)" } }, r.b)
+                : E("span", { className: "flex-1 min-w-0" },
+                    E("span", { style: { color: "var(--muted-2)", textDecoration: "line-through" } }, r.a),
+                    E("span", { style: { color: "var(--muted-2)" } }, " \u2192 "),
+                    E("span", { className: "font-semibold", style: { color: "var(--accent-ink)" } }, r.b)))))
+}
+
+/* Ce a trimis elevul, cum stă pe fișă. */
+function IasProgramRanduri({ program: iasP }) {
+    let E = o.default.createElement;
+    return E("div", { className: "rounded-xl px-3 py-1.5 mb-2.5", style: { background: "var(--surface)", border: "1px solid var(--line)" } },
+        iasProgramElevRanduri(iasP).map((r, i) => E("div", {
+            key: r.cheie,
+            className: "flex gap-2 py-1 text-xs",
+            style: i ? { borderTop: "1px solid var(--line)" } : null
+        },
+            E("span", { className: "shrink-0 font-medium", style: { width: 74, color: "var(--muted)" } }, r.nume),
+            E("span", { className: "flex-1 min-w-0", style: { color: "var(--text)" } }, r.text))))
+}
+
+/* Căsuța „Programul trimis de elev", în fișă, la Disponibilitate. Răspunsul
+   elevului stă aici deoparte: nu schimbă nimic până nu apeși „Folosește-l în
+   plan", iar atunci schimbă doar ce a spus el. „Revino la ce era" anulează.
+   Totul rămâne după ce apeși Salvează modificările, ca orice altă schimbare. */
+function IasProgramElev({ elev: iasEl, poateCere: iasPoate, onCere: iasCere, onSchimba: iasSchimba }) {
+    let E = o.default.createElement,
+        [iasLipesc, iasPuneLipesc] = (0, o.useState)(!1),
+        [iasText, iasPuneText] = (0, o.useState)(""),
+        [iasIntreb, iasPuneIntreb] = (0, o.useState)(!1),
+        iasP = iasEl.programElev,
+        iasR = iasText.trim() ? iasDispCiteste(iasText) : null,
+        iasAltul = !!(iasR && iasR.elev && iasEl.id && iasR.elev !== iasEl.id),
+        iasBtn = (txt, fn, plin) => E("button", {
+            type: "button",
+            onClick: fn,
+            className: "py-2.5 rounded-xl text-sm font-medium",
+            style: plin
+                ? { background: "var(--invert)", color: "var(--on-invert)" }
+                : { background: "var(--surface)", color: "var(--text)", border: "1px solid var(--line-2)" }
+        }, txt);
+    return E("div", {
+        className: "rounded-xl px-3.5 py-3 mb-3.5",
+        style: { background: "var(--accent-soft)", border: "1px solid var(--accent-line)" }
+    },
+        E("div", { className: "flex items-baseline justify-between gap-2" },
+            E("div", { className: "text-sm font-medium text-slate-800" }, "Programul trimis de elev"),
+            iasP ? E("span", {
+                className: "text-xs font-medium shrink-0",
+                style: { color: iasP.folosit ? "var(--ok)" : "var(--accent-ink)" }
+            }, iasP.folosit ? "folosit \xEEn plan" : "nefolosit \xEEnc\u0103") : null),
+        iasP ? E(o.default.Fragment, null,
+            E("p", { className: "text-xs text-slate-500 mt-0.5 mb-2" },
+                `Primit pe ${iasZiLuna(iasP.primit)}.`,
+                iasP.folosit ? ` Folosit \xEEn plan pe ${iasZiLuna(iasP.folosit)}.` : " C\xE2t timp nu-l folose\u0219ti, disponibilitatea de mai jos r\u0103m\xE2ne cum ai scris-o tu."),
+            E(IasProgramRanduri, { program: iasP }),
+            iasP.mesaj ? E("p", { className: "text-xs text-slate-600 mb-2.5" }, "Elevul a mai scris: \u201E", iasP.mesaj, "\u201D") : null,
+            iasIntreb ? E("div", null,
+                E("p", { className: "text-xs text-slate-600 mb-1.5" }, "Dac\u0103 \xEEl folose\u0219ti, pe fi\u0219\u0103 se schimb\u0103 doar ce a spus elevul:"),
+                E(IasDiferenteProgram, { vechi: iasEl, nou: iasFolosesteProgram(iasEl) }),
+                E("div", { className: "grid grid-cols-2 gap-2" },
+                    iasBtn("Renun\u021B\u0103", () => iasPuneIntreb(!1)),
+                    iasBtn("Da, folose\u0219te-l", () => { iasSchimba(iasFolosesteProgram), iasPuneIntreb(!1) }, !0))) :
+            E("div", { className: "grid grid-cols-2 gap-2" },
+                iasP.folosit ? null : iasBtn("Folose\u0219te-l \xEEn plan", () => iasPuneIntreb(!0), !0),
+                iasEl.programElevInainte ? iasBtn("Revino la ce era", () => iasSchimba(iasRevinoLaProgram)) : null)) :
+        E("p", { className: "text-xs text-slate-500 mt-0.5" },
+            "Elevul prime\u0219te un link, alege pentru fiecare zi cum poate \u0219i \xEE\u021Bi trimite r\u0103spunsul pe WhatsApp. R\u0103spunsul st\u0103 aici deoparte \u0219i nu schimb\u0103 nimic p\xE2n\u0103 nu hot\u0103r\u0103\u0219ti tu."),
+        E("div", { className: "grid grid-cols-2 gap-2 mt-3", style: { borderTop: iasP ? "1px solid var(--accent-line)" : "0", paddingTop: iasP ? 12 : 0 } },
+            E("button", {
+                type: "button",
+                disabled: !iasPoate,
+                onClick: () => iasPoate && iasCere(),
+                className: "py-2.5 rounded-xl text-sm font-medium",
+                style: { background: "var(--surface)", color: "var(--text)", border: "1px solid var(--line-2)", opacity: iasPoate ? 1 : .45 }
+            }, iasP ? "Cere unul nou" : "Cere-i programul"),
+            iasBtn(iasLipesc ? "\xCEnchide" : "Lipe\u0219te r\u0103spunsul", () => { iasPuneLipesc(!iasLipesc), iasPuneText("") })),
+        iasPoate ? null : E("p", { className: "text-xs text-slate-500 mt-2" },
+            "Adaug\u0103 \xEEnt\xE2i elevul. Din fi\u0219a lui salvat\u0103 \xEEi po\u021Bi cere apoi programul."),
+        iasLipesc ? E("div", { className: "mt-3" },
+            E("textarea", {
+                rows: 4,
+                className: ie + " text-xs",
+                value: iasText,
+                onChange: S => iasPuneText(S.target.value),
+                placeholder: "Lipe\u0219te aici tot mesajul primit de la elev"
+            }),
+            iasText.trim() && !iasR ? E("p", { className: "text-xs mt-1.5", style: { color: "var(--bad)" } },
+                "Nu g\u0103sesc \xEEn text r\u0103spunsul de pe pagina de program. Lipe\u0219te mesajul \xEEntreg, cu tot cu linkul de la final.") : null,
+            iasR ? E("div", { className: "mt-2.5" },
+                iasAltul ? E("p", { className: "text-xs mb-2", style: { color: "var(--bad)" } },
+                    "Aten\u021Bie: r\u0103spunsul a fost cerut din fi\u0219a altui elev.") : null,
+                E(IasProgramRanduri, { program: iasProgramElevNou(iasR) }),
+                E("button", {
+                    type: "button",
+                    onClick: () => { iasSchimba(iasF => ({ ...iasF, programElev: iasProgramElevNou(iasR) })), iasPuneLipesc(!1), iasPuneText("") },
+                    className: "w-full py-2.5 rounded-xl text-sm font-medium",
+                    style: { background: "var(--accent)", color: "#3a2100" }
+                }, "P\u0103streaz\u0103-l pe fi\u0219\u0103"),
+                E("p", { className: "text-xs text-slate-500 mt-1.5" }, "Se pune deoparte, \xEEn c\u0103su\u021Ba asta. Disponibilitatea nu se schimb\u0103.")) : null) : null)
+}
+
+/* Cererea către elev: numărul tău (pe el vine răspunsul), mesajul, linkul. */
+function IasCereProgram({ elev: iasEl, setari: iasS, onClose: iasInchide, onNumar: iasNumar }) {
+    let E = o.default.createElement,
+        [iasNr, iasPuneNr] = (0, o.useState)(""),
+        [iasTxt, iasPuneTxt] = (0, o.useState)(""),
+        [iasCopiat, iasPuneCopiat] = (0, o.useState)(!1);
+    (0, o.useEffect)(() => {
+        if (!iasEl) return;
+        let { salut: iasSalut, cand: iasCand } = _0(iasEl), iasPren = Ff(iasEl);
+        iasPuneNr((iasS && iasS.telefonulTau) || "");
+        iasPuneTxt(`${iasSalut}${iasPren ? ", " + iasPren : ""}! Ca s\u0103-\u021Bi fac programul pentru \u0219edin\u021Bele de condus, spune-mi ${iasCand}: deschide linkul de mai jos, alege pentru fiecare zi \u0219i apas\u0103 \u201ETrimite \xEEndrum\u0103torului\u201D. Dureaz\u0103 un minut.`);
+        iasPuneCopiat(!1)
+    }, [iasEl]);
+    if (!iasEl) return null;
+    let iasBun = qw(iasNr).length >= 10,
+        iasLink = iasLinkCerereProgram(iasEl, { ...iasS, telefonulTau: iasNr }),
+        iasTot = `${iasTxt.trim()}\n\n${iasLink}`,
+        iasTel = (iasEl.phone || "").trim(),
+        iasTine = () => { iasBun && iasNr.trim() !== ((iasS && iasS.telefonulTau) || "") && iasNumar(iasNr.trim()) },
+        iasTrimis = ev => { if (!iasBun) { ev.preventDefault(); return } iasTine(), iasInchide() };
+    async function iasCopiaza() {
+        if (!iasBun) return;
+        try {
+            await navigator.clipboard.writeText(iasTot), iasTine(), iasPuneCopiat(!0), setTimeout(() => iasPuneCopiat(!1), 1600)
+        } catch (x) {}
+    }
+    return E(oi, { open: !0, onClose: iasInchide, title: "Cere-i programul", layer: Wt.dialog },
+        E("p", { className: "text-xs text-slate-400 -mt-1 mb-3" }, "Pentru ", iasEl.name || "elev", ". Po\u021Bi schimba textul; linkul se adaug\u0103 la final."),
+        E(xe, { label: "Num\u0103rul t\u0103u de WhatsApp", required: !0 },
+            E("input", {
+                className: ie, type: "tel", inputMode: "tel",
+                value: iasNr,
+                onChange: S => iasPuneNr(S.target.value),
+                placeholder: "07xx xxx xxx"
+            })),
+        E("p", { className: "text-xs -mt-2 mb-3.5", style: { color: iasBun ? "var(--muted-2)" : "var(--accent-ink)" } }, iasBun
+            ? "Pe el \xEE\u021Bi vine r\u0103spunsul. R\u0103m\xE2ne \u021Binut minte \xEEn Set\u0103ri."
+            : "Scrie-l ca r\u0103spunsul s\u0103 vin\u0103 direct la tine."),
+        E(xe, { label: "Mesajul" },
+            E("textarea", { rows: 5, className: ie, value: iasTxt, onChange: S => iasPuneTxt(S.target.value) })),
+        E("div", {
+            className: "font-mono-time text-xs rounded-xl px-3 py-2 -mt-1 mb-3",
+            style: { background: "var(--surface-2)", color: "var(--muted)", wordBreak: "break-all" }
+        }, iasLink),
+        E("div", { className: "grid grid-cols-2 gap-2" },
+            E("a", {
+                href: iasBun ? (iasTel ? ak(iasTel, iasTot) : "https://wa.me/?text=" + encodeURIComponent(iasTot)) : void 0,
+                target: "_blank", rel: "noopener noreferrer",
+                onClick: iasTrimis,
+                style: { touchAction: "manipulation", opacity: iasBun ? 1 : .45 },
+                className: "py-2.5 rounded-xl bg-emerald-600 text-white font-medium text-sm flex items-center justify-center gap-1.5"
+            }, E(ai, { size: 15 }), "WhatsApp"),
+            iasTel ? E("a", {
+                href: iasBun ? rk(iasTel, iasTot) : void 0,
+                onClick: iasTrimis,
+                style: { touchAction: "manipulation", opacity: iasBun ? 1 : .45 },
+                className: "py-2.5 rounded-xl bg-slate-900 text-white font-medium text-sm flex items-center justify-center gap-1.5"
+            }, E(Na, { size: 15 }), "SMS") : null,
+            E("button", {
+                type: "button",
+                onClick: iasCopiaza,
+                style: { opacity: iasBun ? 1 : .45 },
+                className: "py-2.5 rounded-xl border border-slate-200 text-slate-700 font-medium text-sm flex items-center justify-center gap-1.5"
+            }, E(ti, { size: 15 }), iasCopiat ? "Copiat \u2713" : "Copiaz\u0103")),
+        iasTel ? null : E("p", { className: "text-xs text-slate-400 mt-2" },
+            "Elevul n-are telefon pe fi\u0219\u0103: WhatsApp te las\u0103 s\u0103-l alegi din contacte."),
+        E("p", { className: "text-xs text-slate-400 mt-3" },
+            "Linkul duce doar codul fi\u0219ei, orele tale de lucru \u0219i num\u0103rul t\u0103u. Despre elev nu con\u021Bine nimic."))
+}
+
+/* Linkul din mesajul elevului a deschis aplicația. Alegi: doar îl păstrezi
+   pe fișă, deoparte, sau îl și folosești în plan. Nimic nu se scrie până nu
+   apeși unul din cele două butoane. */
+function IasProgramPrimit({ raspuns: iasR, elevi: iasElevi, onPastreaza: iasPastreaza, onClose: iasInchide }) {
+    let E = o.default.createElement,
+        [iasAles, iasPuneAles] = (0, o.useState)("");
+    (0, o.useEffect)(() => {
+        if (!iasR) return;
+        let iasGasit = iasR.elev && (iasElevi || []).find(s => s.id === iasR.elev);
+        iasPuneAles(iasGasit ? iasGasit.id : "")
+    }, [iasR]);
+    if (!iasR) return null;
+    let iasToti = iasElevi || [],
+        iasLista = iasToti.filter(s => !s.withdrawn || s.id === iasR.elev).slice()
+            .sort((a, b) => (a.name || "").localeCompare(b.name || "", "ro")),
+        iasEl = iasLista.find(s => s.id === iasAles) || null,
+        iasNou = iasProgramElevNou(iasR),
+        iasCerut = iasR.elev ? iasToti.find(s => s.id === iasR.elev) : null,
+        iasBtn = (txt, fn, plin) => E("button", {
+            onClick: fn,
+            disabled: !iasEl,
+            style: { opacity: iasEl ? 1 : .45 },
+            className: "flex-1 py-3 rounded-xl font-medium text-sm " + (plin ? "bg-slate-900 text-white" : "border border-slate-200 text-slate-700")
+        }, txt);
+    return E(oi, {
+        open: !0, onClose: iasInchide, title: "Program primit", layer: Wt.dialog,
+        footer: E("div", { className: "flex gap-2.5" },
+            iasBtn("Doar \xEEl p\u0103strez", () => iasEl && iasPastreaza(iasEl, iasNou, !1)),
+            iasBtn("Folose\u0219te-l \xEEn plan", () => iasEl && iasPastreaza(iasEl, iasNou, !0), !0))
+    },
+        E(xe, { label: "De la elevul" },
+            E("select", { className: ie, value: iasAles, onChange: S => iasPuneAles(S.target.value) },
+                E("option", { value: "" }, "Alege elevul\u2026"),
+                iasLista.map(s => E("option", { key: s.id, value: s.id }, s.name)))),
+        iasCerut ? E("p", { className: "text-xs text-slate-400 -mt-2 mb-3" },
+            "Ales singur: linkul a pornit din fi\u0219a lui.") : null,
+        iasR.elev && !iasCerut ? E("p", { className: "text-xs -mt-2 mb-3", style: { color: "var(--bad)" } },
+            "Fi\u0219a din care ai cerut programul nu mai exist\u0103. Alege elevul.") : null,
+        !iasR.elev ? E("p", { className: "text-xs text-slate-400 -mt-2 mb-3" },
+            "Linkul n-a pornit dintr-o fi\u0219\u0103, a\u0219a c\u0103 alegi tu elevul.") : null,
+        E("div", { className: "text-xs font-medium mb-1", style: { color: "var(--muted)" } }, "Ce a trimis"),
+        E(IasProgramRanduri, { program: iasNou }),
+        iasR.mesaj ? E("p", { className: "text-xs text-slate-600 mb-3" }, "Elevul a mai scris: \u201E", iasR.mesaj, "\u201D") : null,
+        iasEl ? E(o.default.Fragment, null,
+            E("div", { className: "text-xs font-medium mb-1 mt-1", style: { color: "var(--muted)" } }, "Dac\u0103 \xEEl folose\u0219ti \xEEn plan"),
+            E(IasDiferenteProgram, { vechi: iasEl, nou: iasFolosesteProgram({ ...iasEl, programElev: iasNou }) })) : null,
+        E("p", { className: "text-xs text-slate-400" },
+            "\u201EDoar \xEEl p\u0103strez\u201D \xEEl pune pe fi\u0219\u0103, deoparte, f\u0103r\u0103 s\u0103 schimbe nimic. \xCEl po\u021Bi folosi oric\xE2nd de acolo, iar \u201ERevino la ce era\u201D anuleaz\u0103."))
+}
+
 function Wk({
     open: n,
     mode: e,
@@ -7144,6 +7635,8 @@ function Wk({
     masinaImplicita: iasMasImp = "",
     laExamene: iasLaExamene,
     sesiuni: iasSesiuni = [],
+    onCereProgram: iasOnCere,
+    programElevi: iasProgramPornit,
     onClose: u,
     onSave: d,
     onDelete: f
@@ -7723,6 +8216,13 @@ function Wk({
             return "oric\xE2nd"
         })()
     },
+    /* Programul trimis de elev — doar când e pornit din Setări. */
+    iasProgramPornit ? o.default.createElement(IasProgramElev, {
+        elev: c,
+        poateCere: e === "edit" && !!(t && t.id),
+        onCere: () => iasOnCere && iasOnCere({ ...c, id: t.id }),
+        onSchimba: iasFn => m(iasF => iasFn(iasF))
+    }) : null,
     /* Regula generală: valabilă în orice zi pe care n-ai pus altceva. Pentru
        elevii simpli — „pot după 14" — nu mai ai nimic de completat dedesubt. */
     o.default.createElement("div", {
@@ -10505,6 +11005,11 @@ function e3({
             Icon: ni,
             rezumat: [J.numeleTau, J.numeScoala].filter(Boolean).join(" \xB7 ") || "necompletat"
         }, {
+            id: "programElevi",
+            nume: "Programul trimis de elevi",
+            Icon: ai,
+            rezumat: J.programElevi ? "pornit" : "oprit"
+        }, {
             id: "locatii",
             nume: "Loca\u021Bii de start",
             Icon: dn,
@@ -10916,7 +11421,41 @@ function e3({
                     textBunVenit: p0
                 }),
                 className: "w-full py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm"
-            }, "Revino la textul implicit")) : ne === "locatii" ? o.default.createElement(o.default.Fragment, null, o.default.createElement("div", {
+            }, "Revino la textul implicit")) : ne === "programElevi" ? o.default.createElement(o.default.Fragment, null,
+            /* Oprit din pornire: până nu-l pornești, aplicația e exact ca înainte. */
+            o.default.createElement("div", {
+                className: "rounded-xl px-3.5 py-3 mb-3.5",
+                style: {
+                    background: J.programElevi ? "var(--accent-soft)" : "var(--surface)",
+                    border: `1px solid ${J.programElevi ? "var(--accent-line)" : "var(--line)"}`
+                }
+            },
+                o.default.createElement("label", { className: "flex items-center gap-3" },
+                    o.default.createElement("input", {
+                        type: "checkbox",
+                        checked: !!J.programElevi,
+                        onChange: () => e({ programElevi: !J.programElevi }),
+                        className: "w-4 h-4 accent-amber-500 shrink-0"
+                    }),
+                    o.default.createElement("span", { className: "text-sm flex-1", style: { color: "var(--text)" } },
+                        "Elevii \xEE\u0219i trimit singuri programul")),
+                o.default.createElement("p", {
+                    className: "text-xs mt-1.5", style: { color: "var(--muted-2)" }
+                }, J.programElevi
+                    ? "Pornit: \xEEn fi\u0219a elevului, la Disponibilitate, apare c\u0103su\u021Ba \u201EProgramul trimis de elev\u201D. De acolo \xEEi ceri programul printr-un link, iar r\u0103spunsul lui st\u0103 deoparte p\xE2n\u0103 hot\u0103r\u0103\u0219ti tu s\u0103-l folose\u0219ti."
+                    : "Oprit: aplica\u021Bia r\u0103m\xE2ne exact ca p\xE2n\u0103 acum. Pornit, \xEE\u021Bi po\u021Bi ruga elevii s\u0103-\u021Bi trimit\u0103 programul printr-un link pe WhatsApp.")),
+            J.programElevi ? o.default.createElement(o.default.Fragment, null, o.default.createElement(xe, {
+                label: "Num\u0103rul t\u0103u de WhatsApp"
+            }, o.default.createElement("input", {
+                className: ie,
+                type: "tel",
+                inputMode: "tel",
+                value: J.telefonulTau || "",
+                onChange: H => e({ telefonulTau: H.target.value }),
+                placeholder: "07xx xxx xxx"
+            })), o.default.createElement("p", {
+                className: "text-xs text-slate-400 -mt-2 mb-3.5"
+            }, "Pe el \xEE\u021Bi r\u0103spund elevii c\xE2nd le ceri programul.")) : null) : ne === "locatii" ? o.default.createElement(o.default.Fragment, null, o.default.createElement("div", {
                 className: "space-y-1.5 mb-3"
             }, (J.locations || []).map(H => o.default.createElement("div", {
                 key: H.id,
@@ -11669,6 +12208,14 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.49.0.2",
+    titlu: "Pagina elevului, mai scurt\u0103",
+    puncte: ["Pe pagina pe care elevul \xEE\u0219i trimite programul au r\u0103mas zilele s\u0103pt\u0103m\xE2nii, perioada \xEEn care lipse\u0219te \u0219i un mesaj pentru tine. Turele \u0219i zilele pare sau impare le treci tu pe fi\u0219\u0103, ca p\xE2n\u0103 acum."]
+}, {
+    v: "v2.49.0.1",
+    titlu: "Programul trimis de elev",
+    puncte: ["Nou \u0219i oprit din pornire: \xEEl porne\u0219ti din Set\u0103ri \u2192 Programul trimis de elevi, unde \xEE\u021Bi scrii \u0219i num\u0103rul de WhatsApp.", "Pornit, \xEEn fi\u0219a elevului, la Disponibilitate, ape\u0219i \u201ECere-i programul\u201D. Elevul prime\u0219te un link, alege pentru fiecare zi cum poate \u0219i \xEE\u021Bi trimite r\u0103spunsul pe WhatsApp.", "R\u0103spunsul st\u0103 pe fi\u0219\u0103 deoparte \u0219i nu schimb\u0103 nimic. C\xE2nd \xEEl folose\u0219ti \xEEn plan, se schimb\u0103 doar ce a spus elevul, iar \u201ERevino la ce era\u201D anuleaz\u0103."]
+}, {
     v: "v2.49.0",
     titlu: "Ore \xEEn care elevul nu poate, \u0219i listele de examen",
     puncte: ["La disponibilitate ai acum \u0219i \u201Enu poate \xEEntre\u2026\u201D: elevul cu cursuri de la 14 la 18 lunea e liber tot restul zilei, iar planul \xEEl programeaz\u0103 \xEEnainte sau dup\u0103.", "Elevii cu examen \xEEn aceea\u0219i zi apar \xEEn ordinea numelui \u2014 \u0219i la practic, \u0219i la teoretic, \u0219i la cei care au dat deja."]
@@ -12504,6 +13051,28 @@ function y3() {
         window.addEventListener("ias-cere-inchidere", I);
         return () => window.removeEventListener("ias-cere-inchidere", I)
     }, [Y]);
+    /* Programul trimis de elev. Linkul din mesajul lui deschide aplicația cu
+       răspunsul în adresă (#disp=…): îl citim, curățăm adresa ca să nu se
+       repete la următoarea pornire și-l arătăm spre confirmare. */
+    let [iasProgramVenit, iasPuneProgramVenit] = (0, o.useState)(null),
+        [iasCerereProgram, iasPuneCerereProgram] = (0, o.useState)(null),
+        iasProgramPornit = !!(n.settings || {}).programElevi;
+    (0, o.useEffect)(() => {
+        let iasCiteste = () => {
+            let iasH = window.location.hash || "";
+            if (iasH.indexOf("disp=") < 0) return;
+            try { window.history.replaceState(null, "", window.location.pathname + window.location.search) } catch (x) {}
+            let iasR = iasDispCiteste(iasH);
+            iasR ? iasPuneProgramVenit(iasR) : Y("Linkul de program nu e \xEEntreg. Cere-i elevului s\u0103 \xEEl trimit\u0103 din nou.", "error")
+        };
+        iasCiteste();
+        window.addEventListener("hashchange", iasCiteste);
+        return () => window.removeEventListener("hashchange", iasCiteste)
+    }, [Y]);
+    /* Funcția oprită: răspunsul nu se pune nicăieri, doar spunem de ce. */
+    (0, o.useEffect)(() => {
+        iasProgramVenit && !t && !iasProgramPornit && (Y("Ai primit programul unui elev, dar func\u021Bia e oprit\u0103. Porne\u0219te-o din Set\u0103ri \u2192 Programul trimis de elevi, apoi atinge din nou linkul."), iasPuneProgramVenit(null))
+    }, [iasProgramVenit, t, iasProgramPornit]);
     (0, o.useEffect)(() => {
         if (typeof window > "u" || !window.matchMedia) return;
         let I = window.matchMedia("(prefers-color-scheme: dark)");
@@ -13966,7 +14535,9 @@ function y3() {
             initial: null
         }),
         onSave: fe,
-        onDelete: he
+        onDelete: he,
+        onCereProgram: iasPuneCerereProgram,
+        programElevi: iasProgramPornit
     }), o.default.createElement(Gk, {
         open: h && cu(Ct, "raport"),
         data: n,
@@ -13991,7 +14562,28 @@ function y3() {
     })), o.default.createElement(Nk, {
         prompt: g,
         onClose: () => v(null)
-    }), o.default.createElement(kk, {
+    }), iasProgramPornit ? o.default.createElement(IasCereProgram, {
+        elev: iasCerereProgram,
+        setari: n.settings,
+        onClose: () => iasPuneCerereProgram(null),
+        onNumar: iasNr => ce(te => ({ ...te, settings: { ...te.settings, telefonulTau: iasNr } }))
+    }) : null, iasProgramPornit ? o.default.createElement(IasProgramPrimit, {
+        /* Așteaptă să se încarce datele și să se închidă ce e deschis — fișa
+           elevului mai ales: altfel, la salvarea ei, programul primit s-ar pierde. */
+        raspuns: !t && !f.open && !Ct.ecranCod && N !== "intro" && N !== "noutati" ? iasProgramVenit : null,
+        elevi: n.students,
+        onClose: () => iasPuneProgramVenit(null),
+        onPastreaza: (iasEl, iasNou, iasFoloseste) => {
+            if (B.current) {
+                Y("Acces expirat. Cere prelungirea ca s\u0103 po\u021Bi modifica.", "error"), iasPuneProgramVenit(null);
+                return
+            }
+            ce(te => ({ ...te, students: te.students.map(iasS => iasS.id !== iasEl.id ? iasS
+                : iasFoloseste ? iasFolosesteProgram({ ...iasS, programElev: iasNou }) : { ...iasS, programElev: iasNou }) }));
+            Y(iasFoloseste ? `Program folosit \xEEn plan: ${iasEl.name}.` : `Program p\u0103strat pe fi\u0219\u0103: ${iasEl.name}.`);
+            iasPuneProgramVenit(null)
+        }
+    }) : null, o.default.createElement(kk, {
         toast: s
     }))
 }
