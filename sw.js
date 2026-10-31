@@ -1,7 +1,7 @@
 /* IAS — lucrătorul care ține aplicația pornită și fără internet.
    La fiecare versiune nouă se schimbă numele depozitului de mai jos, vechiul
    depozit se șterge, iar telefonul preia noua versiune la următoarea pornire. */
-const CACHE = 'ias-v2.49.0';
+const CACHE = 'ias-v2.49.0.2';
 const ASSETS = ['./', './index.html', './manifest.json', './icon.png', './icon-192.png'];
 
 self.addEventListener('install', (e) => {
@@ -36,6 +36,12 @@ self.addEventListener('fetch', (e) => {
   // Pagina în sine: încercăm întâi internetul, ca o versiune nouă urcată de tine
   // să fie preluată imediat; fără semnal, servim ce avem salvat.
   if (req.mode === 'navigate') {
+    // Doar aplicația se ține minte ca aplicație. Altă pagină de pe site — cea
+    // pe care elevii își aleg programul, de pildă — se cere normal: altfel,
+    // dacă o deschideai pe telefonul tău, se salva peste aplicație, iar fără
+    // semnal IAS pornea ca pagina elevului.
+    const pagina = new URL(req.url).pathname.split('/').pop();
+    if (pagina !== '' && pagina !== 'index.html') return;
     e.respondWith(
       fetch(req)
         .then((res) => {
