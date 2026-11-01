@@ -7661,9 +7661,23 @@ function IasProgramPrimit({ raspuns: iasR, elevi: iasElevi, onPastreaza: iasPast
         }, txt);
     return E(oi, {
         open: !0, onClose: iasInchide, title: "Program primit", layer: Wt.dialog,
-        footer: E("div", { className: "flex gap-2.5" },
-            iasBtn("Doar \xEEl p\u0103strez", () => iasEl && iasPastreaza(iasEl, iasNou, !1)),
-            iasBtn("Folose\u0219te-l \xEEn plan", () => iasEl && iasPastreaza(iasEl, iasNou, !0), !0))
+        /* Cele două butoane fac lucruri foarte diferite, iar numele lor nu
+           spun destul: „Doar îl păstrez" nu schimbă nimic pe fișă, doar ține
+           minte ce a trimis elevul. Cine apasă acolo crezând că salvează se
+           întoarce la fișă și n-o găsește schimbată. Așa că scriem dedesubt,
+           în două rânduri, ce face fiecare. */
+        footer: E("div", { className: "space-y-2" },
+            E("div", { className: "flex gap-2.5" },
+                iasBtn("Doar \xEEl p\u0103strez", () => iasEl && iasPastreaza(iasEl, iasNou, !1)),
+                iasBtn("Folose\u0219te-l \xEEn plan", () => iasEl && iasPastreaza(iasEl, iasNou, !0), !0)),
+            E("div", { className: "text-xs leading-snug", style: { color: "var(--muted-2)" } },
+                E("span", { style: { fontWeight: 600 } }, "Folose\u0219te-l \xEEn plan"),
+                " \u2014 zilele lui intr\u0103 \xEEn Disponibilitate \u0219i planul \u021Bine cont de ele.",
+                E("br", null),
+                E("span", { style: { fontWeight: 600 } }, "Doar \xEEl p\u0103strez"),
+                " \u2014 r\u0103m\xE2ne scris pe fi\u0219\u0103, deoparte. ",
+                E("span", { style: { fontWeight: 600 } }, "Nu schimb\u0103 nimic"),
+                " la disponibilitate."))
     },
         E(xe, { label: "De la elevul" },
             E("select", { className: ie, value: iasAles, onChange: S => iasPuneAles(S.target.value) },
@@ -12279,6 +12293,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.50.0.1",
+    titlu: "La \u201EProgram primit\u201D scrie ce face fiecare buton",
+    puncte: ["Sub cele dou\u0103 butoane st\u0103 scris limpede: \u201EFolose\u0219te-l \xEEn plan\u201D pune zilele elevului \xEEn Disponibilitate, iar \u201EDoar \xEEl p\u0103strez\u201D \xEEl \u021Bine deoparte, f\u0103r\u0103 s\u0103 schimbe nimic pe fi\u0219\u0103."]
+}, {
     v: "v2.50.0",
     titlu: "F\u0103r\u0103 completare automat\u0103, nic\u0103ieri",
     puncte: ["Niciun c\xE2mp din aplica\u021Bie nu mai cere completare automat\u0103: nici contacte din agend\u0103, nici date de card, nici parole salvate. Pe iPhone, \u021Binutul ap\u0103sat pe c\xE2mpul de telefon arat\u0103 iar \u201ELipire\u201D \u2014 p\xE2n\u0103 acum telefonul credea c\u0103 e num\u0103rul t\u0103u \u0219i \xEE\u021Bi oferea agenda \xEEn loc. Tastatura cu cifre a r\u0103mas la fel."]
