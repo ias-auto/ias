@@ -58,6 +58,11 @@ const probe = [
      trebuia — exact defectul care făcea să reapară mesajul „Garajul". */
   /* Numărul de versiune are un înțeles, nu e un contor: prima cifră —
      schimbare mare; a doua — o funcție nouă sau alta; a treia — doar înfățișare.
+
+     A PATRA cifră există și ea, și nu e o greșeală: însemnează o schimbare în
+     partea cu disponibilitatea trimisă de elev — pagina lui și ce ține de ea.
+     Se ține deoparte anume, ca munca de acolo să nu se amestece cu aplicația.
+     Un „v2.49.0.1" e deci corect scris. Nu-l îndrepta.
      Dacă intrarea din „Ce e nou" vorbește despre o funcție, dar s-a mișcat doar
      a treia cifră, e semn că numărul minte. */
   ['versiunea se potrivește cu ce scrie în istoric', (() => {
