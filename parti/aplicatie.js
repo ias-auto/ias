@@ -9,7 +9,70 @@ var IAS_ATINS = { x: 50, y: 50 };
 
    În câmpurile în care scrii îl lăsăm în pace: acolo îți trebuie ca să lipești
    un număr de telefon sau un link de hartă. */
+/* ============ FĂRĂ COMPLETARE AUTOMATĂ, NICĂIERI ============
+   În aplicația asta nu există niciun câmp în care să scrii date de-ale tale:
+   numele, telefonul, adresa — toate sunt ale elevilor. Deci completarea
+   automată a telefonului n-are ce oferi bun, iar pe iPhone chiar strică: la
+   ținut apăsat îți pune „Completare automată" peste „Lipire" și nu mai poți
+   lipi un număr copiat.
+
+   Mai rău, la câmpurile cu cifre sau cu cuvântul „cod" în preajmă, telefonul și
+   programele de parole se oferă să-ți dea cardul sau o parolă salvată. Nimic
+   din toate astea nu-și are locul aici.
+
+   Le oprim dintr-o singură mișcare, pe toate câmpurile, și pe cele care apar
+   mai târziu — ferestrele se deschid și se închid tot timpul. */
 if (typeof document < "u") {
+    (function () {
+        var SEMNE = [
+            ["autocomplete", "off"],
+            ["autocorrect", "off"],
+            ["spellcheck", "false"],
+            /* programele de parole: LastPass, 1Password, Dashlane */
+            ["data-lpignore", "true"],
+            ["data-1p-ignore", ""],
+            ["data-form-type", "other"]
+        ];
+        function iasTaie(el) {
+            if (!el || el.dataset.iasFaraAuto === "1") return;
+            /* Câmpul care cere anume completarea automată se marchează cu
+               clasa „ias-cu-autofill" și rămâne neatins. Azi nu există
+               niciunul, dar regula trebuie să poată face loc unuia. */
+            if (el.classList && el.classList.contains("ias-cu-autofill")) return;
+            for (var k = 0; k < SEMNE.length; k++)
+                if (!el.hasAttribute(SEMNE[k][0])) el.setAttribute(SEMNE[k][0], SEMNE[k][1]);
+            /* Safari ghicește și după nume: „tel", „phone", „name", „address",
+               „card" îi aprind bănuiala. Un nume neutru o stinge. */
+            var n = (el.getAttribute("name") || "");
+            if (!n || /tel|phone|name|nume|mail|address|adres|card|cod|pass|parol|cvv|zip|post/i.test(n))
+                el.setAttribute("name", "ias-camp");
+            el.dataset.iasFaraAuto = "1"
+        }
+        function iasToate(radacina) {
+            var l = (radacina || document).querySelectorAll
+                ? (radacina || document).querySelectorAll("input, textarea") : [];
+            for (var k = 0; k < l.length; k++) iasTaie(l[k])
+        }
+        function iasPorneste() {
+            iasToate(document);
+            if (typeof MutationObserver > "u") return;
+            new MutationObserver(function (schimbari) {
+                for (var k = 0; k < schimbari.length; k++) {
+                    var noi = schimbari[k].addedNodes;
+                    for (var j = 0; j < noi.length; j++) {
+                        var nod = noi[j];
+                        if (!nod || nod.nodeType !== 1) continue;
+                        if (nod.tagName === "INPUT" || nod.tagName === "TEXTAREA") iasTaie(nod);
+                        iasToate(nod)
+                    }
+                }
+            }).observe(document.documentElement, { childList: !0, subtree: !0 })
+        }
+        document.readyState === "loading"
+            ? document.addEventListener("DOMContentLoaded", iasPorneste)
+            : iasPorneste()
+    })();
+
     document.addEventListener("contextmenu", function (ev) {
         var t = ev.target;
         if (t && t.closest && t.closest('input, textarea, select, [contenteditable="true"], .ias-selectabil')) return;
@@ -7820,9 +7883,17 @@ function Wk({
         label: "Telefon"
     }, o.default.createElement("input", {
         className: ie,
-        type: "tel",
+        /* Numărul de aici e al elevului, nu al tău. Cu type="tel" și
+           autocomplete="tel", iPhone-ul credea că e câmpul tău de telefon: la
+           ținut apăsat îți oferea „Completare automată" din agendă, iar
+           „Lipire" era împinsă afară din meniu. inputMode ține tastatura cu
+           cifre, deci nu pierzi nimic la scris. */
+        type: "text",
         inputMode: "tel",
-        autoComplete: "tel",
+        autoComplete: "off",
+        autoCorrect: "off",
+        spellCheck: !1,
+        name: "ias-numar-elev",
         value: c.phone,
         onChange: S => b("phone", S.target.value),
         placeholder: "07xx xxx xxx"
@@ -12208,13 +12279,19 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.50.0",
+    titlu: "F\u0103r\u0103 completare automat\u0103, nic\u0103ieri",
+    puncte: ["Niciun c\xE2mp din aplica\u021Bie nu mai cere completare automat\u0103: nici contacte din agend\u0103, nici date de card, nici parole salvate. Pe iPhone, \u021Binutul ap\u0103sat pe c\xE2mpul de telefon arat\u0103 iar \u201ELipire\u201D \u2014 p\xE2n\u0103 acum telefonul credea c\u0103 e num\u0103rul t\u0103u \u0219i \xEE\u021Bi oferea agenda \xEEn loc. Tastatura cu cifre a r\u0103mas la fel."]
+}, {
     v: "v2.49.0.2",
     titlu: "Pagina elevului, mai scurt\u0103",
     puncte: ["Pe pagina pe care elevul \xEE\u0219i trimite programul au r\u0103mas zilele s\u0103pt\u0103m\xE2nii, perioada \xEEn care lipse\u0219te \u0219i un mesaj pentru tine. Turele \u0219i zilele pare sau impare le treci tu pe fi\u0219\u0103, ca p\xE2n\u0103 acum."]
 }, {
     v: "v2.49.0.1",
     titlu: "Programul trimis de elev",
-    puncte: ["Nou \u0219i oprit din pornire: \xEEl porne\u0219ti din Set\u0103ri \u2192 Programul trimis de elevi, unde \xEE\u021Bi scrii \u0219i num\u0103rul de WhatsApp.", "Pornit, \xEEn fi\u0219a elevului, la Disponibilitate, ape\u0219i \u201ECere-i programul\u201D. Elevul prime\u0219te un link, alege pentru fiecare zi cum poate \u0219i \xEE\u021Bi trimite r\u0103spunsul pe WhatsApp.", "R\u0103spunsul st\u0103 pe fi\u0219\u0103 deoparte \u0219i nu schimb\u0103 nimic. C\xE2nd \xEEl folose\u0219ti \xEEn plan, se schimb\u0103 doar ce a spus elevul, iar \u201ERevino la ce era\u201D anuleaz\u0103."]
+    puncte: ["Din fi\u0219a elevului \xEEi po\u021Bi cere chiar lui s\u0103-\u021Bi spun\u0103 c\xE2nd poate. R\u0103spunsul vine \xEEnapoi gata de pus pe fi\u0219\u0103.",
+        "Pas cu pas: 1) deschizi fi\u0219a elevului salvat \u0219i ape\u0219i \u201ECere-i programul\u201D \u2014 se deschide WhatsApp cu linkul scris. 2) Elevul \xEEl deschide, bifeaz\u0103 pentru fiecare zi cum poate \u0219i apas\u0103 trimite; \xEE\u021Bi vine \xEEnapoi un mesaj cu un link. 3) Atingi linkul primit \u2014 sau, dac\u0103 nu se deschide, copiezi mesajul \u0219i ape\u0219i \u201ELipe\u0219te r\u0103spunsul\u201D. 4) Vezi ce a spus \u0219i ce s-ar schimba pe fi\u0219\u0103, apoi alegi: \u201EFolose\u0219te-l \xEEn plan\u201D \u021Bine cont de el la programare, \u201EDoar \xEEl p\u0103strez\u201D \xEEl las\u0103 deoparte, f\u0103r\u0103 s\u0103 schimbe nimic.",
+        "Nimic nu pleac\u0103 pe vreun server: totul c\u0103l\u0103tore\u0219te \xEEn link, \xEEntre telefonul t\u0103u \u0219i al lui. \u201ERevino la ce era\u201D anuleaz\u0103 oric\xE2nd."]
 }, {
     v: "v2.49.0",
     titlu: "Ore \xEEn care elevul nu poate, \u0219i listele de examen",
