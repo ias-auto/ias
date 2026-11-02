@@ -1,5 +1,5 @@
 {
-  "actualizat": "2026-10-06",
+  "actualizat": "2026-11-02",
   "tipuri": {
     "vip": {
       "nume": "VIP",
@@ -33,28 +33,28 @@
       "cod": "IAS-4N9M-W2UL",
       "nume": "DV-CO-GJGS",
       "tip": "vip",
-      "pana": "2026-10-31",
+      "pana": "2026-11-30",
       "dispozitiv": "T1DS37SJQ"
     },
     {
       "cod": "IAS-68VB-WX7T",
       "nume": "CM-NA-QML2",
       "tip": "completa",
-      "pana": "2026-09-30",
+      "pana": "2026-11-30",
       "dispozitiv": "TC83FEQJ1"
     },
     {
       "cod": "IAS-TTWN-G8F2",
       "nume": "OE-CO-SPXK",
       "tip": "completa",
-      "pana": "2026-09-30",
+      "pana": "2026-11-30",
       "dispozitiv": "T7GOBKAED"
     },
     {
       "cod": "IAS-GT45-GDXT",
       "nume": "PN-CO-MM7N",
       "tip": "vip",
-      "pana": "2026-10-31",
+      "pana": "2026-11-30",
       "dispozitiv": "TXTFKFYL3"
     }
   ]
