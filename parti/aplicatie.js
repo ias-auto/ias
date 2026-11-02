@@ -2281,6 +2281,12 @@ function uk({
         p = {},
         c = {},
         m = {},
+        /* Planul trece de trei ori peste săptămâni:
+             1. fiecare elev o singură ședință, cu pauza cerută respectată;
+             2. a doua și a treia ședință, tot cu pauza respectată;
+             3. la urmă, fără pauză — mai bine lipit decât pierdut.
+           Steagul ăsta spune la care treaptă suntem. */
+        iasDoarPrima = !1,
         g = (C, W) => Math.abs(Math.round((Ue(C).getTime() - Ue(W).getTime()) / 864e5)),
         /* Zilele în care elevul are deja ceva — și din plan, și din calendarul
            tău. Până acum se uita doar la ce pusese planul în runda asta, deci
@@ -2370,6 +2376,13 @@ function uk({
                             for (let he of i) {
                                 // elevul plecat o perioadă nu intră în plan cât lipsește
                                 if (l[he.id] <= 0 || f[`${he.id}_${z}`] || iasLipseste(he, z) || !Qw(he, z) || !v(he, z)) continue;
+                                /* Dreptate înainte de îndesare: la prima trecere
+                                   intră doar cine n-are încă nicio ședință în
+                                   săptămâna aceea. Abia la a doua se dau și a
+                                   doua, a treia. Altfel un elev liber toată
+                                   săptămâna lua trei ședințe, iar altul,
+                                   potrivit mai greu, rămânea cu niciuna. */
+                                if (iasDoarPrima && (p[`${he.id}_${ne}`] || 0) > 0) continue;
                                 if (fe) {
                                     if (ze === "harta") {
                                         /* Gruparea pe hartă măsura până la casa
@@ -2410,8 +2423,41 @@ function uk({
                                 if (iasP < 2) return !0;   // n-a cerut nimeni pauză pentru el
                                 return !iasZileleLui(he).some(function (R) { return g(R, z) < iasP })
                             });
-                            if (C && !iasOdihniti.length) return null;
                             if (iasOdihniti.length) iasBuni = iasOdihniti;
+                            else {
+                                if (C) return null;
+                                /* La treapta largă se admite și o ședință
+                                   lipită, dar numai pentru cine n-are nimic în
+                                   săptămâna aceea: mai bine lipit decât fără.
+                                   Cine are deja una așteaptă pauza cerută. */
+                                iasBuni = iasBuni.filter(function (he) {
+                                    if ((p[`${he.id}_${ne}`] || 0) === 0) return !0;
+                                    /* Are deja una săptămâna asta. Îl lipim doar
+                                       dacă nu-i mai rămâne nicio zi odihnită în
+                                       săptămână — adică poate chiar numai în
+                                       zile una după alta. Altfel așteaptă
+                                       pauza, că are unde. */
+                                    var iasP2 = iasPauzaDorita(he);
+                                    if (iasP2 < 2) return !0;
+                                    /* Lipitul e pentru cel îngrădit — cine poate
+                                       doar în anumite zile. Elevul liber toată
+                                       săptămâna are unde să aștepte pauza. */
+                                    var iasIngradit = (Array.isArray(he.availDays) && he.availDays.length
+                                        && he.availDays.length < 7)
+                                        || (he.dispZile && Object.keys(he.dispZile).length > 0);
+                                    if (!iasIngradit) return !1;
+                                    for (var iasK = 1; iasK <= 6; iasK++) {
+                                        var iasAlta = ft(pn(Ue(z), iasK));
+                                        if (ft(Gi(Ue(iasAlta))) !== ne) break;   // a ieșit din săptămână
+                                        if (!t.workDays.includes(Ue(iasAlta).getDay())) continue;
+                                        if (iasLipseste(he, iasAlta) || !Qw(he, iasAlta)) continue;
+                                        if (!iasZileleLui(he).some(function (R) { return g(R, iasAlta) < iasP2 }))
+                                            return !1   // mai are o zi bună, n-are rost să-l lipim
+                                    }
+                                    return !0
+                                });
+                                if (!iasBuni.length) return null
+                            }
                             /* Dintre cei rămași, îl luăm pe cel obișnuit cu ora
                                asta. Dacă niciunul n-are un obicei aici, rămâne
                                primul — adică cel mai grăbit, după ordinea
@@ -2434,7 +2480,7 @@ function uk({
             R = pn(R, 7)
         }
     }
-    if (O(!0, 0, S), O(!1, 0, S), !M) {
+    if (iasDoarPrima = !0, O(!0, 0, S), iasDoarPrima = !1, O(!0, 0, S), O(!1, 0, S), !M) {
         let C = S;
         for (; i.some(W => l[W.id] > 0) && C < r;) {
             let W = k.length,
@@ -2569,7 +2615,15 @@ function uk({
                 if (cur.fix) continue;
                 var urm = toate[idx + 1],
                     gol = urm.start - (cur.start + cur.dur);
-                if (gol <= 0 || gol >= s) continue;   // nu e un gol irosit
+                if (gol <= 0) continue;
+                /* Se strânge orice gol, nu doar cele mici. Sâmbăta cu un elev
+                   la 8:30 și altul la 14:30 îți mânca ziua degeaba: cel care
+                   poate oricând se mută la 13:00, lipit de cel care poate abia
+                   de la 14:30. Ziua se adună la un capăt, iar restul îți rămâne
+                   întreg, nu ciopârțit.
+
+                   Mersul e de la coadă spre cap, așa că ședințele se așază una
+                   după alta, sprijinite de cea care nu se poate mișca. */
                 var limita = urm.start - cur.dur,
                     inainte = idx > 0 ? toate[idx - 1].start + toate[idx - 1].dur : -1e9,
                     elev = i.filter(function (x) { return x.id === cur.prop.studentId })[0],
@@ -12293,6 +12347,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.51.0",
+    titlu: "Planul \xEEmparte mai drept \u0219i str\xE2nge ziua",
+    puncte: ["Fiecare elev prime\u0219te \xEEnt\xE2i o \u0219edin\u021B\u0103 pe s\u0103pt\u0103m\xE2n\u0103, abia apoi se dau a doua \u0219i a treia. P\xE2n\u0103 acum, un elev liber toat\u0103 s\u0103pt\u0103m\xE2na lua trei, iar altul, potrivit mai greu, r\u0103m\xE2nea cu niciuna.", "\u0218edin\u021Bele unei zile se adun\u0103 una l\xE2ng\u0103 alta. Dac\u0103 un elev poate abia de la 14:30, cel care poate oric\xE2nd intr\u0103 la 13:00, lipit de el \u2014 nu la prima or\u0103 a zilei, cu \u0219ase ore de gol la mijloc."]
+}, {
     v: "v2.50.0.1",
     titlu: "La \u201EProgram primit\u201D scrie ce face fiecare buton",
     puncte: ["Sub cele dou\u0103 butoane st\u0103 scris limpede: \u201EFolose\u0219te-l \xEEn plan\u201D pune zilele elevului \xEEn Disponibilitate, iar \u201EDoar \xEEl p\u0103strez\u201D \xEEl \u021Bine deoparte, f\u0103r\u0103 s\u0103 schimbe nimic pe fi\u0219\u0103."]
