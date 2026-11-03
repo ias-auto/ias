@@ -12347,6 +12347,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.51.1",
+    titlu: "Elevul plecat iese \u0219i din planul f\u0103cut mai devreme",
+    puncte: ["C\xE2nd bifezi \u201EIndisponibil o perioad\u0103\u201D, propunerile planului care cad \xEEn zilele lui de lips\u0103 se \u0219terg pe loc. P\xE2n\u0103 acum r\u0103m\xE2neau pe ecran, dac\u0103 planul fusese f\u0103cut \xEEnainte s\u0103 te anun\u021Be. \u0218edin\u021Bele pe care le-ai pus tu r\u0103m\xE2n, ca s\u0103 le mu\u021Bi sau s\u0103 le anulezi cum socote\u0219ti."]
+}, {
     v: "v2.51.0",
     titlu: "Planul \xEEmparte mai drept \u0219i str\xE2nge ziua",
     puncte: ["Fiecare elev prime\u0219te \xEEnt\xE2i o \u0219edin\u021B\u0103 pe s\u0103pt\u0103m\xE2n\u0103, abia apoi se dau a doua \u0219i a treia. P\xE2n\u0103 acum, un elev liber toat\u0103 s\u0103pt\u0103m\xE2na lua trei, iar altul, potrivit mai greu, r\u0103m\xE2nea cu niciuna.", "\u0218edin\u021Bele unei zile se adun\u0103 una l\xE2ng\u0103 alta. Dac\u0103 un elev poate abia de la 14:30, cel care poate oric\xE2nd intr\u0103 la 13:00, lipit de el \u2014 nu la prima or\u0103 a zilei, cu \u0219ase ore de gol la mijloc."]
@@ -13506,7 +13510,19 @@ function y3() {
                     && iasS.status !== "completed"
                     && iasS.status !== "cancelled")
                     ? { ...iasS, status: "cancelled" } : iasS)
-                : te.sessions
+                /* Elevul tocmai plecat o perioadă: propunerile planului care cad
+                   în zilele lui de lipsă se duc. Planul le făcuse mai devreme,
+                   când omul era acasă, și rămâneau pe ecran ca și cum nimic nu
+                   s-ar fi schimbat — le vedeai programate în mijlocul vacanței.
+
+                   Se șterg doar propunerile nefăcute încă; ședințele pe care
+                   le-ai pus tu rămân, ca să le muți sau să le anulezi cum
+                   socotești. */
+                : iasLipseste(I, Be()) || (I.plecatPana && I.plecatPana >= Be())
+                    ? te.sessions.filter(iasS => !(iasS.studentId === V.id
+                        && iasS.auto && iasS.status === "pending"
+                        && iasLipseste(I, iasS.date)))
+                    : te.sessions
         })), Y(I.withdrawn && !(V && V.withdrawn)
             ? "Elev retras. \u0218edin\u021Bele viitoare au fost anulate."
             : "Elev actualizat.")) : (ce(te => {
