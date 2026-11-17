@@ -1,7 +1,7 @@
 /* IAS — lucrătorul care ține aplicația pornită și fără internet.
    La fiecare versiune nouă se schimbă numele depozitului de mai jos, vechiul
    depozit se șterge, iar telefonul preia noua versiune la următoarea pornire. */
-const CACHE = 'ias-v2.51.1';
+const CACHE = 'ias-v2.57.0';
 const ASSETS = ['./', './index.html', './manifest.json', './icon.png', './icon-192.png'];
 
 self.addEventListener('install', (e) => {
@@ -23,6 +23,20 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const req = e.request;
+
+  // GSAP, biblioteca de animații, vine de pe un CDN. O ținem minte aici, ca
+  // mișcarea să meargă și fără semnal. Dacă n-a apucat să vină niciodată,
+  // aplicația pornește oricum — doar fără ea.
+  if (req.method === 'GET' && req.url.indexOf('cdnjs.cloudflare.com/ajax/libs/gsap/') !== -1) {
+    e.respondWith(
+      caches.match(req).then((hit) => hit || fetch(req).then((res) => {
+        if (res && res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
+        return res;
+      }))
+    );
+    return;
+  }
+
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
 
   // Fișierul de licențe se ia mereu proaspăt din rețea, niciodată din memorie —

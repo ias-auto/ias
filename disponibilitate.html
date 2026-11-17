@@ -13,12 +13,14 @@
 <title>Programul tău la volan</title>
 <link rel="icon" href="icon-192.png">
 <!--
-  IAS — pagina pe care elevul își spune programul.  (v2.49.0.3)
+  IAS — pagina pe care elevul își spune programul.  (v2.56.0.1)
 
   Îndrumătorul o trimite din fișa elevului („Cere-i programul”). Linkul aduce
   doar codul fișei, orele de lucru ale îndrumătorului și numărul lui de
-  WhatsApp. Elevul alege pentru fiecare zi, iar pagina îi deschide WhatsApp cu
-  un mesaj gata scris: rezumatul pe înțeles și un link înapoi spre aplicație.
+  WhatsApp. Elevul vede un calendar, atinge o zi și spune cum poate în ea; ce
+  alege se pune singur în fiecare zi la fel din săptămână, afară de cazul în
+  care oprește asta pentru ziua aceea. Pagina îi deschide apoi WhatsApp cu un
+  mesaj gata scris: rezumatul pe înțeles și un link înapoi spre aplicație.
 
   Nu se încarcă nimic din afară: nici fonturi, nici scripturi. Ce bifează
   elevul rămâne în telefonul lui până trimite el mesajul.
@@ -26,14 +28,15 @@
 <style>
 :root{
   --bg:#e9eef6; --surface:#ffffff; --surface-2:#eef3f9;
-  --text:#0c1a2b; --text-2:#33475e; --muted:#556a83; --faint:#8b9db4;
-  --line:rgba(12,26,43,.11); --line-2:rgba(12,26,43,.22);
-  --track:rgba(12,26,43,.07); --hatch:rgba(12,26,43,.20);
-  --accent:#f0900b; --accent-ink:#8a4f04; --accent-soft:rgba(240,144,11,.13); --accent-line:rgba(240,144,11,.40);
+  --text:#0c1a2b; --text-2:#33475e; --muted:#556a83; --faint:#7a8ca3;
+  --line:rgba(12,26,43,.11); --line-2:rgba(12,26,43,.24);
+  --track:rgba(12,26,43,.07); --hatch:rgba(12,26,43,.26);
+  --accent:#f0900b; --accent-ink:#8a4f04; --accent-soft:rgba(240,144,11,.13); --accent-line:rgba(240,144,11,.45);
   --on-accent:#2b1700; --mark:#ffffff;
   --invert:#0f1d31; --on-invert:#ffffff;
   --ok:#00875a; --on-ok:#ffffff;
   --bad:#c0302a; --bad-soft:rgba(208,52,44,.09);
+  --scrim:rgba(8,13,22,.42);
   --shadow:0 1px 2px rgba(12,26,43,.05), 0 8px 22px rgba(12,26,43,.07);
   --display:"Oswald","Avenir Next Condensed","Roboto Condensed","sans-serif-condensed","Arial Narrow",sans-serif;
   --mono:ui-monospace,"SF Mono","Roboto Mono","Menlo","Consolas",monospace;
@@ -42,14 +45,15 @@
 @media (prefers-color-scheme: dark){
   :root{
     --bg:#080d16; --surface:#121c2c; --surface-2:#0e1725;
-    --text:#e6edf6; --text-2:#c3d0e0; --muted:#94a6bd; --faint:#71849c;
-    --line:rgba(255,255,255,.11); --line-2:rgba(255,255,255,.22);
-    --track:rgba(255,255,255,.07); --hatch:rgba(255,255,255,.22);
-    --accent:#e0a13a; --accent-ink:#f0c579; --accent-soft:rgba(224,161,58,.15); --accent-line:rgba(224,161,58,.42);
+    --text:#e6edf6; --text-2:#c3d0e0; --muted:#94a6bd; --faint:#7d90a8;
+    --line:rgba(255,255,255,.11); --line-2:rgba(255,255,255,.26);
+    --track:rgba(255,255,255,.07); --hatch:rgba(255,255,255,.28);
+    --accent:#e0a13a; --accent-ink:#f0c579; --accent-soft:rgba(224,161,58,.15); --accent-line:rgba(224,161,58,.48);
     --on-accent:#221400; --mark:rgba(255,255,255,.88);
     --invert:#e6edf6; --on-invert:#0c1a2b;
     --ok:#2fae7f; --on-ok:#04150e;
     --bad:#ef8b84; --bad-soft:rgba(239,139,132,.13);
+    --scrim:rgba(0,0,0,.6);
     --shadow:0 1px 2px rgba(0,0,0,.5);
     color-scheme:dark;
   }
@@ -61,8 +65,10 @@ body{
   font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",sans-serif;
   padding:env(safe-area-inset-top,0) env(safe-area-inset-right,0) 0 env(safe-area-inset-left,0);
 }
+body.cu-foaie{overflow:hidden}
 button,input,textarea{font:inherit;color:inherit}
 button{cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+button:disabled{cursor:default}
 :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 main{max-width:560px;margin:0 auto;padding:20px 16px 0}
 
@@ -72,60 +78,64 @@ main{max-width:560px;margin:0 auto;padding:20px 16px 0}
 h1{font-family:var(--display);font-weight:600;font-size:30px;line-height:1.1;letter-spacing:.005em;margin:2px 0 0}
 .intro{color:var(--text-2);margin:10px 0 4px;max-width:34em}
 .intro b{color:var(--text);font-weight:600}
-.sedinta{color:var(--muted);font-size:14px;margin:0 0 18px}
+.sedinta{color:var(--muted);font-size:14px;margin:0 0 14px}
 .aviz{background:var(--accent-soft);border:1px solid var(--accent-line);color:var(--accent-ink);
   border-radius:14px;padding:10px 12px;font-size:14px;margin:0 0 16px}
 
 h2{font-family:var(--display);font-weight:600;font-size:20px;line-height:1.2;margin:26px 0 4px}
 .sub{color:var(--muted);font-size:14px;margin:0 0 12px}
-.legenda{display:flex;gap:16px;align-items:center;font-size:13px;color:var(--muted);margin:0 0 10px}
+
+/* ---------- calendarul ---------- */
+.cal-cap{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:22px 0 6px}
+.cal-cap h2{margin:0}
+.vad{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted)}
+.seg{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:2px}
+.seg button{min-width:42px;min-height:40px;border:0;border-radius:10px;background:none;font-weight:700;font-size:15px;color:var(--text-2)}
+.seg button[aria-pressed="true"]{background:var(--invert);color:var(--on-invert)}
+.repede{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:8px 14px;margin:0 0 12px;
+  border-radius:12px;border:1px solid var(--accent-line);background:var(--accent-soft);color:var(--accent-ink);font-weight:600;font-size:15px}
+.grila{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.kp{min-height:44px;border:0;border-radius:10px;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  font-weight:700;font-size:13px;letter-spacing:.08em;color:var(--text-2)}
+.kp i{display:block;width:16px;height:4px;border-radius:2px;border:1.5px solid var(--line-2)}
+.kp.are i{background:var(--accent);border-color:var(--accent)}
+.kp:disabled{opacity:.45}
+.cel{position:relative;min-height:60px;border-radius:12px;border:1px solid var(--line);background:var(--surface);box-shadow:var(--shadow);
+  display:flex;flex-direction:column;justify-content:space-between;align-items:stretch;padding:7px 5px 6px;text-align:left}
+.cel .cz{font-weight:700;font-size:18px;line-height:1}
+.cel .cl{display:block;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);line-height:1;margin-top:-2px}
+.cel .cl:empty{display:none}
+.cel.nes{background:transparent;box-shadow:none;border:1.5px dashed var(--accent-line)}
+.cel.nu .cz,.cel.plecat .cz{color:var(--muted);text-decoration:line-through}
+.cel.nu,.cel.plecat{background-color:var(--surface);background-image:repeating-linear-gradient(135deg,transparent 0 4px,var(--hatch) 4px 6px)}
+.cel.inc,.cel.trecut{background:transparent;box-shadow:none;border-color:transparent;opacity:.45}
+.cel.azi .cz::after{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--accent);margin-left:3px;vertical-align:middle}
+.cel.exc::before{content:"";position:absolute;left:50%;top:-4px;margin-left:-5px;width:10px;height:10px;border-radius:50%;
+  background:var(--accent);border:2px solid var(--bg)}
+.cel.sel{outline:3px solid var(--accent);outline-offset:1px}
+.mini{position:relative;display:block;height:6px;border-radius:3px;overflow:hidden;background-color:var(--track);
+  background-image:repeating-linear-gradient(135deg,transparent 0 3px,var(--hatch) 3px 5px)}
+.cel.nes .mini,.zi-r.lipsa .mini{background-image:none;background-color:transparent;box-shadow:inset 0 0 0 1.5px var(--accent-line)}
+.mini .tronson{position:absolute;top:0;bottom:0;background:var(--accent);border-radius:3px}
+.legenda{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:13px;color:var(--muted);margin:10px 0 0}
 .legenda span{display:inline-flex;align-items:center;gap:6px}
 .legenda i{display:inline-block;width:22px;height:8px;border-radius:4px}
 .legenda .l-poti{background:var(--accent)}
 .legenda .l-nu{background-color:var(--track);background-image:repeating-linear-gradient(135deg,transparent 0 3px,var(--hatch) 3px 6px)}
+.legenda .l-nes{box-shadow:inset 0 0 0 1.5px var(--accent-line)}
+.legenda .l-exc{width:10px;height:10px;border-radius:50%;background:var(--accent)}
 
-/* ---------- zilele ---------- */
-.zi{background:var(--surface);border:1px solid var(--line);border-radius:18px;margin:0 0 8px;box-shadow:var(--shadow)}
-.zi.deschisa{border-color:var(--line-2)}
-.zi.eroare{border-color:var(--bad)}
-.zi-cap{display:block;width:100%;text-align:left;background:none;border:0;padding:12px 14px 12px;border-radius:18px}
-.zi-rand{display:flex;align-items:baseline;gap:10px;margin-bottom:9px}
-.zi-nume{font-family:var(--display);font-weight:600;font-size:19px;letter-spacing:.01em;min-width:5.6em}
-.zi-rez{flex:1;text-align:right;font-size:15px;color:var(--text-2)}
-.zi-rez.lipsa{color:var(--accent-ink);font-weight:600}
-.zi-rez.eroare{color:var(--bad);font-weight:600}
-
-/* Banda: ziua de lucru a îndrumătorului, ca un drum. Bucata galbenă e cât
-   poate elevul; marcajul alb din mijloc o face să semene cu o bandă. */
-.drum{position:relative;height:16px;border-radius:8px;overflow:hidden;
-  background-color:var(--track);
-  background-image:repeating-linear-gradient(135deg,transparent 0 5px,var(--hatch) 5px 8px)}
-.zi.lipsa .drum{background-image:none;background-color:transparent;box-shadow:inset 0 0 0 1.5px var(--accent-line)}
-.tronson{position:absolute;top:0;bottom:0;background:var(--accent);border-radius:8px}
-.tronson::after{content:"";position:absolute;left:7px;right:7px;top:50%;height:2px;margin-top:-1px;
-  background:repeating-linear-gradient(90deg,var(--mark) 0 10px,transparent 10px 19px)}
-.capete{display:flex;justify-content:space-between;font:12px/1 var(--mono);color:var(--faint);margin-top:6px}
-
-.zi-corp{padding:2px 14px 14px;border-top:1px solid var(--line)}
-.eticheta{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:14px 0 7px}
-.feluri{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
-.alege{min-height:46px;padding:8px 6px;border-radius:13px;border:1px solid var(--line-2);
-  background:var(--surface);font-size:14.5px;font-weight:600;line-height:1.15}
-.alege[aria-pressed="true"]{background:var(--invert);color:var(--on-invert);border-color:var(--invert)}
-.sir{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 10px;scroll-snap-type:x proximity;
-  -webkit-overflow-scrolling:touch;scrollbar-width:thin;overscroll-behavior-x:contain}
-.ora{flex:0 0 auto;min-width:66px;min-height:46px;border-radius:13px;border:1px solid var(--line-2);
-  background:var(--surface);font:600 15px/1 var(--mono);scroll-snap-align:center}
-.ora[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
-.nota{font-size:14px;color:var(--muted);margin:10px 0 0}
-.greseala{font-size:14px;color:var(--bad);font-weight:600;margin:10px 0 0}
-.zi-jos{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
-.mic{min-height:42px;padding:8px 14px;border-radius:12px;border:1px solid var(--line-2);background:transparent;font-size:14px;font-weight:600}
-.mic.plin{background:var(--invert);border-color:var(--invert);color:var(--on-invert)}
-
-.zi.inchisa{box-shadow:none;background:transparent;border-style:dashed;padding:12px 14px;display:flex;align-items:baseline;gap:10px}
-.zi.inchisa .zi-nume{color:var(--faint)}
-.zi.inchisa .zi-rez{color:var(--faint);font-size:14px}
+/* ---------- pe scurt ---------- */
+.lista{background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);overflow:hidden}
+.zi-r{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:8px 14px;border:0;border-top:1px solid var(--line);background:none;text-align:left}
+.zi-r:first-child{border-top:0}
+.zi-r .zi-nume{font-family:var(--display);font-weight:600;font-size:17px;min-width:5.4em}
+.zi-r .mini{width:64px;flex:none}
+.zi-r .zi-rez{flex:1;min-width:0;text-align:right;font-size:15px;color:var(--text-2)}
+.zi-r.lipsa .zi-rez{color:var(--accent-ink);font-weight:600}
+.zi-r.inchisa{opacity:.55}
+.zi-r.exceptie .zi-nume{font-family:inherit;font-size:14.5px;font-weight:600}
+.zi-r.exceptie .zi-nume::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);margin-right:8px;vertical-align:1px}
 
 /* ---------- altceva de știut ---------- */
 .optiune{background:var(--surface);border:1px solid var(--line);border-radius:18px;margin:0 0 8px;box-shadow:var(--shadow)}
@@ -136,14 +146,52 @@ h2{font-family:var(--display);font-weight:600;font-size:20px;line-height:1.2;mar
 .comutator small{display:block;color:var(--muted);font-size:13px}
 .optiune-corp{padding:0 14px 14px;border-top:1px solid var(--line)}
 .doua{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
-.trei{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
 .camp{width:100%;min-height:46px;padding:10px 12px;border-radius:13px;border:1px solid var(--line-2);background:var(--surface-2)}
-.camp.numar{width:84px;text-align:center;font-family:var(--mono)}
-.linie{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 textarea.camp{min-height:92px;resize:vertical}
 .contor{font:12px var(--mono);color:var(--faint);text-align:right;margin-top:4px}
+.eticheta{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:14px 0 7px}
+.nota{font-size:14px;color:var(--muted);margin:10px 0 0}
+.greseala{font-size:14px;color:var(--bad);font-weight:600;margin:10px 0 0}
+
+/* ---------- foaia unei zile ---------- */
+.voal{position:fixed;inset:0;z-index:40;background:var(--scrim);border:0;padding:0;width:100%}
+.foaie{position:fixed;left:0;right:0;bottom:0;z-index:41;max-width:560px;margin:0 auto;max-height:92vh;max-height:92dvh;overflow-y:auto;
+  background:var(--surface);border-radius:24px 24px 0 0;padding:8px 16px calc(16px + env(safe-area-inset-bottom,0));
+  box-shadow:0 -14px 44px rgba(0,0,0,.25);overscroll-behavior:contain}
+.foaie::before{content:"";display:block;width:40px;height:4px;border-radius:2px;background:var(--line-2);margin:0 auto 10px}
+.f-cap{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.f-cap h2{margin:2px 0 0;font-size:24px}
+.f-cap .sub{margin:2px 0 10px}
+.x{flex:none;width:44px;height:44px;border-radius:12px;border:0;background:var(--surface-2);font-size:22px;line-height:1;color:var(--text-2)}
+.drum{position:relative;display:block;height:16px;border-radius:8px;overflow:hidden;background-color:var(--track);
+  background-image:repeating-linear-gradient(135deg,transparent 0 5px,var(--hatch) 5px 8px)}
+.drum.lipsa{background-image:none;background-color:transparent;box-shadow:inset 0 0 0 1.5px var(--accent-line)}
+.drum .tronson{position:absolute;top:0;bottom:0;background:var(--accent);border-radius:8px}
+.drum .tronson::after{content:"";position:absolute;left:7px;right:7px;top:50%;height:2px;margin-top:-1px;
+  background:repeating-linear-gradient(90deg,var(--mark) 0 10px,transparent 10px 19px)}
+.capete{display:flex;justify-content:space-between;font:12px/1 var(--mono);color:var(--faint);margin-top:6px}
+.fraza{font-weight:600;margin:8px 0 0;min-height:1.5em}
+.feluri{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.alege{min-height:48px;padding:8px 6px;border-radius:13px;border:1px solid var(--line-2);
+  background:var(--surface);font-size:14.5px;font-weight:600;line-height:1.15}
+.alege[aria-pressed="true"]{background:var(--invert);color:var(--on-invert);border-color:var(--invert)}
+.sir{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 10px;scroll-snap-type:x proximity;
+  -webkit-overflow-scrolling:touch;scrollbar-width:thin;overscroll-behavior-x:contain}
+.ora{flex:0 0 auto;min-width:66px;min-height:46px;border-radius:13px;border:1px solid var(--line-2);
+  background:var(--surface);font:600 15px/1 var(--mono);scroll-snap-align:center}
+.ora[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.lafel{margin:14px 0 0;background:var(--surface-2);border:1px solid var(--line);border-radius:14px}
+.lafel .comutator{padding:12px}
+.f-jos{display:flex;gap:8px;margin-top:14px}
+.mic{min-height:48px;padding:8px 14px;border-radius:13px;border:1px solid var(--line-2);background:transparent;font-size:15px;font-weight:600}
+.mic.plin{flex:1;background:var(--invert);border-color:var(--invert);color:var(--on-invert)}
+.mic.plin:disabled{opacity:.45}
 
 /* ---------- bara de trimitere ---------- */
+.sub-bara{display:flex;justify-content:space-between;gap:10px;margin-top:18px}
+.leg{background:none;border:0;padding:8px 2px;font-size:14px;font-weight:600;color:var(--text-2);text-decoration:underline;text-underline-offset:3px}
+.leg.slab{color:var(--faint);font-weight:500}
+.versiune{font:12px var(--mono);color:var(--faint);text-align:center;margin:14px 0 0}
 .bara{position:sticky;bottom:0;margin:10px -16px 0;padding:9px 16px calc(10px + env(safe-area-inset-bottom,0));
   background:color-mix(in srgb,var(--bg) 88%,transparent);
   -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-top:1px solid var(--line)}
@@ -154,20 +202,20 @@ textarea.camp{min-height:92px;resize:vertical}
 .trimite{display:block;width:100%;min-height:50px;border:0;border-radius:15px;background:var(--ok);color:var(--on-ok);
   font-size:17px;font-weight:700}
 .trimite.neterminat{background:var(--invert);color:var(--on-invert)}
-.sub-bara{display:flex;justify-content:space-between;gap:10px;margin-top:18px}
-.leg{background:none;border:0;padding:8px 2px;font-size:14px;font-weight:600;color:var(--text-2);text-decoration:underline;text-underline-offset:3px}
-.leg.slab{color:var(--faint);font-weight:500}
-.versiune{font:12px var(--mono);color:var(--faint);text-align:center;margin:14px 0 0}
 
 @media (prefers-reduced-motion: no-preference){
-  .zi-corp,.optiune-corp{animation:intra .18s ease-out}
+  .foaie{animation:urca .24s cubic-bezier(.2,.9,.3,1.05)}
+  .voal{animation:apare .2s ease-out}
+  .optiune-corp{animation:intra .18s ease-out}
+  @keyframes urca{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+  @keyframes apare{from{opacity:0}to{opacity:1}}
   @keyframes intra{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 }
 .ascuns{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 </style>
 </head>
 <body>
-<main>
+<main id="pagina">
   <header class="cap">
     <img src="icon-192.png" alt="" width="44" height="44">
     <div>
@@ -178,10 +226,24 @@ textarea.camp{min-height:92px;resize:vertical}
   <p class="sedinta" id="sedinta"></p>
   <p class="aviz" id="aviz" hidden></p>
 
-  <h2>Zilele săptămânii</h2>
-  <p class="sub">Atinge fiecare zi și spune cum poți în ea.</p>
-  <div class="legenda" aria-hidden="true"><span><i class="l-poti"></i>poți</span><span><i class="l-nu"></i>nu poți</span></div>
-  <div id="zile"></div>
+  <div class="cal-cap">
+    <h2 id="titlu-cal">Calendarul tău</h2>
+    <div class="vad" id="vad"></div>
+  </div>
+  <p class="sub">Atinge o zi și spune cum poți. Ce alegi se pune singur în fiecare zi la fel din săptămână — o zi anume o poți schimba separat.</p>
+  <div id="repede"></div>
+  <div class="grila" id="capete" role="group" aria-label="Zilele săptămânii"></div>
+  <div class="grila" id="calendar" role="group" aria-labelledby="titlu-cal" style="margin-top:4px"></div>
+  <div class="legenda" aria-hidden="true">
+    <span><i class="l-poti"></i>poți</span>
+    <span><i class="l-nu"></i>nu poți</span>
+    <span><i class="l-nes"></i>de ales</span>
+    <span><i class="l-exc"></i>doar ziua aceea</span>
+  </div>
+
+  <h2>Pe scurt</h2>
+  <p class="sub">Asta primește îndrumătorul. Atinge un rând ca să-l schimbi.</p>
+  <div class="lista" id="zile"></div>
 
   <h2>Altceva de știut</h2>
   <p class="sub">Doar dacă e cazul.</p>
@@ -191,13 +253,14 @@ textarea.camp{min-height:92px;resize:vertical}
     <button class="leg" id="copiaza" type="button">Copiază mesajul (pentru SMS)</button>
     <button class="leg slab" id="dinNou" type="button">Începe din nou</button>
   </div>
-  <p class="versiune">IAS v2.49.0.3</p>
+  <p class="versiune">IAS v2.56.0.1</p>
 
   <footer class="bara">
     <p class="stare" id="stare" role="status" aria-live="polite"></p>
     <button class="trimite" id="trimite" type="button">Trimite îndrumătorului</button>
   </footer>
 </main>
+<div id="strat"></div>
 
 <script>
 (function () {
@@ -207,12 +270,14 @@ textarea.camp{min-height:92px;resize:vertical}
   var ZILE = [1, 2, 3, 4, 5, 6, 0];
   var NUME = ['Duminică', 'Luni', 'Marți', 'Miercuri', 'Joi', 'Vineri', 'Sâmbătă'];
   var MIC = ['duminică', 'luni', 'marți', 'miercuri', 'joi', 'vineri', 'sâmbătă'];
+  var LIT = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
   var LUNI = ['ianuarie', 'februarie', 'martie', 'aprilie', 'mai', 'iunie', 'iulie', 'august',
     'septembrie', 'octombrie', 'noiembrie', 'decembrie'];
+  var SAPTAMANI = [2, 4, 6, 8];
   /* Aceleași șase feluri ca pe fișa elevului din aplicație — răspunsul intră
      direct în câmpurile de acolo, fără nicio traducere. */
   var FELURI = [['oricand', 'Oricând'], ['dupa', 'De la…'], ['pana', 'Până la…'],
-    ['intre', 'Între…'], ['afara', 'Nu pot între…'], ['nu', 'Nu pot']];
+    ['intre', 'Între…'], ['afara', 'Nu pot între…'], ['nu', 'Indisponibil']];
 
   function H(m) { return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); }
   function esc(s) {
@@ -226,15 +291,20 @@ textarea.camp{min-height:92px;resize:vertical}
     if (m) s += (h ? ' și ' : '') + m + (m >= 20 ? ' de minute' : ' minute');
     return s;
   }
-  function dataText(iso) {
-    var p = iso.split('-').map(Number);
-    var t = p[2] + ' ' + LUNI[p[1] - 1];
-    return p[0] === new Date().getFullYear() ? t : t + ' ' + p[0];
-  }
-  function azi() {
-    var d = new Date();
+  function iso(d) {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
+  function dinIso(t) { var p = t.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2], 12); }
+  function azi() { return iso(new Date()); }
+  function plus(t, n) { var d = dinIso(t); d.setDate(d.getDate() + n); return iso(d); }
+  function ziSapt(t) { return dinIso(t).getDay(); }
+  function dataText(t) {
+    var p = t.split('-').map(Number);
+    var s = p[2] + ' ' + LUNI[p[1] - 1];
+    return p[0] === new Date().getFullYear() ? s : s + ' ' + p[0];
+  }
+  function dataLunga(t) { return MIC[ziSapt(t)] + ' ' + dataText(t); }
+  function scurtLuna(m) { return LUNI[m].slice(0, 3); }
 
   /* Text ↔ link: JSON scurt, în base64 fără caracterele care se strică în
      linkuri. Diacriticele trec prin UTF-8. */
@@ -279,12 +349,14 @@ textarea.camp{min-height:92px;resize:vertical}
   var CER = citesteCererea();
   var CHEIE = 'ias-program:' + (CER.e || 'general');
 
-  /* ================= ce a ales elevul ================= */
+  /* ================= ce a ales elevul =================
+     zile — regula fiecărei zile din săptămână (cheia: 0 = duminică … 6)
+     date — zilele anume care au altă regulă decât ziua lor din săptămână  */
   function gol() {
     var z = {};
     ZILE.forEach(function (d) { z[d] = null; });
     return {
-      zile: z, deschisa: null,
+      zile: z, date: {}, sapt: 4,
       lipsa: { on: false, din: '', pana: '' },
       mesaj: '', trimis: false
     };
@@ -295,11 +367,15 @@ textarea.camp{min-height:92px;resize:vertical}
     if (salvat && salvat.zile) {
       st = Object.assign(gol(), salvat);
       /* Ciornele mai vechi aveau și ture și zile pare/impare; nu se mai cer. */
-      delete st.tura; delete st.par;
+      delete st.tura; delete st.par; delete st.deschisa;
       st.lipsa = Object.assign(gol().lipsa, salvat.lipsa || {});
+      if (!st.date || typeof st.date !== 'object') st.date = {};
+      if (SAPTAMANI.indexOf(st.sapt) < 0) st.sapt = 4;
       st.trimis = false;
     }
   } catch (x) { }
+  /* Foaia deschisă nu se ține minte: la redeschidere pagina pornește curată. */
+  var foaie = null;
   function pastreaza() {
     try { localStorage.setItem(CHEIE, JSON.stringify(st)); } catch (x) { }
   }
@@ -330,16 +406,25 @@ textarea.camp{min-height:92px;resize:vertical}
     return fel === 'dupa' ? ['lo'] : fel === 'pana' ? ['hi'] : (fel === 'intre' || fel === 'afara') ? ['lo', 'hi'] : [];
   }
   /* Orele salvate data trecută, dar care nu mai încap în programul de acum. */
-  ZILE.forEach(function (z) {
-    var r = st.zile[z];
-    if (!r || !lucreaza(z)) { if (!lucreaza(z)) st.zile[z] = null; return; }
+  function curata(z, r) {
+    if (!r) return r;
     cere(r.fel).forEach(function (cap) {
       if (r[cap] != null && optiuni(z, r.fel, cap, r).indexOf(r[cap]) < 0) r[cap] = null;
     });
+    return r;
+  }
+  ZILE.forEach(function (z) {
+    if (!lucreaza(z)) { st.zile[z] = null; return; }
+    curata(z, st.zile[z]);
+    if (st.zile[z] && stareRegula(z, st.zile[z]).k !== 'gata') st.zile[z] = null;
+  });
+  Object.keys(st.date).forEach(function (t) {
+    var z = ziSapt(t);
+    if (t < azi() || !lucreaza(z) || !st.date[t] || stareRegula(z, curata(z, st.date[t])).k !== 'gata') delete st.date[t];
   });
 
-  function stareZi(z) {
-    var r = st.zile[z];
+  /* Cât de gata e o regulă: { k: 'gata' | 'lipsa' | 'eroare', m: ce mai are de făcut }. */
+  function stareRegula(z, r) {
     if (!r || !r.fel) return { k: 'lipsa' };
     if (r.fel === 'oricand' || r.fel === 'nu') return { k: 'gata' };
     if (r.fel === 'dupa' && r.lo == null) return { k: 'lipsa', m: 'Alege ora de la care poți.' };
@@ -349,18 +434,24 @@ textarea.camp{min-height:92px;resize:vertical}
     if (r.fel === 'afara') {
       var S = CER.z[z][0], E = CER.z[z][1];
       if (r.lo - S < CER.d && E - r.hi < CER.d)
-        return { k: 'eroare', m: 'Așa nu mai rămâne loc pentru o ședință în ziua asta. Alege „Nu pot”.' };
+        return { k: 'eroare', m: 'Așa nu mai rămâne loc pentru o ședință în ziua asta. Alege „Indisponibil”.' };
     }
     return { k: 'gata' };
   }
 
-  function rezumat(z) {
-    var r = st.zile[z], s = stareZi(z);
+  /* Regula care se aplică într-o zi anume: întâi data, apoi ziua săptămânii. */
+  function regulaPe(t) { return st.date[t] || st.zile[ziSapt(t)] || null; }
+  function inLipsa(t) {
+    var L = st.lipsa;
+    return !!(L.on && /^\d{4}-\d{2}-\d{2}$/.test(L.din) && /^\d{4}-\d{2}-\d{2}$/.test(L.pana) && t >= L.din && t <= L.pana);
+  }
+
+  function rezumat(r) {
     if (!r || !r.fel) return 'Alege';
     var q = '…';
     switch (r.fel) {
       case 'oricand': return 'Oricând';
-      case 'nu': return 'Nu pot';
+      case 'nu': return 'Indisponibil';
       case 'dupa': return 'De la ' + (r.lo != null ? H(r.lo) : q);
       case 'pana': return 'Până la ' + (r.hi != null ? H(r.hi) : q);
       case 'intre': return 'Între ' + (r.lo != null ? H(r.lo) : q) + ' și ' + (r.hi != null ? H(r.hi) : q);
@@ -369,12 +460,11 @@ textarea.camp{min-height:92px;resize:vertical}
     return 'Alege';
   }
   /* La fel, dar pentru mesajul pe WhatsApp. */
-  function textZi(z) {
-    var r = st.zile[z];
+  function textRegula(r) {
     if (!r || !r.fel) return '';
     switch (r.fel) {
       case 'oricand': return 'oricând';
-      case 'nu': return 'nu pot';
+      case 'nu': return 'indisponibil';
       case 'dupa': return 'de la ' + H(r.lo);
       case 'pana': return 'până la ' + H(r.hi);
       case 'intre': return 'între ' + H(r.lo) + ' și ' + H(r.hi);
@@ -382,98 +472,145 @@ textarea.camp{min-height:92px;resize:vertical}
     }
     return '';
   }
-
-  function segmente(z) {
-    var r = st.zile[z], S = CER.z[z][0], E = CER.z[z][1], s = stareZi(z);
-    if (s.k === 'lipsa' || !r) return null;
+  /* Ce bucăți din ziua de lucru sunt „pot”. */
+  function bucati(z, r) {
+    var S = CER.z[z][0], E = CER.z[z][1];
+    if (!r || stareRegula(z, r).k !== 'gata') return null;
     switch (r.fel) {
-      case 'oricand': return { b: [[S, E]] };
-      case 'nu': return { b: [] };
-      case 'dupa': return { b: [[r.lo, E]] };
-      case 'pana': return { b: [[S, r.hi]] };
-      case 'intre': return { b: [[r.lo, r.hi]] };
-      case 'afara': return { b: [[S, r.lo], [r.hi, E]].filter(function (a) { return a[1] > a[0]; }) };
+      case 'oricand': return [[S, E]];
+      case 'nu': return [];
+      case 'dupa': return [[r.lo, E]];
+      case 'pana': return [[S, r.hi]];
+      case 'intre': return [[r.lo, r.hi]];
+      case 'afara': return [[S, r.lo], [r.hi, E]].filter(function (a) { return a[1] > a[0]; });
     }
     return null;
   }
+  function htmlBanda(z, r, cls) {
+    var S = CER.z[z][0], E = CER.z[z][1], b = bucati(z, r), t = '';
+    if (b) b.forEach(function (a) {
+      var x = (a[0] - S) / (E - S) * 100, w = (a[1] - a[0]) / (E - S) * 100;
+      t += '<span class="tronson" style="left:' + x.toFixed(2) + '%;width:' + w.toFixed(2) + '%"></span>';
+    });
+    return '<span class="' + cls + (b ? '' : ' lipsa') + '" aria-hidden="true">' + t + '</span>';
+  }
+
+  /* ================= zilele din calendar ================= */
+  function inceput() {
+    var d = new Date(); d = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12);
+    d.setDate(d.getDate() - (d.getDay() + 6) % 7);
+    return iso(d);
+  }
+  function zileVazute() {
+    var t0 = inceput(), out = [];
+    for (var k = 0; k < st.sapt * 7; k++) out.push(plus(t0, k));
+    return out;
+  }
+  /* Zilele în care elevul mai are de spus ceva: de azi încolo, în care
+     îndrumătorul lucrează, în afara perioadei în care lipsește. */
+  function deAles() {
+    var a = azi();
+    return zileVazute().filter(function (t) {
+      var z = ziSapt(t);
+      return t >= a && lucreaza(z) && !inLipsa(t) && !(regulaPe(t) && stareRegula(z, regulaPe(t)).k === 'gata');
+    });
+  }
+  /* „luni, joi și vineri 28 noiembrie”: zilele săptămânii întregi pe nume,
+     restul pe dată. */
+  function listaDeAles(lipsa) {
+    var dinVedere = zileVazute().filter(function (t) { return t >= azi(); }), parti = [];
+    ZILE.forEach(function (z) {
+      var toate = dinVedere.filter(function (t) { return ziSapt(t) === z && lucreaza(z) && !inLipsa(t); });
+      var lipsesc = lipsa.filter(function (t) { return ziSapt(t) === z; });
+      if (!lipsesc.length) return;
+      if (lipsesc.length === toate.length && toate.length > 1) parti.push(MIC[z]);
+      else lipsesc.forEach(function (t) { parti.push(dataLunga(t)); });
+    });
+    if (parti.length > 4) return parti.slice(0, 3).join(', ') + ' și încă ' + (parti.length - 3);
+    return parti.length > 1 ? parti.slice(0, -1).join(', ') + ' și ' + parti[parti.length - 1] : parti[0] || '';
+  }
 
   /* ================= desenarea ================= */
+  var elCal = document.getElementById('calendar');
+  var elCapete = document.getElementById('capete');
   var elZile = document.getElementById('zile');
   var elAlte = document.getElementById('alte');
+  var elStrat = document.getElementById('strat');
   var elStare = document.getElementById('stare');
   var elTrimite = document.getElementById('trimite');
+  var elPagina = document.getElementById('pagina');
 
-  function htmlDrum(z) {
-    var S = CER.z[z][0], E = CER.z[z][1], seg = segmente(z), t = '';
-    if (seg) seg.b.forEach(function (a) {
-      var st0 = (a[0] - S) / (E - S) * 100, lat = (a[1] - a[0]) / (E - S) * 100;
-      t += '<span class="tronson" style="left:' + st0.toFixed(2) + '%;width:' + lat.toFixed(2) + '%"></span>';
+  function htmlCalendar() {
+    var a = azi(), t0 = inceput(), cel = '';
+    zileVazute().forEach(function (t, k) {
+      var z = ziSapt(t), d = dinIso(t), r = regulaPe(t), exc = !!st.date[t];
+      var trecut = t < a, lip = inLipsa(t), lucru = lucreaza(z);
+      var gata = r && stareRegula(z, r).k === 'gata';
+      var cls = 'cel', stare;
+      if (!lucru) { cls += ' inc'; stare = 'îndrumătorul nu lucrează'; }
+      else if (trecut) { cls += ' trecut'; stare = 'a trecut'; }
+      else if (lip) { cls += ' plecat'; stare = 'lipsești'; }
+      else if (!gata) { cls += ' nes'; stare = 'de ales'; }
+      else { if (r.fel === 'nu') cls += ' nu'; stare = textRegula(r) + (exc ? ', doar ziua asta' : ''); }
+      if (exc && lucru && !trecut && !lip) cls += ' exc';
+      if (t === a) cls += ' azi';
+      if (foaie && foaie.mod === 'data' && foaie.t === t) cls += ' sel';
+      var luna = k === 0 || d.getDate() === 1 ? scurtLuna(d.getMonth()) : '';
+      var poate = lucru && !trecut && !lip;
+      cel += '<button type="button" class="' + cls + '" data-act="data" data-iso="' + t + '"' + (poate ? '' : ' disabled') +
+        ' aria-label="' + esc(dataLunga(t) + ': ' + stare) + '">' +
+        '<span class="cz">' + d.getDate() + '</span><span class="cl" aria-hidden="true">' + luna + '</span>' +
+        (lucru ? htmlBanda(z, lip ? { fel: 'nu' } : (gata ? r : null), 'mini') : '<span class="mini" aria-hidden="true" style="visibility:hidden"></span>') +
+        '</button>';
     });
-    return '<span class="drum" aria-hidden="true" style="display:block">' + t + '</span>' +
-      '<span class="capete" aria-hidden="true"><span>' + H(S) + '</span><span>' + H(E) + '</span></span>';
+    return cel;
   }
 
-  function htmlSir(z, cap, eticheta, valori, ales) {
-    var t = '<span class="eticheta" id="et-' + z + '-' + cap + '">' + eticheta + '</span>' +
-      '<div class="sir" role="group" aria-labelledby="et-' + z + '-' + cap + '" data-sir="' + z + '-' + cap + '">';
-    valori.forEach(function (v) {
-      t += '<button type="button" class="ora" data-act="ora" data-zi="' + z + '" data-cap="' + cap + '" data-min="' + v +
-        '" aria-pressed="' + (v === ales) + '">' + H(v) + '</button>';
-    });
-    return t + '</div>';
+  function htmlCapete() {
+    return ZILE.map(function (z) {
+      var are = !!(st.zile[z] && stareRegula(z, st.zile[z]).k === 'gata');
+      if (!lucreaza(z)) return '<button type="button" class="kp" disabled aria-label="' + MIC[z] + ': îndrumătorul nu lucrează">' + LIT[z] + '<i></i></button>';
+      return '<button type="button" class="kp' + (are ? ' are' : '') + '" data-act="zi" data-zi="' + z + '" aria-label="' +
+        esc('Alege pentru fiecare ' + MIC[z] + (are ? ' (acum: ' + textRegula(st.zile[z]) + ')' : '')) + '">' + LIT[z] + '<i></i></button>';
+    }).join('');
   }
 
-  function htmlZi(z) {
-    if (!lucreaza(z)) {
-      return '<section class="zi inchisa" data-zi="' + z + '"><span class="zi-nume">' + NUME[z] +
-        '</span><span class="zi-rez">îndrumătorul nu lucrează</span></section>';
-    }
-    var r = st.zile[z] || {}, s = stareZi(z), deschisa = st.deschisa === z;
-    var cls = 'zi' + (deschisa ? ' deschisa' : '') + (s.k === 'lipsa' && !r.fel ? ' lipsa' : '') + (s.k === 'eroare' ? ' eroare' : '');
-    var rezCls = 'zi-rez' + (s.k === 'eroare' ? ' eroare' : (s.k === 'lipsa' ? ' lipsa' : ''));
-    var t = '<section class="' + cls + '" data-zi="' + z + '" id="zi-' + z + '">' +
-      '<button type="button" class="zi-cap" data-act="deschide" data-zi="' + z + '" aria-expanded="' + deschisa + '" aria-controls="corp-' + z + '">' +
-      '<span class="zi-rand"><span class="zi-nume">' + NUME[z] + '</span><span class="' + rezCls + '">' + rezumat(z) + '</span></span>' +
-      htmlDrum(z) + '</button>';
-    if (deschisa) {
-      t += '<div class="zi-corp" id="corp-' + z + '"><span class="eticheta" id="fel-' + z + '">Cum poți ' + MIC[z] + '?</span>' +
-        '<div class="feluri" role="group" aria-labelledby="fel-' + z + '">';
-      FELURI.forEach(function (f) {
-        t += '<button type="button" class="alege" data-act="fel" data-zi="' + z + '" data-fel="' + f[0] + '" aria-pressed="' + (r.fel === f[0]) + '">' + f[1] + '</button>';
-      });
-      t += '</div>';
-      if (r.fel === 'dupa') {
-        t += htmlSir(z, 'lo', 'Pot începe de la', optiuni(z, 'dupa', 'lo', r), r.lo);
-        t += '<p class="nota">Poți începe la ora aleasă sau oricând după ea.</p>';
-      } else if (r.fel === 'pana') {
-        t += htmlSir(z, 'hi', 'Trebuie să termin până la', optiuni(z, 'pana', 'hi', r), r.hi);
-        t += '<p class="nota">Ședința se termină cel târziu la ora aleasă.</p>';
-      } else if (r.fel === 'intre' || r.fel === 'afara') {
-        t += htmlSir(z, 'lo', r.fel === 'intre' ? 'Pot de la' : 'Nu pot de la', optiuni(z, r.fel, 'lo', r), r.lo);
-        if (r.lo != null) t += htmlSir(z, 'hi', r.fel === 'intre' ? 'până la' : 'până la', optiuni(z, r.fel, 'hi', r), r.hi);
-        t += '<p class="nota">' + (r.fel === 'intre'
-          ? 'Ședința începe și se termină în intervalul ăsta. Arătăm doar orele în care încape o ședință întreagă.'
-          : 'În restul zilei poți. Ședința nu va atinge intervalul ăsta.') + '</p>';
+  function htmlVad() {
+    return '<span>Arată</span><span class="seg" role="group" aria-label="Câte săptămâni să arate">' +
+      SAPTAMANI.map(function (n) {
+        return '<button type="button" data-act="sapt" data-n="' + n + '" aria-pressed="' + (st.sapt === n) + '" aria-label="' + n + ' săptămâni">' + n + '</button>';
+      }).join('') + '</span><span>săpt.</span>';
+  }
+
+  function htmlRepede() {
+    var nimic = !ZILE.some(function (z) { return st.zile[z] && st.zile[z].fel; });
+    return nimic ? '<button type="button" class="repede" data-act="toate">✓ Pot oricând, în toate zilele</button>' : '';
+  }
+
+  function htmlLista() {
+    var t = '';
+    ZILE.forEach(function (z) {
+      if (!lucreaza(z)) {
+        t += '<div class="zi-r inchisa" id="zi-' + z + '"><span class="zi-nume">' + NUME[z] + '</span><span class="zi-rez">îndrumătorul nu lucrează</span></div>';
+        return;
       }
-      if (s.k === 'eroare') t += '<p class="greseala">' + s.m + '</p>';
-      else if (s.k === 'lipsa' && s.m) t += '<p class="nota"><b>' + s.m + '</b></p>';
-      var alteLipsa = ZILE.filter(function (x) { return x !== z && lucreaza(x) && !(st.zile[x] && st.zile[x].fel); });
-      if (s.k === 'gata' || (r.fel && s.k !== 'lipsa' && s.k !== 'eroare')) {
-        t += '<div class="zi-jos">';
-        if (alteLipsa.length) t += '<button type="button" class="mic" data-act="lafel" data-zi="' + z + '">La fel în zilele rămase</button>';
-        t += '<button type="button" class="mic plin" data-act="urmatoarea" data-zi="' + z + '">' + (urmatoarea(z) != null ? 'Ziua următoare' : 'Gata') + '</button></div>';
-      }
-      t += '</div>';
-    }
-    return t + '</section>';
+      var r = st.zile[z], gata = r && stareRegula(z, r).k === 'gata';
+      t += '<button type="button" class="zi-r' + (gata ? '' : ' lipsa') + '" id="zi-' + z + '" data-act="zi" data-zi="' + z + '">' +
+        '<span class="zi-nume">' + NUME[z] + '</span>' + htmlBanda(z, gata ? r : null, 'mini') +
+        '<span class="zi-rez">' + (gata ? rezumat(r) : 'Alege') + '</span></button>';
+    });
+    Object.keys(st.date).sort().forEach(function (d) {
+      var z = ziSapt(d), r = st.date[d];
+      t += '<button type="button" class="zi-r exceptie" data-act="data" data-iso="' + d + '">' +
+        '<span class="zi-nume">Doar ' + esc(dataLunga(d)) + '</span>' + htmlBanda(z, r, 'mini') +
+        '<span class="zi-rez">' + rezumat(r) + '</span></button>';
+    });
+    return t;
   }
 
   function htmlComutator(cheie, on, titlu, mic) {
     return '<button type="button" class="comutator" data-act="comuta" data-ce="' + cheie + '" aria-pressed="' + on + '">' +
       '<span class="bifa" aria-hidden="true">' + (on ? '✓' : '') + '</span><span><b>' + titlu + '</b><small>' + mic + '</small></span></button>';
-  }
-  function chip(act, val, text, ales, cls) {
-    return '<button type="button" class="' + (cls || 'alege') + '" data-act="' + act + '" data-val="' + val + '" aria-pressed="' + ales + '">' + text + '</button>';
   }
 
   function htmlAlte() {
@@ -504,40 +641,102 @@ textarea.camp{min-height:92px;resize:vertical}
     return '';
   }
 
-  function deDiscutat() {
-    var lipsa = [], gresite = [];
-    ZILE.forEach(function (z) {
-      if (!lucreaza(z)) return;
-      var k = stareZi(z).k;
-      if (k === 'lipsa') lipsa.push(z); else if (k === 'eroare') gresite.push(z);
+  /* ---------- foaia unei zile ---------- */
+  function htmlSir(z, cap, eticheta, valori, ales) {
+    var t = '<span class="eticheta" id="et-' + cap + '">' + eticheta + '</span>' +
+      '<div class="sir" role="group" aria-labelledby="et-' + cap + '" data-sir="' + cap + '">';
+    valori.forEach(function (v) {
+      t += '<button type="button" class="ora" data-act="ora" data-cap="' + cap + '" data-min="' + v +
+        '" aria-pressed="' + (v === ales) + '">' + H(v) + '</button>';
     });
-    return { lipsa: lipsa, gresite: gresite, plecat: problemaLipsa() };
+    return t + '</div>';
+  }
+
+  function fraza(z, r) {
+    var S = CER.z[z][0], E = CER.z[z][1], s = stareRegula(z, r);
+    if (!r || !r.fel) return 'Alege una dintre variantele de mai jos.';
+    if (s.k !== 'gata') return s.m || '';
+    switch (r.fel) {
+      case 'oricand': return 'Poți toată ziua, ' + H(S) + '–' + H(E) + '.';
+      case 'nu': return 'Nu poți deloc în ziua asta.';
+      case 'dupa': return 'Poți de la ' + H(r.lo) + ' până la ' + H(E) + '.';
+      case 'pana': return 'Poți de la ' + H(S) + ' până la ' + H(r.hi) + '.';
+      case 'intre': return 'Poți doar între ' + H(r.lo) + ' și ' + H(r.hi) + '.';
+      case 'afara': return 'Nu poți între ' + H(r.lo) + ' și ' + H(r.hi) + '. În rest, da.';
+    }
+    return '';
+  }
+
+  function htmlFoaie() {
+    if (!foaie) return '';
+    var z = foaie.z, r = foaie.r, s = stareRegula(z, r), S = CER.z[z][0], E = CER.z[z][1];
+    var titlu = foaie.mod === 'zi' ? 'În fiecare ' + MIC[z] : NUME[z] + ', ' + dataText(foaie.t);
+    var t = '<button type="button" class="voal" data-act="inchide" tabindex="-1" aria-label="Închide"></button>' +
+      '<section class="foaie" id="foaie" role="dialog" aria-modal="true" aria-labelledby="f-titlu">' +
+      '<div class="f-cap"><div><h2 id="f-titlu">' + esc(titlu) + '</h2><p class="sub">Îndrumătorul lucrează ' + H(S) + '–' + H(E) + '.</p></div>' +
+      '<button type="button" class="x" data-act="inchide" aria-label="Închide">×</button></div>' +
+      htmlBanda(z, s.k === 'gata' ? r : null, 'drum') +
+      '<span class="capete" aria-hidden="true"><span>' + H(S) + '</span><span>' + H(E) + '</span></span>' +
+      '<p class="fraza" aria-live="polite">' + esc(fraza(z, r)) + '</p>' +
+      '<span class="eticheta" id="f-fel">Cum poți?</span><div class="feluri" role="group" aria-labelledby="f-fel">';
+    FELURI.forEach(function (f) {
+      t += '<button type="button" class="alege" data-act="fel" data-fel="' + f[0] + '" aria-pressed="' + (r.fel === f[0]) + '">' + f[1] + '</button>';
+    });
+    t += '</div>';
+    if (r.fel === 'dupa') {
+      t += htmlSir(z, 'lo', 'Pot începe de la', optiuni(z, 'dupa', 'lo', r), r.lo);
+      t += '<p class="nota">Poți începe la ora aleasă sau oricând după ea.</p>';
+    } else if (r.fel === 'pana') {
+      t += htmlSir(z, 'hi', 'Trebuie să termin până la', optiuni(z, 'pana', 'hi', r), r.hi);
+      t += '<p class="nota">Ședința se termină cel târziu la ora aleasă.</p>';
+    } else if (r.fel === 'intre' || r.fel === 'afara') {
+      t += htmlSir(z, 'lo', r.fel === 'intre' ? 'Pot de la' : 'Nu pot de la', optiuni(z, r.fel, 'lo', r), r.lo);
+      if (r.lo != null) t += htmlSir(z, 'hi', 'până la', optiuni(z, r.fel, 'hi', r), r.hi);
+      t += '<p class="nota">' + (r.fel === 'intre'
+        ? 'Ședința începe și se termină în intervalul ăsta. Arătăm doar orele în care încape o ședință întreagă.'
+        : 'În restul zilei poți. Ședința nu va atinge intervalul ăsta.') + '</p>';
+    }
+    if (s.k === 'eroare') t += '<p class="greseala">' + s.m + '</p>';
+    if (foaie.mod === 'data') {
+      t += '<div class="lafel">' + htmlComutator('lafel', foaie.laFel, 'La fel în fiecare ' + MIC[z],
+        foaie.laFel ? 'Se pune în toate zilele de ' + MIC[z] + '.' : 'Doar pe ' + dataText(foaie.t) + '.') + '</div>';
+    }
+    var areCeva = foaie.mod === 'zi' ? !!st.zile[z] : (!!st.date[foaie.t] || !!st.zile[z]);
+    var urm = urmatoarea();
+    t += '<div class="f-jos">' +
+      (areCeva ? '<button type="button" class="mic" data-act="sterge">Șterge</button>' : '') +
+      '<button type="button" class="mic plin" data-act="gata"' + (s.k === 'gata' ? '' : ' disabled') + '>' +
+      (urm ? 'Gata · ziua următoare' : 'Gata') + '</button></div>';
+    return t + '</section>';
   }
 
   function deseneazaStarea(mesajNou) {
-    var p = deDiscutat(), gata = !p.lipsa.length && !p.gresite.length && !p.plecat;
+    var lipsa = deAles(), pl = problemaLipsa(), gata = !lipsa.length && !pl;
     elTrimite.classList.toggle('neterminat', !gata);
     elStare.className = 'stare';
     if (mesajNou) { elStare.textContent = mesajNou.t; if (mesajNou.c) elStare.classList.add(mesajNou.c); return; }
     if (st.trimis) { elStare.textContent = 'S-a deschis WhatsApp cu mesajul gata scris. Apasă Trimite acolo.'; elStare.classList.add('bine'); return; }
     if (gata) { elStare.textContent = 'Totul e completat. Mesajul se deschide în WhatsApp.'; return; }
-    if (p.gresite.length) { elStare.textContent = 'Verifică ' + p.gresite.map(function (z) { return MIC[z]; }).join(', ') + '.'; return; }
-    if (p.lipsa.length) {
-      var n = p.lipsa.length;
-      elStare.textContent = (n === 1 ? 'Mai ai de ales o zi: ' : 'Mai ai de ales ' + n + ' zile: ') +
-        p.lipsa.map(function (z) { return MIC[z]; }).join(', ') + '.';
-      return;
-    }
-    elStare.textContent = p.plecat;
+    if (lipsa.length) { elStare.textContent = 'Mai ai de ales: ' + listaDeAles(lipsa) + '.'; return; }
+    elStare.textContent = pl;
   }
 
-  /* Benzile de ore își păstrează derularea când pagina se redesenează; la
-     prima deschidere, ora aleasă (sau prânzul) vine la mijloc. */
   function deseneaza(focus) {
     var sus = {};
     document.querySelectorAll('.sir').forEach(function (s) { sus[s.getAttribute('data-sir')] = s.scrollLeft; });
-    elZile.innerHTML = ZILE.map(htmlZi).join('');
+    document.getElementById('vad').innerHTML = htmlVad();
+    document.getElementById('repede').innerHTML = htmlRepede();
+    elCapete.innerHTML = htmlCapete();
+    elCal.innerHTML = htmlCalendar();
+    elZile.innerHTML = htmlLista();
     elAlte.innerHTML = htmlAlte();
+    elStrat.innerHTML = htmlFoaie();
+    var deschisa = !!foaie;
+    document.body.classList.toggle('cu-foaie', deschisa);
+    try { elPagina.inert = deschisa; } catch (x) { }
+    if (deschisa) elPagina.setAttribute('aria-hidden', 'true'); else elPagina.removeAttribute('aria-hidden');
+    /* Benzile de ore își păstrează derularea când foaia se redesenează; la
+       prima deschidere, ora aleasă (sau prânzul) vine la mijloc. */
     document.querySelectorAll('.sir').forEach(function (s) {
       var k = s.getAttribute('data-sir');
       if (sus[k] != null) { s.scrollLeft = sus[k]; return; }
@@ -556,87 +755,114 @@ textarea.camp{min-height:92px;resize:vertical}
     }
   }
 
-  function urmatoarea(z) {
-    var i = ZILE.indexOf(z);
-    for (var k = 1; k <= ZILE.length; k++) {
-      var x = ZILE[(i + k) % ZILE.length];
-      if (x !== z && lucreaza(x) && stareZi(x).k !== 'gata') return x;
-    }
-    return null;
+  /* ---------- foaia: deschidere, schimbare, închidere ---------- */
+  function deschideData(t, inapoi) {
+    var z = ziSapt(t), exc = st.date[t], baza = exc || st.zile[z] || {};
+    foaie = { mod: 'data', t: t, z: z, r: { fel: baza.fel || null, lo: baza.lo == null ? null : baza.lo, hi: baza.hi == null ? null : baza.hi },
+      laFel: !exc, inapoi: inapoi || '[data-iso="' + t + '"]' };
+    deseneaza('#foaie [aria-pressed="true"], #foaie [data-act="fel"]');
   }
-  function aduLaVedere(sel) {
-    var el = document.querySelector(sel);
-    if (!el) return;
-    var lin = !window.matchMedia || !matchMedia('(prefers-reduced-motion: reduce)').matches;
-    try { el.scrollIntoView({ block: 'start', behavior: lin ? 'smooth' : 'auto' }); } catch (x) { el.scrollIntoView(); }
+  function deschideZi(z, inapoi) {
+    var baza = st.zile[z] || {};
+    foaie = { mod: 'zi', t: null, z: z, r: { fel: baza.fel || null, lo: baza.lo == null ? null : baza.lo, hi: baza.hi == null ? null : baza.hi },
+      laFel: true, inapoi: inapoi || '#zi-' + z };
+    deseneaza('#foaie [aria-pressed="true"], #foaie [data-act="fel"]');
   }
-  function deschide(z) {
-    st.deschisa = z;
-    deseneaza(z != null ? '#zi-' + z + ' .zi-cap' : null);
-    if (z != null) aduLaVedere('#zi-' + z);
+  /* Ce ai ales în foaie intră pe pagină. */
+  function scrie() {
+    var r = { fel: foaie.r.fel };
+    if (foaie.r.lo != null) r.lo = foaie.r.lo;
+    if (foaie.r.hi != null) r.hi = foaie.r.hi;
+    if (foaie.mod === 'zi' || foaie.laFel) { st.zile[foaie.z] = r; if (foaie.t) delete st.date[foaie.t]; }
+    else st.date[foaie.t] = r;
+    pastreaza();
+  }
+  function inchide() {
+    var inapoi = foaie && foaie.inapoi;
+    foaie = null;
+    deseneaza(inapoi);
+  }
+  /* Ziua următoare de ales, după cea din foaie (sau de la început). */
+  function urmatoarea() {
+    var lipsa = deAles();
+    if (!lipsa.length) return null;
+    var de = foaie && foaie.t ? foaie.t : '';
+    var dupa = lipsa.filter(function (t) { return t > de && !(foaie && foaie.mod === 'data' && foaie.laFel && ziSapt(t) === foaie.z) &&
+      !(foaie && foaie.mod === 'zi' && ziSapt(t) === foaie.z); });
+    return dupa[0] || lipsa.filter(function (t) { return !(foaie && ziSapt(t) === foaie.z && (foaie.mod === 'zi' || foaie.laFel)); })[0] || null;
+  }
+  function gataSiMaiDeparte() {
+    var urm = urmatoarea();
+    scrie();
+    if (urm && deAles().indexOf(urm) >= 0) deschideData(urm); else inchide();
   }
 
   /* ================= atingerile ================= */
   document.addEventListener('click', function (ev) {
     var b = ev.target.closest('[data-act]');
-    if (!b) return;
-    var act = b.getAttribute('data-act'), z = Number(b.getAttribute('data-zi'));
+    if (!b || b.disabled) return;
+    var act = b.getAttribute('data-act');
     st.trimis = false;
-    if (act === 'deschide') {
-      st.deschisa = st.deschisa === z ? null : z;
-      pastreaza(); deseneaza('#zi-' + z + ' .zi-cap');
+    if (act === 'data') { deschideData(b.getAttribute('data-iso')); return; }
+    if (act === 'zi') { deschideZi(Number(b.getAttribute('data-zi')), '#' + (b.id || 'capete')); return; }
+    if (act === 'sapt') { st.sapt = Number(b.getAttribute('data-n')); pastreaza(); deseneaza('[data-act="sapt"][data-n="' + st.sapt + '"]'); return; }
+    if (act === 'toate') {
+      ZILE.forEach(function (z) { if (lucreaza(z)) st.zile[z] = { fel: 'oricand' }; });
+      pastreaza(); deseneaza();
+      deseneazaStarea({ t: 'Gata: oricând, în fiecare zi. O zi anume o poți schimba atingând-o.', c: 'bine' });
       return;
     }
+    if (act === 'comuta') {
+      var ce = b.getAttribute('data-ce');
+      if (ce === 'lafel') { foaie.laFel = !foaie.laFel; deseneaza('[data-ce="lafel"]'); return; }
+      st[ce].on = !st[ce].on; pastreaza(); deseneaza('[data-ce="' + ce + '"]'); return;
+    }
+    if (!foaie) return;
+    if (act === 'inchide') {
+      /* Închisă cu o alegere întreagă, alegerea rămâne. Neterminată, nu. */
+      if (stareRegula(foaie.z, foaie.r).k === 'gata') scrie();
+      inchide(); return;
+    }
     if (act === 'fel') {
-      var fel = b.getAttribute('data-fel'), vechi = st.zile[z] || {};
-      if (vechi.fel === fel) return;
-      st.zile[z] = { fel: fel, lo: null, hi: null };
-      pastreaza();
-      /* „Oricând” și „Nu pot” sunt răspunsuri întregi: trecem singuri la ziua
-         următoare. La celelalte mai sunt de ales orele. */
-      if ((fel === 'oricand' || fel === 'nu')) {
-        var u = urmatoarea(z);
-        if (u != null) { deschide(u); return; }
-        st.deschisa = null;
-      }
-      deseneaza('#zi-' + z + ' [data-fel="' + fel + '"]');
+      var fel = b.getAttribute('data-fel');
+      if (foaie.r.fel === fel) return;
+      foaie.r = { fel: fel, lo: null, hi: null };
+      /* „Oricând” și „Indisponibil” sunt răspunsuri întregi: trecem singuri la
+         ziua următoare. La celelalte mai sunt de ales orele. */
+      if (fel === 'oricand' || fel === 'nu') { gataSiMaiDeparte(); return; }
+      deseneaza('#foaie [data-fel="' + fel + '"]');
       return;
     }
     if (act === 'ora') {
-      var cap = b.getAttribute('data-cap'), min = Number(b.getAttribute('data-min'));
-      var r = st.zile[z];
+      var cap = b.getAttribute('data-cap'), min = Number(b.getAttribute('data-min')), r = foaie.r;
       r[cap] = min;
-      if (cap === 'lo' && r.hi != null && optiuni(z, r.fel, 'hi', r).indexOf(r.hi) < 0) r.hi = null;
-      pastreaza(); deseneaza('#zi-' + z + ' [data-cap="' + cap + '"][data-min="' + min + '"]');
+      if (cap === 'lo' && r.hi != null && optiuni(foaie.z, r.fel, 'hi', r).indexOf(r.hi) < 0) r.hi = null;
+      deseneaza('#foaie [data-cap="' + cap + '"][data-min="' + min + '"]');
       return;
     }
-    if (act === 'lafel') {
-      var model = st.zile[z], puse = 0;
-      ZILE.forEach(function (x) {
-        if (x === z || !lucreaza(x) || (st.zile[x] && st.zile[x].fel)) return;
-        var copie = { fel: model.fel, lo: model.lo, hi: model.hi };
-        var merge = cere(copie.fel).every(function (cap) { return optiuni(x, copie.fel, cap, copie).indexOf(copie[cap]) >= 0; });
-        if (merge && stareZiPentru(x, copie) === 'gata') { st.zile[x] = copie; puse++; }
-      });
-      pastreaza();
-      deseneaza();
-      var nepuse = ZILE.filter(function (x) { return lucreaza(x) && stareZi(x).k === 'lipsa'; }).length;
-      deseneazaStarea({ t: (puse === 1 ? 'Am pus la fel într-o zi.' : 'Am pus la fel în ' + puse + ' zile.') +
-        (nepuse ? ' În celelalte programul îndrumătorului e altul — alege-le separat.' : '') });
-      return;
-    }
-    if (act === 'urmatoarea') { deschide(urmatoarea(z)); pastreaza(); return; }
-    if (act === 'comuta') {
-      var ce = b.getAttribute('data-ce');
-      st[ce].on = !st[ce].on; pastreaza(); deseneaza('[data-ce="' + ce + '"]'); return;
+    if (act === 'gata') { gataSiMaiDeparte(); return; }
+    if (act === 'sterge') {
+      if (foaie.mod === 'data' && st.date[foaie.t]) delete st.date[foaie.t];
+      else st.zile[foaie.z] = null;
+      pastreaza(); inchide(); return;
     }
   });
-
-  function stareZiPentru(z, r) {
-    var pastrat = st.zile[z]; st.zile[z] = r;
-    var k = stareZi(z).k; st.zile[z] = pastrat;
-    return k;
-  }
+  document.addEventListener('keydown', function (ev) {
+    if (!foaie) return;
+    if (ev.key === 'Escape') {
+      if (stareRegula(foaie.z, foaie.r).k === 'gata') scrie();
+      inchide(); return;
+    }
+    if (ev.key === 'Tab') {
+      /* Tab-ul rămâne în foaie cât e deschisă. */
+      var f = document.getElementById('foaie');
+      var el = f ? [].slice.call(f.querySelectorAll('button:not([disabled])')) : [];
+      if (!el.length) return;
+      var i = el.indexOf(document.activeElement);
+      if (ev.shiftKey && i <= 0) { ev.preventDefault(); el[el.length - 1].focus(); }
+      else if (!ev.shiftKey && i === el.length - 1) { ev.preventDefault(); el[0].focus(); }
+    }
+  });
 
   /* Câmpurile de scris: se țin minte pe loc, fără să redesenăm sub deget. */
   document.addEventListener('input', function (ev) {
@@ -654,19 +880,36 @@ textarea.camp{min-height:92px;resize:vertical}
     if (c && c !== 'mesaj') deseneaza('[data-camp="' + c + '"]');
   });
 
-  /* ================= răspunsul ================= */
+  /* ================= răspunsul =================
+     z — ziua din săptămână, ca până acum, deci și aplicațiile mai vechi îl
+         înțeleg întocmai;
+     x — zilele anume cu altă regulă (aplicațiile vechi le sar);
+     h — de la ce zi până la ce zi s-a uitat elevul: acolo, regulile anume
+         de dinainte de pe fișă se înlocuiesc cu ce a spus acum.            */
+  function felInLink(r) {
+    if (r.fel === 'dupa') return ['dupa', r.lo];
+    if (r.fel === 'pana') return ['pana', r.hi];
+    if (r.fel === 'intre' || r.fel === 'afara') return [r.fel, r.lo, r.hi];
+    return [r.fel];
+  }
+  function exceptiiDeTrimis() {
+    return Object.keys(st.date).sort().filter(function (t) {
+      var z = ziSapt(t);
+      return t >= azi() && lucreaza(z) && stareRegula(z, st.date[t]).k === 'gata';
+    });
+  }
   function raspuns() {
-    var z = {};
+    var z = {}, x = {};
     ZILE.forEach(function (d) {
       if (!lucreaza(d)) return;
       var r = st.zile[d];
-      if (!r || !r.fel) return;
-      if (r.fel === 'dupa') z[d] = ['dupa', r.lo];
-      else if (r.fel === 'pana') z[d] = ['pana', r.hi];
-      else if (r.fel === 'intre' || r.fel === 'afara') z[d] = [r.fel, r.lo, r.hi];
-      else z[d] = [r.fel];
+      if (!r || !r.fel || stareRegula(d, r).k !== 'gata') return;
+      z[d] = felInLink(r);
     });
-    var o = { v: 1, z: z };
+    exceptiiDeTrimis().forEach(function (t) { x[t] = felInLink(st.date[t]); });
+    var vazute = zileVazute(), o = { v: 1, z: z };
+    if (Object.keys(x).length) o.x = x;
+    o.h = [azi() > vazute[0] ? azi() : vazute[0], vazute[vazute.length - 1]];
     if (CER.e) o.e = CER.e;
     if (st.lipsa.on) o.a = [st.lipsa.din, st.lipsa.pana];
     if (st.mesaj.trim()) o.m = st.mesaj.trim().slice(0, 300);
@@ -677,25 +920,38 @@ textarea.camp{min-height:92px;resize:vertical}
   }
   function mesaj() {
     var L = ['Bună! Programul meu pentru ședințele de condus:', ''];
-    ZILE.forEach(function (z) { if (lucreaza(z)) L.push('*' + NUME[z] + ':* ' + textZi(z)); });
+    ZILE.forEach(function (z) {
+      if (lucreaza(z) && st.zile[z] && stareRegula(z, st.zile[z]).k === 'gata') L.push('*' + NUME[z] + ':* ' + textRegula(st.zile[z]));
+    });
+    var x = exceptiiDeTrimis();
+    if (x.length) {
+      L.push('', '*Doar în anumite zile:*');
+      x.forEach(function (t) { L.push('- ' + dataLunga(t) + ': ' + textRegula(st.date[t])); });
+    }
     if (st.lipsa.on) L.push('', '*Lipsesc:* de pe ' + dataText(st.lipsa.din) + ' până pe ' + dataText(st.lipsa.pana) + ', inclusiv.');
     if (st.mesaj.trim()) L.push('', '*Mai am de spus:* ' + st.mesaj.trim());
     L.push('', 'Pentru aplicația IAS:', linkRaspuns());
     return L.join('\n');
   }
 
+  function aduLaVedere(sel) {
+    var el = document.querySelector(sel);
+    if (!el) return;
+    var lin = !window.matchMedia || !matchMedia('(prefers-reduced-motion: reduce)').matches;
+    try { el.scrollIntoView({ block: 'start', behavior: lin ? 'smooth' : 'auto' }); } catch (x) { el.scrollIntoView(); }
+  }
   function primaProblema() {
-    var p = deDiscutat();
-    if (p.gresite.length || p.lipsa.length) {
-      var z = ZILE.filter(function (x) { return p.gresite.indexOf(x) >= 0 || p.lipsa.indexOf(x) >= 0; })[0];
-      deschide(z);
-      deseneazaStarea({ t: p.gresite.indexOf(z) >= 0 ? 'Verifică ' + MIC[z] + '.' : 'Mai ai de ales ' + MIC[z] + '.', c: 'rau' });
+    var lipsa = deAles();
+    if (lipsa.length) {
+      deschideData(lipsa[0]);
+      deseneazaStarea({ t: 'Mai ai de ales ' + dataLunga(lipsa[0]) + '.', c: 'rau' });
       return true;
     }
-    if (p.plecat) {
+    var pl = problemaLipsa();
+    if (pl) {
       deseneaza();
       aduLaVedere('#op-lipsa');
-      deseneazaStarea({ t: p.plecat, c: 'rau' });
+      deseneazaStarea({ t: pl, c: 'rau' });
       return true;
     }
     return false;
@@ -727,7 +983,8 @@ textarea.camp{min-height:92px;resize:vertical}
 
   document.getElementById('dinNou').addEventListener('click', function () {
     if (!window.confirm('Ștergi tot ce ai ales și o iei de la capăt?')) return;
-    st = gol(); pastreaza(); deseneaza(); window.scrollTo(0, 0);
+    var s = st.sapt;
+    st = gol(); st.sapt = s; foaie = null; pastreaza(); deseneaza(); window.scrollTo(0, 0);
   });
 
   /* ================= capul paginii ================= */
@@ -744,9 +1001,6 @@ textarea.camp{min-height:92px;resize:vertical}
     aviz.textContent = 'Când apeși Trimite, alege-l pe îndrumător din lista ta de WhatsApp.';
   }
 
-  if (st.deschisa == null && !ZILE.some(function (z) { return st.zile[z] && st.zile[z].fel; })) {
-    st.deschisa = ZILE.filter(lucreaza)[0];
-  }
   deseneaza();
 })();
 </script>
