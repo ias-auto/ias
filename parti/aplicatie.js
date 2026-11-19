@@ -728,7 +728,8 @@ function iasOraDeSpalat(stare, azi, acumMin) {
    1. GSAP, adus prin CDN. Dacă nu vine (fără semnal la prima pornire),
       cascada o face browserul — conținutul nu rămâne niciodată ascuns.
    2. Cascada: la pornire și la schimbarea ecranului, cardurile și rândurile
-      urcă 20 px și se aprind pe rând, cu revenire elastică.
+      urcă puțin și se aprind pe rând, cu un recul scurt. E scurtă, ca ecranul
+      să nu stea gol, și se dă la o parte când telefonul e deja ocupat.
    3. O vibrație scurtă la acțiunile care schimbă ceva. iPhone-ul nu lasă
       paginile să vibreze; acolo pur și simplu nu se întâmplă nimic. */
 (function iasMiscare() {
@@ -763,7 +764,11 @@ function iasOraDeSpalat(stare, azi, acumMin) {
                 if (r.top > jos) return;
                 var bloc = c.tagName === "BUTTON" || c.tagName === "P" || /^H[1-6]$/.test(c.tagName) || !c.children.length ||
                     /(^|\s)(border|rounded-lg|rounded-xl|rounded-2xl|rounded-full)(\s|$)/.test(cls) || !!c.style.borderRadius;
-                if (bloc || adanc >= 3) {
+                /* O listă întreagă nu urcă dintr-o bucată: se intră în ea, ca
+                   fiecare card să vină la rândul lui. Altfel lista stătea
+                   goală, apoi apărea toată și se legăna. */
+                var lista = !/(^|\s)bg-white(\s|$)/.test(cls) && c.children.length > 1 && !!c.querySelector(".bg-white.border, button.border");
+                if ((bloc || adanc >= 3) && !(lista && adanc < 6)) {
                     if (!c.style.opacity && !c.style.translate) out.push(c)
                 } else coboara(c, adanc + 1)
             }
@@ -780,16 +785,16 @@ function iasOraDeSpalat(stare, azi, acumMin) {
         if (g && g.fromTo) {
             try {
                 g.killTweensOf(el);
-                g.fromTo(el, { opacity: 0 }, { opacity: 1, duration: .4, ease: "power2.out", stagger: { amount: .34 }, clearProps: "opacity" });
-                g.fromTo(el, { translate: "0px 20px" }, { translate: "0px 0px", duration: 1.05, ease: "elastic.out(1, 0.72)", stagger: { amount: .34 }, clearProps: "translate" });
+                g.fromTo(el, { opacity: 0 }, { opacity: 1, duration: .26, ease: "power2.out", stagger: { amount: .16 }, clearProps: "opacity" });
+                g.fromTo(el, { translate: "0px 16px" }, { translate: "0px 0px", duration: .5, ease: "back.out(1.6)", stagger: { amount: .16 }, clearProps: "translate" });
                 return
             } catch (e) { /* cade pe varianta browserului */ }
         }
         if (!el[0].animate) return;
         el.forEach(function (c, k) {
             try {
-                c.animate([{ opacity: 0, translate: "0 20px" }, { opacity: 1, translate: "0 0" }], {
-                    duration: 620, delay: Math.min(k * 28, 340), easing: "cubic-bezier(.34,1.56,.64,1)", fill: "backwards"
+                c.animate([{ opacity: 0, translate: "0 16px" }, { opacity: 1, translate: "0 0" }], {
+                    duration: 420, delay: Math.min(k * 14, 160), easing: "cubic-bezier(.34,1.45,.64,1)", fill: "backwards"
                 })
             } catch (e) { /* browser vechi: apare fără mișcare */ }
         })
@@ -802,12 +807,20 @@ function iasOraDeSpalat(stare, azi, acumMin) {
         }
         return null
     }
-    var ultim = null;
+    var ultim = null,
+        atins = 0;
+
+    /* Dacă de la atingerea filei până la ecranul nou a trecut mult, telefonul
+       e deja ocupat: ecranul apare direct, fără cascadă, ca să nu întârzie
+       și mai mult. */
+    try {
+        document.addEventListener("click", function () { atins = performance.now() }, !0)
+    } catch (e) {}
 
     function vezi() {
         var r = document.querySelector("[data-skin]"),
             p = r ? panouActiv(r) : null;
-        if (p && p !== ultim) cascada(p);
+        if (p && p !== ultim && !(atins && performance.now() - atins > 140)) cascada(p);
         ultim = p
     }
     var incercari = 0,
@@ -7595,19 +7608,22 @@ function Rk({
     }, o.default.createElement(un, {
         size: 18
     }))),
+    /* Formularul stă în trei grupuri, în ordinea în care îl completezi: cine
+       (starea și elevul), când (ziua și ora) și unde (locul și tipul orei).
+       Fiecare câmp își are titlul chiar deasupra lui — „Elev" nu mai stă
+       deasupra stării — iar grila orelor e mai deasă, ca ziua să încapă
+       dintr-o privire. */
+    o.default.createElement("div", {
+        className: "rounded-2xl px-3.5 pt-3.5 pb-1 mb-3",
+        "data-ias-grup-sedinta": "cine",
+        style: { background: "var(--surface-2)", border: "1px solid var(--line)" }
+    },
+    iasCautaElev ? null : o.default.createElement(IasStare, { value: y, onChange: _, edit: e === "edit" }),
     o.default.createElement("span", {
         className: "block text-xs font-medium text-slate-500 mb-1.5"
     }, "Elev", o.default.createElement("span", {
         className: "text-amber-600"
     }, " *")),
-    o.default.createElement("div", {
-        className: "rounded-2xl px-3.5 pt-3.5 pb-1 mb-3.5",
-        style: { background: "var(--surface-2)", border: "1px solid var(--line)" }
-    },
-    /* Statusul și elevul stau împreună, în capul formularului: sunt primele
-       două lucruri pe care le cauți când deschizi o ședință. Alegerea elevului
-       își poartă singură titlul, deci nu-i mai punem încă unul deasupra. */
-    iasCautaElev ? null : o.default.createElement(IasStare, { value: y, onChange: _, edit: e === "edit" }),
     o.default.createElement(Uk, {
         onDeschis: iasCauta,
         /* Elevii care au deja o ședință în ziua aleasă nu mai apar în listă: la
@@ -7622,22 +7638,32 @@ function Rk({
             h(T ? gw(T, a.sessions) : "included"), e !== "edit" && (k(T?.defaultLocation || ""), O(!!(T && T.english)))
         }
     })),
-    o.default.createElement(xe, {
-        label: "Dat\u0103",
-        required: !0
-    }, o.default.createElement("input", {
-        type: "date",
-        className: ie,
-        value: m,
-        onChange: L => g(L.target.value)
-    })),
-    o.default.createElement("div", { className: "mb-3.5" },
-        o.default.createElement("div", { className: "flex items-baseline justify-between mb-1.5" },
-            o.default.createElement("span", { className: "text-xs font-medium text-slate-500" }, "Ora"),
-            o.default.createElement("span", { className: "font-mono-time text-xs", style: { color: "var(--accent-ink)" } },
-                Se(v), " \u2013 ", Se(v + ye))),
+    o.default.createElement("div", {
+        className: "rounded-2xl px-3.5 pt-3.5 mb-3",
+        "data-ias-grup-sedinta": "cand",
+        style: { background: "var(--surface-2)", border: "1px solid var(--line)", paddingBottom: 14 }
+    },
+        /* Ziua și intervalul ales, pe același rând; grila e chiar dedesubt. */
+        o.default.createElement("div", { className: "flex items-stretch gap-2.5" },
+            o.default.createElement("div", { className: "flex-1 min-w-0" },
+                o.default.createElement(xe, {
+                    label: "Dat\u0103",
+                    required: !0
+                }, o.default.createElement("input", {
+                    type: "date",
+                    className: ie,
+                    value: m,
+                    onChange: L => g(L.target.value)
+                }))),
+            o.default.createElement("div", { className: "shrink-0 flex flex-col", style: { paddingBottom: 14 } },
+                o.default.createElement("span", { className: "block text-xs font-medium text-slate-500 mb-1.5" }, "Ora"),
+                o.default.createElement("div", {
+                    "data-ias-interval-sedinta": "",
+                    className: "font-mono-time text-sm px-3 rounded-xl flex items-center justify-center",
+                    style: { flex: "1 1 auto", minHeight: 42, whiteSpace: "nowrap", color: "var(--accent-ink)", background: "var(--accent-soft)", border: "1px solid var(--accent-line)" }
+                }, Se(v), " \u2013 ", Se(v + ye)))),
         o.default.createElement("div", {
-            style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(72px, 1fr))", gap: 6 }
+            style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(48px, 1fr))", gap: 5 }
         }, Ne.map(L => {
             let T = !E && L !== v && ze(L), ales = L === v;
             return o.default.createElement("button", {
@@ -7655,6 +7681,11 @@ function Rk({
                 }
             }, Se(L))
         }))),
+    o.default.createElement("div", {
+        className: "rounded-2xl px-3.5 pt-3.5 pb-1 mb-3",
+        "data-ias-grup-sedinta": "unde",
+        style: { background: "var(--surface-2)", border: "1px solid var(--line)" }
+    },
     o.default.createElement(IasLoc, {
         value: S, onChange: k,
         locations: iasLocuriDesFolosite(a.settings.locations, a.sessions),
@@ -7689,7 +7720,7 @@ function Rk({
                         border: `1px solid ${ales ? "var(--invert)" : "var(--line)"}`
                     }
                 }, L.name)
-            }))),
+            })))),
     o.default.createElement(Jn, {
         title: "Detalii avansate",
         summary: `${A ? "englez\u0103" : "rom\xE2n\u0103"}${E ? " \xB7 alt instructor" : ""}${b && b.trim() ? " \xB7 noti\u021Be" : ""}`
@@ -8008,7 +8039,9 @@ function Vk({
     onOpenReport: a
 }) {
     let [r, i] = (0, o.useState)(""), [s, l] = (0, o.useState)("name"), [u, d] = (0, o.useState)(1),
-        [iasSortDeschis, iasSort] = (0, o.useState)(!1), f = pu(r).trim(), /* Căutarea prinde și numărul de înregistrare — cum e scris pe dosar, cu sau
+        [iasSortDeschis, iasSort] = (0, o.useState)(!1),
+        iasPanou = (0, o.useRef)(null), iasBara = (0, o.useRef)(null), iasLista = (0, o.useRef)(null), iasCautatInainte = (0, o.useRef)(r),
+        f = pu(r).trim(), /* Căutarea prinde și numărul de înregistrare — cum e scris pe dosar, cu sau
        fără spații și cratime, ca „CT 05 SEV" să iasă și dacă scrii „ct05sev". */
     p = E => {
         if (!f) return !0;
@@ -8158,8 +8191,41 @@ function Vk({
             className: "text-xs text-slate-400 shrink-0 font-mono-time"
         }, G, "/", $))))
     };
+    /* Cât scrii în căutare, lista nu mai sare. Dacă erai mai jos în listă,
+       rezultatele încep chiar sub bară, care rămâne pe loc; lista își ține
+       înălțimea cât cauți, ca ecranul să nu fie tras în sus când rămân puțini
+       elevi; iar rezultatele noi se aprind ușor, fără mișcare. */
+    (0, o.useLayoutEffect)(() => {
+        if (iasCautatInainte.current === r) return;
+        iasCautatInainte.current = r;
+        let P = iasPanou.current, B = iasBara.current, L = iasLista.current;
+        if (!P || !B || !L) return;
+        try {
+            L.style.minHeight = f ? Math.max(0, P.clientHeight - B.offsetHeight) + "px" : "";
+            let iasSub = Math.round(L.getBoundingClientRect().top - P.getBoundingClientRect().top + P.scrollTop - B.offsetHeight);
+            if (P.scrollTop > iasSub) P.scrollTop = Math.max(0, iasSub);
+            let iasLinistit = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+            if (!iasLinistit && L.animate) L.animate([{ opacity: .55 }, { opacity: 1 }], { duration: 170, easing: "ease-out" })
+        } catch (x) { /* fără măsurători: lista se schimbă pe loc */ }
+    }, [r]);
+    let iasCrit = [
+        ["name", "Nume"],
+        ["grupa", "Grupă"],
+        ["exam", "Ex. practic"],
+        ["theory", "Ex. teoretic"],
+        ["area", "Zonă"],
+        ["place", "Punct start"],
+        ["remaining", "Ore rămase"],
+        ["efectuate", "Ore efectuate"],
+        ["debt", "Datorie"],
+        ["recent", "Recent"]
+    ], iasAles = (iasCrit.filter(x => x[0] === s)[0] || iasCrit[0])[1];
     return o.default.createElement("div", {
-        className: "pb-4"
+        className: "pb-4",
+        ref: iasPanou,
+        /* Browserul nu mai mută singur lista ca să țină pe loc un card care a
+           dispărut din rezultate: poziția o hotărăște căutarea, mai sus. */
+        style: { overflowAnchor: "none" }
     }, o.default.createElement("div", {
         className: "px-4 pt-4 pb-3 flex items-center justify-between gap-2"
     }, o.default.createElement("h1", {
@@ -8172,10 +8238,17 @@ function Vk({
     }), "Raport")), o.default.createElement("div", {
         /* Bara de căutare rămâne lipită de marginea de sus când derulezi lista:
            cu cincizeci de elevi, altfel trebuie să urci tot drumul înapoi ca
-           să cauți pe cineva. Fundalul e plin, ca numele să nu treacă pe sub ea. */
+           să cauți pe cineva. Fundalul e plin, ca numele să nu treacă pe sub ea.
+           Lipirea e scrisă aici, pe element: clasa „sticky" singură nu ajungea
+           la browser, iar bara pleca odată cu lista. Sus e 0, fiindcă panoul
+           începe deja sub decupajul telefonului. */
         className: "sticky z-20 px-4 pt-2 pb-3 -mt-2",
+        ref: iasBara,
+        "data-ias-bara-elevi": "",
         style: {
-            top: "calc(env(safe-area-inset-top, 0px))",
+            position: "sticky",
+            top: 0,
+            zIndex: 20,
             background: "var(--bg)",
             boxShadow: "0 6px 12px -10px rgba(0,0,0,.45)"
         }
@@ -8199,20 +8272,9 @@ function Vk({
         /* Criteriile de sortare stăteau ca nouă butoane înșirate, cu derulare pe
            orizontală: trebuia să le împingi ca să vezi ce ai. Acum sunt sub un
            singur buton „Sortare", cu criteriul ales scris lângă el. Atingi
-           criteriul din listă ca să-l alegi, sau butonul ca să întorci ordinea. */
-        let iasCrit = [
-            ["name", "Nume"],
-            ["grupa", "Grup\u0103"],
-            ["exam", "Ex. practic"],
-            ["theory", "Ex. teoretic"],
-            ["area", "Zon\u0103"],
-            ["place", "Punct start"],
-            ["remaining", "Ore r\u0103mase"],
-            ["efectuate", "Ore efectuate"],
-            ["debt", "Datorie"],
-            ["recent", "Recent"]
-        ];
-        let iasAles = (iasCrit.filter(x => x[0] === s)[0] || iasCrit[0])[1];
+           criteriul din listă ca să-l alegi, sau butonul ca să întorci ordinea.
+           Fereastra cu criteriile stă în afara barei lipite, mai jos: înăuntru
+           ar fi rămas prinsă sub bara de jos. */
         return o.default.createElement("div", { className: "flex items-center gap-1.5 mt-2" },
             o.default.createElement("button", {
                 onClick: () => iasSort(!iasSortDeschis),
@@ -8225,8 +8287,8 @@ function Vk({
             }, iasAles, o.default.createElement(un, {
                 size: 12,
                 style: { transform: u === 1 ? "rotate(90deg)" : "rotate(-90deg)" }
-            })),
-            o.default.createElement(oi, {
+            })))
+    })()), o.default.createElement(oi, {
                 open: iasSortDeschis, onClose: () => iasSort(!1),
                 title: "Sorteaz\u0103 dup\u0103", layer: Wt.dialog
             }, iasSortDeschis ? o.default.createElement("div", { className: "space-y-1.5" },
@@ -8249,9 +8311,10 @@ function Vk({
                         ales ? o.default.createElement("span", {
                             className: "shrink-0", style: { color: "var(--accent)" }
                         }, "\u2713") : null)
-                })) : null))
-    })()), o.default.createElement("div", {
-        className: "px-4"
+                })) : null), o.default.createElement("div", {
+        className: "px-4",
+        ref: iasLista,
+        "data-ias-lista-elevi": ""
     }, _.length === 0 && M.length === 0 && S.length === 0 && b.length === 0 && o.default.createElement("div", {
         className: "text-center py-10 text-sm text-slate-400"
     }, n.students.length === 0 ? "Niciun elev \xEEnc\u0103. Adaug\u0103 primul elev." : "Niciun rezultat."), (_.length > 0 || M.length > 0 || S.length > 0 || b.length > 0) && o.default.createElement(Jn, {
@@ -13280,6 +13343,14 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.57.2",
+    titlu: "Mai lin",
+    puncte: ["La schimbarea ecranelor, cardurile apar mai repede, fiecare la rândul lui, fără ecran gol și fără legănat.", "Fundalul și cardurile de sticlă cer mult mai puțin telefonului: derularea merge mai lin, mai ales pe Acasă.", "Aplicația nu se mai mărește din greșeală, nici cu două degete, nici la atingeri repetate, inclusiv pe golurile din Calendar."]
+}, {
+    v: "v2.57.1",
+    titlu: "Căutare liniștită, ședința pe grupuri",
+    puncte: ["În Elevi, bara de căutare rămâne sus când derulezi lista, ca să nu mai urci după ea.", "Cât scrii, lista nu mai sare: rezultatele încep chiar sub bară și apar ușor, fără mișcare.", "Fișa ședinței e așezată în trei grupuri: cine (starea, apoi elevul), când (ziua și ora pe un rând, cu orele mai strânse dedesubt) și unde (locul și tipul orei)."]
+}, {
     v: "v2.57.0",
     titlu: "Ziua pe o axă",
     puncte: ["În Calendar, deasupra zilei, alegi cum o vezi: „Listă”, ca până acum, sau „Axă”. Pe axă, fiecare ședință e cât de lungă e de fapt, iar golurile se văd cât sunt de mari.", "Atingi un gol și ședința nouă pornește de la ora din locul atins. Semnele de stare, examenele, teoreticul și intervalele indisponibile arată la fel ca în listă.", "Alegerea se ține minte pe telefon."]
@@ -14204,9 +14275,12 @@ function y3() {
             I.removeEventListener ? I.removeEventListener("change", F) : I.removeListener(F)
         }
     }, []), (0, o.useEffect)(() => {
+        /* Câmpul atins e adus la mijloc, ca tastatura să nu-l acopere. Bara de
+           căutare din Elevi e scutită: stă mereu sus, la vedere, iar centrarea
+           ei trăgea toată lista în jos chiar când începeai să scrii. */
         let I = F => {
             let V = F.target;
-            !V || typeof V.matches != "function" || V.matches("input, select, textarea") && setTimeout(() => {
+            !V || typeof V.matches != "function" || V.matches("input, select, textarea") && !(V.closest && V.closest("[data-ias-bara-elevi]")) && setTimeout(() => {
                 try {
                     V.scrollIntoView({
                         block: "center",
@@ -15495,7 +15569,11 @@ function y3() {
             radial-gradient(32% 30% at 78% 30%, var(--ias-m2), transparent 72%),
             radial-gradient(36% 32% at 64% 78%, var(--ias-m3), transparent 72%),
             radial-gradient(30% 28% at 18% 76%, var(--ias-m4), transparent 72%);
-          animation: iasPete 80s ease-in-out infinite alternate;
+          /* Petele se mută în pași mărunți, de câteva ori pe secundă, nu la
+             fiecare cadru: ochiul vede aceeași plutire lentă (un pas e de un
+             pixel), iar telefonul nu mai redesenează sticla de deasupra lor de
+             60 de ori pe secundă. */
+          animation: iasPete 80s steps(120) infinite alternate;
           will-change: transform;
         }
         @keyframes iasPete{
@@ -15557,17 +15635,21 @@ function y3() {
           opacity:.5;
         }
 
-        /* ---- carduri: sticlă cu estompare ----
-           Doar pe ecranele mari, nu și în ferestre, și doar cât timp cardul nu
-           ține o fereastră deschisă în el — altfel fereastra ar rămâne prinsă
-           acolo. Câmpurile de scris rămân fără, ca iconița din ele să nu fie
-           acoperită. Telefoanele care nu știu regula rămân cu sticla simplă. */
+        /* ---- carduri: sticlă fără estompare ----
+           Estomparea pusă pe fiecare card îl obliga pe telefon să recalculeze
+           zeci de carduri la fiecare cadru: de aici sacadele și cardurile care
+           apăreau cu întârziere. Sub carduri stă doar fundalul moale, așa că o
+           bază ușor întunecată face aceeași treabă: liniile oblice se pierd sub
+           card, iar lumina petelor trece în continuare prin el. Pe lumină,
+           cardul e oricum destul de alb. */
+        [data-skin="dark"] > .pb-4 .bg-white.border:not(input):not(select):not(textarea),
+        [data-skin="dark"] > .pb-6 .bg-white.border:not(input):not(select):not(textarea){
+          background-image:linear-gradient(var(--surface), var(--surface));
+          background-color:rgba(4,7,13,.32);
+        }
         @supports selector(:has(*)){
-          [data-skin] > .pb-4 .bg-white.border:not(input):not(select):not(textarea):not(:has(.ecran-peste)),
-          [data-skin] > .pb-6 .bg-white.border:not(input):not(select):not(textarea):not(:has(.ecran-peste)){
-            -webkit-backdrop-filter:blur(12px) saturate(1.3); backdrop-filter:blur(12px) saturate(1.3);
-          }
-          /* Antetul lipit al listei: cardurile trec pe sub el, estompate. */
+          /* Antetul lipit al listei: cardurile trec pe sub el, estompate. E un
+             singur element, deci estomparea lui nu costă. */
           [data-skin] > .pb-4 .sticky:not(:has(.ecran-peste)),
           [data-skin] > .pb-6 .sticky:not(:has(.ecran-peste)){
             background:color-mix(in srgb, var(--bg) 62%, transparent) !important;
@@ -15668,6 +15750,11 @@ function y3() {
 
         /* ---- atingerea: se strânge puțin și revine elastic ---- */
         [data-skin] *{ -webkit-tap-highlight-color:transparent; }
+        /* Fără mărire din greșeală: nici cu două degete, nici la atingeri
+           repetate. Derularea în sus, în jos și în lateral rămâne. Merge și pe
+           telefoanele la care mărirea e pornită din setările de accesibilitate,
+           la fel ca pe rândurile ședințelor, unde deja nu se putea mări. */
+        html, body, [data-skin]{ touch-action:pan-x pan-y; }
         [data-skin] button,[data-skin] a,[data-skin] [role="button"],[data-skin] summary,[data-skin] .cursor-pointer{
           transition:scale .5s cubic-bezier(.34,1.56,.64,1), background-color .2s ease, border-color .2s ease, box-shadow .25s ease, color .2s ease, opacity .2s ease;
         }
@@ -15687,6 +15774,8 @@ function y3() {
         @media print{
           [data-skin].min-h-screen{ background:#fff !important; }
           [data-skin] .bg-white.border,[data-skin] .sticky{ -webkit-backdrop-filter:none !important; backdrop-filter:none !important; }
+          [data-skin="dark"] > .pb-4 .bg-white.border:not(input):not(select):not(textarea),
+          [data-skin="dark"] > .pb-6 .bg-white.border:not(input):not(select):not(textarea){ background-image:none; background-color:var(--surface); }
           [data-skin].min-h-screen::before,[data-skin].min-h-screen::after{ display:none; }
         }
         /* <<< IAS-2027 */
