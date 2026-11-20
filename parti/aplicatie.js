@@ -5647,6 +5647,7 @@ function Jn({
     children: t,
     defaultOpen: a = !1,
     forteaza: iasF,
+    faraUrcare: iasFaraUrcare,
     semn: iasSemn
 }) {
     let [r, i] = (0, o.useState)(a), iasCap = (0, o.useRef)(null);
@@ -5685,8 +5686,11 @@ function Jn({
         i(!0);
         /* Deschisă din afară — de pildă din înștiințarea de pe Acasă — secțiunea
            se aduce singură în câmpul vizual, altfel rămâne undeva jos și tot
-           trebuie s-o cauți. */
-        iasUrca()
+           trebuie s-o cauți. La căutare însă nu: acolo se deschide pe loc și
+           atât. Altfel, la fiecare literă care găsea pe cineva printre
+           promovați sau retrași, lista fugea singură în jos, la grupul lor, de
+           cinci ori în secundă și jumătate. */
+        iasFaraUrcare || iasUrca()
     }, [iasF]);
     return o.default.createElement("div", {
         className: "mb-3"
@@ -7065,7 +7069,13 @@ function Hk({
                     iasPesteBlocaj = !!bf(c, Y.startMin, iasD),
                     iasL = iasLoc[Y.id] || { c: 0, n: 1 },
                     iasH = iasY(Y.startMin + iasD) - iasY(Y.startMin) - 3,
-                    iasLat = iasL.n === 1;
+                    iasLat = iasL.n === 1,
+                    /* Notița, ca în listă: a ședinței, iar dacă n-are, cea mai
+                       nouă a elevului. Pe ședințele lungi stă pe rândul ei, sub
+                       nume; pe cele scurte, lângă oră. */
+                    iasN = iasNotitaDeCard(Y, n.students.find(iasE3 => iasE3.id === Y.studentId)),
+                    iasNStil = { color: "var(--muted-2)", fontStyle: "italic", opacity: iasN && iasN.aElevului ? .8 : 1 },
+                    iasNRand = !!iasN && iasH >= 66;
                 return E2("button", {
                     key: Y.id,
                     type: "button",
@@ -7085,19 +7095,22 @@ function Hk({
                     className: "flex-1 min-w-0 px-3 flex flex-col justify-center",
                     style: { paddingTop: 4, paddingBottom: 4 }
                 }, E2("div", {
-                    className: "font-mono-time text-xs text-slate-400"
-                }, Se(Y.startMin), " – ", Se(Y.startMin + iasD)), E2("div", {
+                    className: "text-xs text-slate-400 flex items-baseline min-w-0"
+                }, E2("span", { className: "font-mono-time shrink-0" }, Se(Y.startMin), " – ", Se(Y.startMin + iasD)),
+                    iasN && !iasNRand ? E2("span", { "data-ias-notita-axa": "", className: "truncate min-w-0", style: { ...iasNStil, marginLeft: 6 } }, "\xB7 ", iasN.text) : null), E2("div", {
                     className: "font-medium text-slate-900 text-sm truncate"
                 }, k(Y.studentId), E2(Lf, {
                     student: n.students.find(iasE2 => iasE2.id === Y.studentId),
                     size: 13, sesiuni: n.sessions, setari: n.settings
                 }), Y.auto && E2("span", {
                     className: "ml-1.5 text-xs font-normal", style: { color: "var(--accent-ink)" }
-                }, "⚙ auto")), Y.location && iasH >= 66 && E2("div", {
-                    className: "text-xs text-slate-400 truncate flex items-center gap-1"
-                }, E2(dn, { size: 10, className: "shrink-0" }), Y.location), O && iasH >= 66 && E2("div", {
+                }, "⚙ auto")), O && iasH >= 66 && E2("div", {
                     className: "text-xs", style: { color: "var(--violet)" }
-                }, "peste examen")), E2("div", {
+                }, "peste examen"), iasNRand ? E2("div", {
+                    "data-ias-notita-axa": "", className: "text-xs truncate", style: iasNStil
+                }, iasN.text) : null, Y.location && iasH >= (iasNRand ? 76 : 66) && E2("div", {
+                    className: "text-xs text-slate-400 truncate flex items-center gap-1"
+                }, E2(dn, { size: 10, className: "shrink-0" }), Y.location)), E2("div", {
                     className: "flex items-center shrink-0 pr-2"
                 }, iasLat && iasH >= 54 ? E2(I0, { status: Y.status }) : E2(IasSemn, { fel: Y.status, size: 20 })))
             }),
@@ -8331,12 +8344,14 @@ function Vk({
         className: "space-y-2"
     }, b.map(E => k(E, !1)))), M.length > 0 && o.default.createElement(Jn, {
         title: `Promova\u021Bi \xB7 ${M.length}`,
-        forteaza: !!f && M.length > 0
+        forteaza: !!f && M.length > 0,
+        faraUrcare: !0
     }, o.default.createElement("div", {
         className: "space-y-2"
     }, M.map(E => k(E, !1)))), S.length > 0 && o.default.createElement(Jn, {
         title: `Retra\u0219i \xB7 ${S.length}`,
-        forteaza: !!f && S.length > 0
+        forteaza: !!f && S.length > 0,
+        faraUrcare: !0
     }, o.default.createElement("div", {
         className: "space-y-2"
     }, S.map(E => k(E, !0))))), o.default.createElement("button", {
@@ -13343,6 +13358,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.57.3",
+    titlu: "Notițe pe Axă, căutare fără fugă",
+    puncte: ["În Calendar, pe Axă, ședințele își arată notița, ca în Listă: sub nume la cele lungi, lângă oră la cele scurte.", "La căutarea în Elevi, lista nu mai fuge singură la Promovați sau Retrași: grupurile se deschid pe loc, iar rezultatele rămân sub bară."]
+}, {
     v: "v2.57.2",
     titlu: "Mai lin",
     puncte: ["La schimbarea ecranelor, cardurile apar mai repede, fiecare la rândul lui, fără ecran gol și fără legănat.", "Fundalul și cardurile de sticlă cer mult mai puțin telefonului: derularea merge mai lin, mai ales pe Acasă.", "Aplicația nu se mai mărește din greșeală, nici cu două degete, nici la atingeri repetate, inclusiv pe golurile din Calendar."]
