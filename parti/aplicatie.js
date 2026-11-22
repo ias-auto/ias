@@ -13358,6 +13358,10 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.57.3.4",
+    titlu: "Pagina elevului, pe luni",
+    puncte: ["Elevul vede calendarul pe toată luna, cu numele lunii mare, sus, care rămâne la vedere cât derulează.", "Luna o alege din file (luna de acum și următoarele cinci), deci nu se schimbă pe nesimțite. Lunile în care a ales zile anume au un punct.", "Poate vedea și doar 1, 2 sau 3 săptămâni, cu „Înapoi” și „Înainte” în luna aleasă; la capătul lunii se oprește și îi spune s-o aleagă pe următoarea."]
+}, {
     v: "v2.57.3",
     titlu: "Notițe pe Axă, căutare fără fugă",
     puncte: ["În Calendar, pe Axă, ședințele își arată notița, ca în Listă: sub nume la cele lungi, lângă oră la cele scurte.", "La căutarea în Elevi, lista nu mai fuge singură la Promovați sau Retrași: grupurile se deschid pe loc, iar rezultatele rămân sub bară."]
