@@ -13,7 +13,7 @@
 <title>Programul tău la volan</title>
 <link rel="icon" href="icon-192.png">
 <!--
-  IAS — pagina pe care elevul își spune programul.  (v2.57.3.4)
+  IAS — pagina pe care elevul își spune programul.  (v2.59.3.5)
 
   Îndrumătorul o trimite din fișa elevului („Cere-i programul”). Linkul aduce
   doar codul fișei, orele de lucru ale îndrumătorului și numărul lui de
@@ -289,7 +289,7 @@ textarea.camp{min-height:92px;resize:vertical}
     <button class="leg" id="copiaza" type="button">Copiază mesajul (pentru SMS)</button>
     <button class="leg slab" id="dinNou" type="button">Începe din nou</button>
   </div>
-  <p class="versiune">IAS v2.57.3.4</p>
+  <p class="versiune" id="versiune">IAS v2.59.3.5</p>
 
   <footer class="bara">
     <p class="stare" id="stare" role="status" aria-live="polite"></p>
@@ -1166,6 +1166,17 @@ textarea.camp{min-height:92px;resize:vertical}
   }
 
   deseneaza();
+
+  /* ================= versiunea ================= */
+  /* Jos scrie versiunea aplicației de acum, oricare ar fi: o citim din sw.js,
+     care îi poartă numele. Așa pagina nu trebuie urcată din nou la fiecare
+     versiune. Fără semnal rămâne cea scrisă în pagină. */
+  try {
+    fetch('sw.js', { cache: 'no-cache' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
+      var m = /ias-v(\d+(?:\.\d+){1,3})/.exec(t || '');
+      if (m) document.getElementById('versiune').textContent = 'IAS v' + m[1];
+    }).catch(function () {});
+  } catch (e) {}
 })();
 </script>
 </body>
