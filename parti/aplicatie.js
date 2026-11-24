@@ -1958,6 +1958,52 @@ function ok(n, e) {
         return s !== l ? s - l : r !== i ? r - i : t.free - a.free
     }).map(t => t.s)
 }
+
+/* Golurile zilei: din programul de lucru se scad ședințele, intervalele
+   barate (cu pauzele) și examenele practice. La examen ești cu elevul, deci
+   acolo nu e gol și nu se propune nimeni. Aceleași goluri pentru listă și axă. */
+function iasGoluriZi(setari, data, sesiuni, blocuri, examene) {
+    var pz = iasProgramZi(setari, data),
+        ocup = (sesiuni || []).map(function (Y) { return [Y.startMin, Y.startMin + or(Y, setari)] })
+            .concat((blocuri || []).map(function (N) { return [N.start, N.end] }))
+            .concat((examene || []).map(function (Z) { return [Z.start, Z.end] }))
+            .filter(function (q) { return q[1] > q[0] })
+            .sort(function (q, w) { return q[0] - w[0] }),
+        cur = pz.startMin, out = [];
+    ocup.forEach(function (q) {
+        q[0] > cur && out.push([cur, Math.min(q[0], pz.endMin)]);
+        cur = Math.max(cur, q[1])
+    });
+    cur < pz.endMin && out.push([cur, pz.endMin]);
+    return out.filter(function (q) { return q[1] > q[0] })
+}
+
+/* Sugestiile „Umple golul” ale unei zile. Fiecare elev propus apare o singură
+   dată, la cea mai devreme oră la care poate face o ședință întreagă într-un
+   gol: cel care poate oricând, de la începutul golului; cel care poate de la
+   15:00, de la 15:00. La o oră stau cel mult doi; următorul trece la
+   intervalul de după (cât o ședință mai târziu), dacă poate atunci, așa că un
+   gol lung primește sugestii pe mai multe intervale, nu doar la început.
+   Orele sunt pe grila zilei, ca în listă; cele trecute nu se propun.
+   Întoarce { ora: [elevi] }. */
+function iasSugestiiZi(setari, data, candidati, goluri, durata, pas) {
+    var pz = iasProgramZi(setari, data), timpi = [], rand = {};
+    (goluri || []).forEach(function (g) {
+        for (var t = pz.startMin + Math.ceil((g[0] - pz.startMin) / pas) * pas; t + durata <= g[1]; t += pas)
+            if (!iasOraTrecuta(data, t)) timpi.push(t)
+    });
+    if (!timpi.length) return rand;
+    (candidati || []).forEach(function (Y) {
+        var poate = timpi.filter(function (t) { return !C0(Y, data, t, durata) && iasPoateAtunci(Y, data, t, durata) }),
+            t = poate[0];
+        while (t != null) {
+            if ((rand[t] || []).length < 2) { (rand[t] = rand[t] || []).push(Y); return }
+            var urm = t + durata;
+            t = poate.find(function (x) { return x >= urm })
+        }
+    });
+    return rand
+}
 var mu = Array.from({
     length: 48
 }, (n, e) => e * 30);
@@ -5337,8 +5383,16 @@ function IasNotite({ notite: lista, onChange: schimba }) {
 /* O schimbare din „Ce e nou". Pe ecran stă doar titlul; amănuntele se deschid
    dacă le ceri. Altfel lista devine un perete de text pe care nimeni nu-l
    citește, iar ce e important se pierde printre mărunțișuri. */
-function IasNoutate({ intrare: iasN }) {
+function IasNoutate({ intrare: iasN, scurt: iasScurt }) {
     let [deschis, arata] = (0, o.useState)(!1);
+    /* Pe scurt: titlul și o frază dedesubt, mereu la vedere. E felul în care
+       văd „Ce e nou” ceilalți utilizatori: ce s-a schimbat pentru ei, fără
+       amănunte de construcție. */
+    if (iasScurt) return o.default.createElement("div", { className: "mb-3", "data-ias-noutate-scurt": iasN.v },
+        o.default.createElement("div", { className: "flex items-baseline gap-2" },
+            o.default.createElement("span", { className: "text-sm font-semibold text-slate-900 flex-1" }, iasN.titlu),
+            o.default.createElement("span", { className: "font-mono-time text-xs text-slate-400" }, iasN.eticheta || iasN.v)),
+        o.default.createElement("p", { className: "text-xs text-slate-600 mt-0.5" }, iasN.scurt));
     return o.default.createElement("div", { className: "mb-2" },
         o.default.createElement("button", {
             type: "button", onClick: () => arata(!deschis),
@@ -6401,7 +6455,11 @@ function Hk({
         x.forEach(O => { if (A.indexOf(O.startMin) < 0) A.push(O.startMin) });
         A.sort((O, N) => O - N);
         return A
-    })(), M = Ue(r).getDay(), S = n.settings.workDays.includes(M), k = A => n.students.find(O => O.id === A)?.name || "Elev \u0219ters", E = (0, o.useMemo)(() => ok(n, r), [n, r]), B = -1e9, $ = r >= Be() && r <= ft(pn(new Date, RA)), G = (0, o.useMemo)(() => v0(n.students, r), [n.students, r]);
+    })(), M = Ue(r).getDay(), S = n.settings.workDays.includes(M), k = A => n.students.find(O => O.id === A)?.name || "Elev \u0219ters", E = (0, o.useMemo)(() => ok(n, r), [n, r]), B = -1e9, $ = r >= Be() && r <= ft(pn(new Date, RA)), G = (0, o.useMemo)(() => v0(n.students, r), [n.students, r]),
+        /* Sugestiile zilei, aceleași în listă și pe axă: pe orele la care
+           fiecare elev chiar poate, câte cel mult doi la aceeași oră. */
+        iasSugZi = (0, o.useMemo)(() => $ && E.length && b.length
+            ? iasSugestiiZi(n.settings, r, E, iasGoluriZi(n.settings, r, x, c, G), h, _) : {}, [n, r, E, G]);
     return o.default.createElement("div", {
         className: "pb-4"
     }, o.default.createElement("div", {
@@ -6921,20 +6979,10 @@ function Hk({
             let iasB = iasBenzi.find(q => q.start === Z.start && q.end === Z.end);
             iasB ? iasB.nume.push(Z.student.name) : iasBenzi.push({ start: Z.start, end: Z.end, nume: [Z.student.name] })
         });
-        /* Golurile: ce rămâne din programul zilei după ședințe și intervalele barate. */
-        let iasGoluri = [];
-        if (iasLucru) {
-            let iasOcup = iasSes.map(Y => [Y.startMin, Y.startMin + iasDur(Y)])
-                    .concat(c.map(N => [N.start, N.end]))
-                    .filter(q => q[1] > q[0]).sort((q, w) => q[0] - w[0]),
-                iasCur = iasPz.startMin;
-            iasOcup.forEach(([q, w]) => {
-                q > iasCur && iasGoluri.push([iasCur, Math.min(q, iasPz.endMin)]);
-                iasCur = Math.max(iasCur, w)
-            });
-            iasCur < iasPz.endMin && iasGoluri.push([iasCur, iasPz.endMin]);
-            iasGoluri = iasGoluri.filter(q => q[1] - q[0] >= Math.min(_, h))
-        }
+        /* Golurile: ce rămâne din programul zilei după ședințe, intervalele
+           barate și examenele practice — aceleași ca în listă. Banda
+           examenului nu mai e și gol: în ea nu se propune nimeni. */
+        let iasGoluri = iasLucru ? iasGoluriZi(n.settings, r, iasSes, c, G).filter(q => q[1] - q[0] >= Math.min(_, h)) : [];
         /* Ședințele care se suprapun stau una lângă alta, nu una peste alta. */
         let iasLoc = {};
         for (let i0 = 0; i0 < iasSes.length;) {
@@ -6970,17 +7018,27 @@ function Hk({
                     style: { ...iasPeAxa, top: iasY(m), height: 1, background: "var(--line)" }
                 }))),
             /* examenele practice */
+            /* Banda are numele scris în ea. Atinsă, deschide o ședință nouă la
+               ora atinsă, ca rândurile „Examen” din listă; sugestii nu are. */
             iasBenzi.map(Z => E2(o.default.Fragment, { key: "e" + Z.start },
-                E2("div", {
+                E2("button", {
+                    type: "button",
                     "data-ias-axa-examen": "",
                     "aria-label": `Examen ${Se(Z.start)}\u2013${Se(Z.end)}: ${Z.nume.join(", ")}`,
-                    className: "absolute rounded-xl",
+                    onClick: q0 => {
+                        let iasR = q0.currentTarget.getBoundingClientRect(),
+                            m = Z.start + Math.floor(Math.max(0, q0.clientY - iasR.top) / PX * 60 / _) * _;
+                        e("create", { date: r, startMin: Math.max(Z.start, Math.min(m, Z.end - _)) })
+                    },
+                    className: "absolute rounded-xl text-left",
                     style: {
-                        ...iasPeAxa, top: iasY(Z.start), height: iasY(Z.end) - iasY(Z.start),
+                        ...iasPeAxa, top: iasY(Z.start) + 2, height: iasY(Z.end) - iasY(Z.start) - 4,
                         background: "color-mix(in srgb, var(--violet) 9%, transparent)",
-                        border: "1.5px solid var(--violet)"
+                        border: "1.5px solid var(--violet)", color: "var(--violet)",
+                        display: "flex", alignItems: "flex-start", gap: 8, padding: "7px 12px 0", fontSize: 12, overflow: "hidden"
                     }
-                }),
+                }, E2("span", { className: "font-mono-time shrink-0" }, Se(Z.start), "–", Se(Z.end)),
+                    E2("span", { className: "truncate", style: { fontWeight: 600 } }, "Examen practic \xB7 ", Z.nume.join(", "))),
                 /* Dunga de pe marginea orelor: se vede și când ședințele acoperă banda. */
                 E2("span", {
                     "aria-hidden": "true",
@@ -6990,9 +7048,16 @@ function Hk({
             /* golurile, de atins */
             iasGoluri.map(([q, w]) => {
                 let iasH = iasY(w) - iasY(q) - 4,
-                    iasEx = !!y0(G, q, w - q),
-                    iasSug = iasH >= 64 && $ && !iasOraTrecuta(r, q) && E.length > 0
-                        ? E.filter(Y => !C0(Y, r, q, h) && iasPoateAtunci(Y, r, q, h)).slice(0, 2) : [];
+                    /* Rândurile de sugestii ale golului, fiecare la înălțimea
+                       orei lui: sub titlu, iar dacă două ore sunt prea
+                       apropiate, al doilea rând coboară cât să nu se calce. */
+                    iasRanduri = Object.keys(iasSugZi).map(Number).filter(t => t >= q && t + h <= w).sort((t, u) => t - u),
+                    iasJos = 26,
+                    iasPoz = iasRanduri.map(t => {
+                        let sus = Math.max(iasJos, iasY(t) - iasY(q) + 2);
+                        iasJos = sus + 28;
+                        return { t, sus }
+                    }).filter(x => x.sus + 26 <= iasH + 2);
                 return E2("div", {
                     key: "g" + q,
                     className: "absolute",
@@ -7007,24 +7072,31 @@ function Hk({
                         m = Math.max(q, Math.min(m, Math.max(q, w - h)));
                         y >= 30 ? e("create", { date: r, startMin: m }) : p(m)
                     },
-                    className: "absolute inset-0 w-full rounded-xl border border-dashed border-slate-300 text-slate-400 active:border-amber-300",
-                    style: iasEx ? { borderColor: "var(--violet)" } : void 0
+                    className: "absolute inset-0 w-full rounded-xl border border-dashed border-slate-300 text-slate-400 active:border-amber-300"
                 }), E2("span", {
                     className: "relative flex items-center gap-2 px-3 text-xs pointer-events-none",
-                    style: { paddingTop: iasH > 36 ? 7 : 1, color: iasEx ? "var(--violet)" : "var(--muted)" }
+                    style: { paddingTop: iasH > 36 ? 7 : 1, color: "var(--muted)" }
                 }, E2("span", { className: "font-mono-time" }, Se(q), "–", Se(w)),
-                    E2("span", { className: "truncate" }, iasEx ? "Examen \xB7 " + y0(G, q, w - q).student.name : "Liber",
+                    E2("span", { className: "truncate" }, "Liber",
                         iasTeo.filter(Y => Number(Y.theoryExamOra) >= q && Number(Y.theoryExamOra) < w)
                             .map(Y => ` \xB7 Teoretic ${Y.name.split(" ")[0]} ${Se(Number(Y.theoryExamOra))}`).join("")),
                     E2(cn, { size: 13, className: "ml-auto shrink-0" })),
-                    iasSug.length ? E2("div", {
-                        className: "relative flex flex-wrap items-center gap-1.5 px-3 mt-1.5"
-                    }, E2("span", { className: "text-xs text-slate-400" }, "Umple golul:"), iasSug.map(Y => E2("button", {
+                    iasPoz.map(({ t, sus }) => E2("div", {
+                        key: "s" + t,
+                        "data-ias-sugestie-axa": t,
+                        className: "absolute flex items-center gap-1.5 px-3",
+                        style: { left: 0, right: 0, top: sus, height: 26, overflow: "hidden" }
+                    }, E2("span", {
+                        className: "font-mono-time text-xs shrink-0",
+                        style: { color: "var(--accent-ink)", minWidth: 38 }
+                    }, Se(t)), iasSugZi[t].map(Y => E2("button", {
                         key: Y.id,
                         type: "button",
-                        onClick: () => e("create", { date: r, startMin: q, studentId: Y.id }),
-                        className: "text-xs px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700"
-                    }, "+ ", Y.name, E2(Lf, { student: Y, size: 12, sesiuni: n.sessions, setari: n.settings })))) : null)
+                        "aria-label": `Adaugă ${Y.name} la ${Se(t)}`,
+                        onClick: () => e("create", { date: r, startMin: t, studentId: Y.id }),
+                        className: "text-xs px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 truncate",
+                        style: { minWidth: 0, maxWidth: "48%" }
+                    }, "+ ", Y.name.split(" ").slice(0, 2).join(" "), E2(Lf, { student: Y, size: 12, sesiuni: n.sessions, setari: n.settings }))))))
             }),
             /* intervalele barate și pauzele */
             c.filter(N => N.end > iasS && N.start < iasE).map((N, k0) => {
@@ -7296,11 +7368,11 @@ function Hk({
             : "Liber"), o.default.createElement(cn, {
             size: 14,
             className: "ml-auto"
-        })), $ && ne && !iasOraTrecuta(r, A) && E.length > 0 && o.default.createElement("div", {
+        })), (iasSugZi[A] || []).length > 0 && o.default.createElement("div", {
             className: "flex flex-wrap items-center gap-1.5 pl-4 mt-1"
         }, o.default.createElement("span", {
             className: "text-xs text-slate-400"
-        }, K ? "Umple golul:" : "Adaug\u0103 rapid:"), E.filter(Y => !C0(Y, r, A, h) && iasPoateAtunci(Y, r, A, h)).slice(0, 2).map(Y => o.default.createElement("button", {
+        }, K ? "Umple golul:" : "Adaug\u0103 rapid:"), iasSugZi[A].map(Y => o.default.createElement("button", {
             key: Y.id,
             onClick: () => e("create", {
                 date: r,
@@ -13358,383 +13430,487 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.59.3.5",
+    titlu: "„Ce e nou”, mai pe scurt",
+    puncte: ["„Ce e nou” are două feluri: tu vezi toate amănuntele, ca până acum, iar ceilalți utilizatori văd fiecare versiune într-o frază, fără detalii tehnice. Schimbările care te privesc doar pe tine nu le apar deloc.", "Sus, în „Ce e nou”, comuți între „Detaliat” și „Pe scurt”, ca să vezi exact ce văd ceilalți.", "Pagina pe care elevul își trimite programul arată jos versiunea aplicației de acum, oricare ar fi ea, fără s-o mai urci la fiecare versiune."],
+    scurt: "Schimbările fiecărei versiuni se citesc acum într-o frază, doar ce te privește."
+}, {
+    v: "v2.58.3.4",
+    scurt: "Sugestiile din calendar propun fiecare elev la ora la care chiar poate, câte doi pe interval, și nu mai apar în timpul examenului practic.",
+    titlu: "Sugestii pe ore",
+    puncte: ["„Umple golul” propune elevii la ora la care chiar pot: cel liber oricând, de la începutul golului; cel care poate de la 15:00, de la 15:00. Câte doi la aceeași oră, pe mai multe intervale ale zilei.", "Fiecare elev e propus o singură dată pe zi, la cea mai devreme oră potrivită; atinsă, sugestia deschide ședința la ora ei.", "În timpul examenului practic nu se mai propune nimeni. Pe Axă, examenul e o bandă cu numele scris în ea, iar rama mov punctată de peste orele libere a dispărut."]
+}, {
     v: "v2.57.3.4",
+    scurt: "Pagina pe care elevul își trimite programul arată toată luna, cu numele lunii la vedere; poate vedea și doar una, două sau trei săptămâni.",
     titlu: "Pagina elevului, pe luni",
     puncte: ["Elevul vede calendarul pe toată luna, cu numele lunii mare, sus, care rămâne la vedere cât derulează.", "Luna o alege din file (luna de acum și următoarele cinci), deci nu se schimbă pe nesimțite. Lunile în care a ales zile anume au un punct.", "Poate vedea și doar 1, 2 sau 3 săptămâni, cu „Înapoi” și „Înainte” în luna aleasă; la capătul lunii se oprește și îi spune s-o aleagă pe următoarea."]
 }, {
     v: "v2.57.3",
+    scurt: "Notițele apar și în vederea pe axă, iar căutarea în Elevi nu mai mută lista.",
     titlu: "Notițe pe Axă, căutare fără fugă",
     puncte: ["În Calendar, pe Axă, ședințele își arată notița, ca în Listă: sub nume la cele lungi, lângă oră la cele scurte.", "La căutarea în Elevi, lista nu mai fuge singură la Promovați sau Retrași: grupurile se deschid pe loc, iar rezultatele rămân sub bară."]
 }, {
     v: "v2.57.2",
+    scurt: "Aplicația merge mai lin, iar ecranul nu se mai mărește din greșeală.",
     titlu: "Mai lin",
     puncte: ["La schimbarea ecranelor, cardurile apar mai repede, fiecare la rândul lui, fără ecran gol și fără legănat.", "Fundalul și cardurile de sticlă cer mult mai puțin telefonului: derularea merge mai lin, mai ales pe Acasă.", "Aplicația nu se mai mărește din greșeală, nici cu două degete, nici la atingeri repetate, inclusiv pe golurile din Calendar."]
 }, {
     v: "v2.57.1",
+    scurt: "Bara de căutare din Elevi rămâne sus, iar fișa ședinței e așezată pe trei grupuri: cine, când, unde.",
     titlu: "Căutare liniștită, ședința pe grupuri",
     puncte: ["În Elevi, bara de căutare rămâne sus când derulezi lista, ca să nu mai urci după ea.", "Cât scrii, lista nu mai sare: rezultatele încep chiar sub bară și apar ușor, fără mișcare.", "Fișa ședinței e așezată în trei grupuri: cine (starea, apoi elevul), când (ziua și ora pe un rând, cu orele mai strânse dedesubt) și unde (locul și tipul orei)."]
 }, {
     v: "v2.57.0",
+    scurt: "În Calendar poți vedea ziua și pe o axă a orelor: ședințele și golurile se văd cât sunt de lungi.",
     titlu: "Ziua pe o axă",
     puncte: ["În Calendar, deasupra zilei, alegi cum o vezi: „Listă”, ca până acum, sau „Axă”. Pe axă, fiecare ședință e cât de lungă e de fapt, iar golurile se văd cât sunt de mari.", "Atingi un gol și ședința nouă pornește de la ora din locul atins. Semnele de stare, examenele, teoreticul și intervalele indisponibile arată la fel ca în listă.", "Alegerea se ține minte pe telefon."]
 }, {
     v: "v2.56.0.1",
+    scurt: "Elevul își trimite programul dintr-un calendar: alege cum poate în fiecare zi.",
     titlu: "Pagina elevului, cu calendar",
     puncte: ["Pagina pe care elevul își trimite programul arată acum un calendar. Atinge o zi, alege cum poate, iar alegerea se pune singură în fiecare zi la fel din săptămână. O zi anume o poate schimba separat.", "Elevul alege câte săptămâni vede: 2, 4, 6 sau 8. Pornește cu 4.", "Răspunsul lui aduce pe fișă și zilele anume, iar planul le respectă."]
 }, {
     v: "v2.56.0",
+    scurt: "Pe fișa elevului, disponibilitatea se alege dintr-un calendar, pe zilele săptămânii sau pe date anume.",
     titlu: "Disponibilitatea, pe calendar",
     puncte: ["Pe fișa elevului, disponibilitatea e un calendar: atingi o zi și alegi cum poate. Cu „La fel în fiecare…” se pune în toate zilele de felul acela; fără, rămâne doar pe data aleasă.", "Litera de deasupra fiecărei coloane schimbă dintr-o dată toate zilele de felul ei.", "Ritmul și „Indisponibil o perioadă” au rămas. Tura de lucru și zilele din lună nu se mai completează; unde erau deja trecute, se văd sub calendar și le poți scoate."]
 }, {
     v: "v2.55.0",
+    scurt: "Anunțul de spălat mașina apare și în Calendar, Setările au grupe și căutare, iar butonul „+” de pe Acasă strânge acțiunile la un loc.",
     titlu: "Spălatul mașinii, și în Calendar",
     puncte: ["Anunțul de spălat mașina apare acum și în Calendar, pe ziua dinaintea examenului practic. Îl atingi și se deschide formularul, pe o oră liberă din ziua aceea.", "La examenul teoretic, anunțurile de pe Acasă arată și ora.", "La disponibilitate, „nu poate” se numește acum „indisponibil” — pe fișă și în pagina trimisă elevului.", "Setările sunt strânse în cinci grupe și au căutare; găsești orice rând după un cuvânt. Tema se schimbă dintr-o atingere, chiar de sus.", "Pe Acasă, butonul „+” strânge acțiunile într-un singur loc: ședință nouă, interval indisponibil, planificator, elev nou, „Când sunt ocupat” și Setări.", "În Calendar, „Marchează indisponibil” și „Când sunt ocupat” stau pe un rând. Pe fișa elevului, plata e sus, lângă creion și „Ședință nouă”.", "Antetul cu mașina e din nou exact cum era."]
 }, {
     v: "v2.54.1",
+    scurt: "Aplicația are o înfățișare nouă, întunecată, cu carduri de sticlă și animații.",
     titlu: "Înfățișare nouă",
     puncte: ["Aplicația arată altfel: fundal întunecat cu lumini care se mișcă încet, carduri de sticlă și o bară de jos care plutește. Antetul cu mașina a rămas cum îl știi.", "Butoanele se strâng ușor la atingere, iar cardurile urcă pe rând când deschizi aplicația sau schimbi ecranul.", "Pe telefoanele cu Android, acțiunile importante dau o vibrație scurtă. iPhone-ul nu permite asta."]
 }, {
     v: "v2.54.0",
+    scurt: "Cu o zi înainte de examenul practic, aplicația îți amintește să păstrezi o oră pentru spălat mașina. Setările sunt acum la rotița de pe Acasă.",
     titlu: "Mașina, spălată înainte de examen",
     puncte: ["Cu o zi înainte de un examen practic, pe Acasă apare un anunț: pune o oră liberă, să speli mașina. Îl atingi și Calendarul se deschide cu ora gata propusă — o schimbi dacă vrei și salvezi.", "Setările s-au mutat din bara de jos la rotița de pe Acasă, lângă dată. Bara rămâne cu cinci file."]
 }, {
     v: "v2.53.0",
+    scurt: "Mesajul de mutare către elev spune clar ce s-a schimbat: ziua, ora sau locul.",
     titlu: "Mesajul de mutare spune \u0219i ziua",
     puncte: ["C\xE2nd mu\u021Bi o \u0219edin\u021B\u0103, mesajul pentru elev nume\u0219te ce s-a schimbat: ZIUA, ORA, LOCUL sau mai multe deodat\u0103. P\xE2n\u0103 acum scria doar \u201Ese schimb\u0103 ORA\u201D, chiar \u0219i c\xE2nd o mutai \xEEn alt\u0103 zi.", "Intervalul marcat indisponibil peste un examen le arat\u0103 pe am\xE2ndou\u0103 \xEEn calendar: examenul r\u0103m\xE2ne \xEEnsemnat, cu ha\u0219ura de indisponibil peste el."]
 }, {
     v: "v2.52.0",
+    scurt: "Un buton din Calendar îți scrie singur orele în care ești ocupat, ca să le trimiți elevilor.",
     titlu: "C\xE2nd sunt ocupat \u2014 text pentru elev",
     puncte: ["\xCEn Calendar, sub banda s\u0103pt\u0103m\xE2nii, ai un buton care \xEE\u021Bi scrie singur ce ai ocupat: \u201ELuni 9 noiembrie \u2014 ocupat 08:30\u201310:00, 12:00\u201319:00\u201D \u0219i a\u0219a mai departe. \u0218edin\u021Bele lipite se adun\u0103 \xEEntr-un singur interval, zilele goale se spun libere, iar cele nelucr\u0103toare ca atare.", "\xCEl ceri pe o s\u0103pt\u0103m\xE2n\u0103, dou\u0103, trei sau o lun\u0103, \xEEncep\xE2nd de la s\u0103pt\u0103m\xE2na la care te ui\u021Bi. \xCEl copiezi sau \xEEl trimi\u021Bi direct pe WhatsApp. Se spune doar c\xE2t e ocupat, niciodat\u0103 cu cine."]
 }, {
     v: "v2.51.1",
+    scurt: "Elevul plecat o perioadă iese și din planul făcut înainte.",
     titlu: "Elevul plecat iese \u0219i din planul f\u0103cut mai devreme",
     puncte: ["C\xE2nd bifezi \u201EIndisponibil o perioad\u0103\u201D, propunerile planului care cad \xEEn zilele lui de lips\u0103 se \u0219terg pe loc. P\xE2n\u0103 acum r\u0103m\xE2neau pe ecran, dac\u0103 planul fusese f\u0103cut \xEEnainte s\u0103 te anun\u021Be. \u0218edin\u021Bele pe care le-ai pus tu r\u0103m\xE2n, ca s\u0103 le mu\u021Bi sau s\u0103 le anulezi cum socote\u0219ti."]
 }, {
     v: "v2.51.0",
+    scurt: "Planul împarte ședințele mai drept între elevi și le strânge în zi, fără goluri mari.",
     titlu: "Planul \xEEmparte mai drept \u0219i str\xE2nge ziua",
     puncte: ["Fiecare elev prime\u0219te \xEEnt\xE2i o \u0219edin\u021B\u0103 pe s\u0103pt\u0103m\xE2n\u0103, abia apoi se dau a doua \u0219i a treia. P\xE2n\u0103 acum, un elev liber toat\u0103 s\u0103pt\u0103m\xE2na lua trei, iar altul, potrivit mai greu, r\u0103m\xE2nea cu niciuna.", "\u0218edin\u021Bele unei zile se adun\u0103 una l\xE2ng\u0103 alta. Dac\u0103 un elev poate abia de la 14:30, cel care poate oric\xE2nd intr\u0103 la 13:00, lipit de el \u2014 nu la prima or\u0103 a zilei, cu \u0219ase ore de gol la mijloc."]
 }, {
     v: "v2.50.0.1",
+    scurt: "La programul primit de la elev scrie ce face fiecare buton.",
     titlu: "La \u201EProgram primit\u201D scrie ce face fiecare buton",
     puncte: ["Sub cele dou\u0103 butoane st\u0103 scris limpede: \u201EFolose\u0219te-l \xEEn plan\u201D pune zilele elevului \xEEn Disponibilitate, iar \u201EDoar \xEEl p\u0103strez\u201D \xEEl \u021Bine deoparte, f\u0103r\u0103 s\u0103 schimbe nimic pe fi\u0219\u0103."]
 }, {
     v: "v2.50.0",
+    scurt: "Telefonul nu mai propune contacte sau date de card în câmpurile aplicației.",
     titlu: "F\u0103r\u0103 completare automat\u0103, nic\u0103ieri",
     puncte: ["Niciun c\xE2mp din aplica\u021Bie nu mai cere completare automat\u0103: nici contacte din agend\u0103, nici date de card, nici parole salvate. Pe iPhone, \u021Binutul ap\u0103sat pe c\xE2mpul de telefon arat\u0103 iar \u201ELipire\u201D \u2014 p\xE2n\u0103 acum telefonul credea c\u0103 e num\u0103rul t\u0103u \u0219i \xEE\u021Bi oferea agenda \xEEn loc. Tastatura cu cifre a r\u0103mas la fel."]
 }, {
     v: "v2.49.0.2",
+    scurt: "Pagina pe care elevul își trimite programul e mai scurtă.",
     titlu: "Pagina elevului, mai scurt\u0103",
     puncte: ["Pe pagina pe care elevul \xEE\u0219i trimite programul au r\u0103mas zilele s\u0103pt\u0103m\xE2nii, perioada \xEEn care lipse\u0219te \u0219i un mesaj pentru tine. Turele \u0219i zilele pare sau impare le treci tu pe fi\u0219\u0103, ca p\xE2n\u0103 acum."]
 }, {
     v: "v2.49.0.1",
+    scurt: "Îi poți cere elevului, pe WhatsApp, să-ți spună când poate; răspunsul intră direct pe fișa lui.",
     titlu: "Programul trimis de elev",
     puncte: ["Din fi\u0219a elevului \xEEi po\u021Bi cere chiar lui s\u0103-\u021Bi spun\u0103 c\xE2nd poate. R\u0103spunsul vine \xEEnapoi gata de pus pe fi\u0219\u0103.",
         "Pas cu pas: 1) deschizi fi\u0219a elevului salvat \u0219i ape\u0219i \u201ECere-i programul\u201D \u2014 se deschide WhatsApp cu linkul scris. 2) Elevul \xEEl deschide, bifeaz\u0103 pentru fiecare zi cum poate \u0219i apas\u0103 trimite; \xEE\u021Bi vine \xEEnapoi un mesaj cu un link. 3) Atingi linkul primit \u2014 sau, dac\u0103 nu se deschide, copiezi mesajul \u0219i ape\u0219i \u201ELipe\u0219te r\u0103spunsul\u201D. 4) Vezi ce a spus \u0219i ce s-ar schimba pe fi\u0219\u0103, apoi alegi: \u201EFolose\u0219te-l \xEEn plan\u201D \u021Bine cont de el la programare, \u201EDoar \xEEl p\u0103strez\u201D \xEEl las\u0103 deoparte, f\u0103r\u0103 s\u0103 schimbe nimic.",
         "Nimic nu pleac\u0103 pe vreun server: totul c\u0103l\u0103tore\u0219te \xEEn link, \xEEntre telefonul t\u0103u \u0219i al lui. \u201ERevino la ce era\u201D anuleaz\u0103 oric\xE2nd."]
 }, {
     v: "v2.49.0",
+    scurt: "Poți nota orele în care elevul nu poate, de exemplu când are cursuri, iar planul le ocolește.",
     titlu: "Ore \xEEn care elevul nu poate, \u0219i listele de examen",
     puncte: ["La disponibilitate ai acum \u0219i \u201Enu poate \xEEntre\u2026\u201D: elevul cu cursuri de la 14 la 18 lunea e liber tot restul zilei, iar planul \xEEl programeaz\u0103 \xEEnainte sau dup\u0103.", "Elevii cu examen \xEEn aceea\u0219i zi apar \xEEn ordinea numelui \u2014 \u0219i la practic, \u0219i la teoretic, \u0219i la cei care au dat deja."]
 }, {
     v: "v2.48.0",
+    scurt: "Elevii care au deja permis pot fi trecuți la perfecționare, fără examene și fără adeverință.",
     titlu: "Elevi veni\u021Bi la perfec\u021Bionare",
     puncte: ["Pe fi\u0219a elevului po\u021Bi bifa \u201EVine la perfec\u021Bionare\u201D, pentru cine are deja permisul \u0219i vrea doar ore la volan. Intr\u0103 \xEEn plan ca oricare, dar f\u0103r\u0103 examene, f\u0103r\u0103 adeverin\u021B\u0103 \u0219i f\u0103r\u0103 \u0219edin\u021Be obligatorii \u2014 nu-l privesc.", "\u0218edin\u021Bele lui sunt suplimentare din start, iar \xEEn list\u0103 poart\u0103 un semn, ca s\u0103-l deosebe\u0219ti dintr-o privire."]
 }, {
     v: "v2.47.0",
+    scurt: "Examenul teoretic are și oră, iar ședințele vândute la bucată se numără separat de pachete.",
     titlu: "Contorul de \u0219edin\u021Be \u0219i ora la teoretic",
     puncte: ["Contorul num\u0103r\u0103 acum altfel: \u0219edin\u021Bele incluse, plus locurile din pachete, plus \u0219edin\u021Bele v\xE2ndute la bucat\u0103. Cele la bucat\u0103 nu mai m\u0103n\xE2nc\u0103 din pachete \u2014 le vinzi pe loc, nu ies din nicio pung\u0103.", "Un pachet pus dup\u0103 ce elevul a \u0219i condus acoper\u0103 \u0219edin\u021Bele nedecontate; pe cele achitate nu le mai atinge.", "Examenul teoretic are acum \u0219i or\u0103. Se vede \xEEn anun\u021Buri, iar \xEEn calendar se coloreaz\u0103 intervalul \xEEn care cade \u2014 doar ca semn, ora r\u0103m\xE2ne liber\u0103 de programat."]
 }, {
     v: "v2.46.0",
+    scurt: "Poți pune de mai multe ori același pachet, de exemplu la o nouă reexaminare.",
     titlu: "\xCEnc\u0103 un pachet la fel",
     puncte: ["Pe fi\u0219a elevului, la \u0218colarizare, po\u021Bi pune \xEEnc\u0103 un pachet identic cu cel de acum \u2014 a doua reexaminare, de pild\u0103. P\xE2n\u0103 acum, reatingeai acela\u0219i card \u0219i nu se \xEEnt\xE2mpla nimic: nici orele, nici taxa nu intrau.", "Cardul arat\u0103 de c\xE2te ori a fost pus pachetul."]
 }, {
     v: "v2.45.1",
+    scurt: "Datoria elevului se socotește corect când îi pui un pachet nou.",
     titlu: "Datoria elevului, socotit\u0103 corect",
     puncte: ["Un pachet pus ast\u0103zi nu mai \u0219terge de la plat\u0103 \u0219edin\u021Be de acum dou\u0103 luni, pe care elevul le-a achitat deja. Acoper\u0103 doar \u0219edin\u021Bele de la ziua lui \xEEncolo."]
 }, {
     v: "v2.45.0",
+    scurt: "În Plan poți cere o pauză de una până la trei zile între ședințele aceluiași elev.",
     titlu: "Ritmul \u0219edin\u021Belor",
     puncte: ["\xCEn Plan po\u021Bi cere o pauz\u0103 \xEEntre \u0219edin\u021Bele aceluia\u0219i elev: o zi, dou\u0103 sau trei. Dac\u0103 elevul poate doar \xEEn zile una dup\u0103 alta, le prime\u0219te oricum.", "Pauza scris\u0103 pe fi\u0219a unui elev r\u0103m\xE2ne a lui \u0219i se \u021Bine \xEEntocmai, oricare ar fi alegerea din Plan."]
 }, {
     v: "v2.43.0",
+    scurt: "Alegi după câte ședințe ți se spune că elevul e gata de teoretic.",
     titlu: "Pragul de \u201Egata de teoretic\u201D",
     puncte: ["\xCEn Set\u0103ri alegi dup\u0103 c\xE2te \u0219edin\u021Be efectuate \xEE\u021Bi d\u0103 de \u0219tire c\u0103 elevul poate merge la sal\u0103."]
 }, {
     v: "v2.42.0",
+    scurt: "Anunțurile de pe Acasă sunt mai bine grupate.",
     titlu: "Anun\u021Burile de pe Acas\u0103",
     puncte: ["Elevii gata de teoretic stau str\xE2n\u0219i sub titlul lor \u0219i se desfac la atingere.", "Examenele practice \u0219i cele teoretice au fiecare grupul lui \xEEn \u201ENecesit\u0103 aten\u021Bie\u201D.", "\xCEn Statistici, ap\u0103s\xE2nd pe \u201EElevi promova\u021Bi\u201D se desface lista lor, cea mai proasp\u0103t\u0103 promovare \xEEn cap."]
 }, {
     v: "v2.41.1",
+    scurt: "În antet, soarele și luna urmează ora zilei.",
     titlu: "Soarele \u0219i luna, la locul lor",
     puncte: ["Soarele r\u0103sare, urc\u0103 \u0219i apune dup\u0103 ora zilei. Seara se v\u0103d am\xE2ndoi, noaptea doar luna.", "Butonul de perioad\u0103 a cobor\xEEt la piciorul antetului."]
 }, {
     v: "v2.40.3",
+    scurt: "Ședința anulată are acum semnul corect, ca pe șosea.",
     titlu: "Semnul de la \u0219edin\u021Ba anulat\u0103",
     puncte: ["\u0218edin\u021Ba anulat\u0103 purta un octogon cu bar\u0103 alb\u0103 \u2014 adic\u0103 forma lui STOP cu simbolul de la \u201EAccesul interzis\u201D, dou\u0103 semne amestecate \xEEntr-unul. Acum e cerc cu bar\u0103, cum e pe \u0219osea."]
 }, {
     v: "v2.40.2",
+    scurt: "Planul strânge ședințele zilei, ca să poți pleca mai târziu de acasă.",
     titlu: "Ziua, str\xE2ns\u0103 mai bine",
     puncte: ["Planul \xEEnchide golurile \xEEn care oricum n-ar \xEEnc\u0103pea alt\u0103 \u0219edin\u021B\u0103: dac\u0103 ai pus deja pe cineva la 10, elevul liber diminea\u021Ba intr\u0103 la 8:30, lipit de el, nu la 8 cu o jum\u0103tate de or\u0103 pierdut\u0103 la mijloc. A\u0219a po\u021Bi pleca de acas\u0103 mai t\xE2rziu.", "Se mut\u0103 doar mai t\xE2rziu pe ceas \u0219i numai dac\u0103 elevul poate la ora aceea, dac\u0103 nu cade pe o pauz\u0103 sau pe un interval barat. Ordinea zilei r\u0103m\xE2ne \xEEntocmai.", "\xCEn fi\u0219a elevului, zilele care ies din tipar au acum felul pe un r\xE2nd \u0219i orele pe r\xE2ndul urm\u0103tor \u2014 pe telefon ie\u0219eau t\u0103iate \u0219i nu vedeai ce ai ales."]
 }, {
     v: "v2.40.1",
+    scurt: "Sugestiile din calendar țin cont de ora la care poate elevul și îi pun în față pe cei aproape de final.",
     titlu: "Sugestiile rapide, \xEEn ordinea potrivit\u0103",
     puncte: ["La sugestiile din calendar apar acum \xEEnt\xE2i elevii c\u0103rora le-au mai r\u0103mas pu\u021Bine ore \u2014 \xEEi \xEEnchei \u0219i r\u0103m\xE2i cu mintea liber\u0103 pentru cei noi. Cei gr\u0103bi\u021Bi \u0219i cei cu examenul aproape r\u0103m\xE2n \xEEnaintea tuturor, ca p\xE2n\u0103 acum.", "Sugestiile \u021Bin cont \u0219i de ora la care poate elevul: cine poate doar de la 18:00 nu mai apare \xEEntr-un gol de diminea\u021B\u0103.", "Reparat: sugestiile rapide \u021Bineau deoparte trei \u0219edin\u021Be chiar \u0219i cu rezerva de examen oprit\u0103 \u2014 a\u0219a c\u0103 elevul cu exact trei ore r\u0103mase nu era propus niciodat\u0103. Tocmai cel pe care vrei s\u0103-l \xEEnchei."]
 }, {
     v: "v2.40.0",
+    scurt: "Pe fișa elevului, fiecare zi a săptămânii poate avea orele ei, iar planul le respectă.",
     titlu: "Disponibilitatea elevului, pe fiecare zi",
     puncte: ["\xCEn fi\u0219a elevului, la Disponibilitate, fiecare zi poate avea felul ei: ca de obicei, oric\xE2nd, de la o or\u0103, p\xE2n\u0103 la o or\u0103, \xEEntre dou\u0103 ore, sau nu poate deloc. Zilele l\u0103sate pe \u201Eca de obicei\u201D merg dup\u0103 regula general\u0103 de sus, deci pentru elevii simpli n-ai nimic de completat \xEEn plus.", "Planul ascult\u0103 ce ai scris: dac\u0103 un elev poate miercuri doar de la 16:30, nu-l mai pune la 10.", "C\xE2nd elevul n-a spus nimic, r\u0103m\xE2ne ca p\xE2n\u0103 acum \u2014 planul se bizuie pe orele la care a venit de obicei."]
 }, {
     v: "v2.39.5",
+    scurt: "Poți alege locul din care îți începi ziua, iar planul îți dă prima ședință acolo.",
     titlu: "De unde \xEE\u021Bi \xEEncepi ziua",
     puncte: ["\xCEn Set\u0103ri \u2192 Loca\u021Bii, la \u201ECasa ta\u201D, po\u021Bi alege acum \u0219i locul din care \xEE\u021Bi \xEEncepe ziua \u2014 o benzin\u0103rie, \u0219coala, orice loc de-al t\u0103u. Planul \xEE\u021Bi d\u0103 prima \u0219edin\u021B\u0103 cu un elev chemat acolo, iar ultima c\u0103tre cas\u0103.", "Dac\u0103 nu alegi niciunul, diminea\u021Ba se socote\u0219te tot de acas\u0103, ca p\xE2n\u0103 acum.", "Reparat: dac\u0103 diminea\u021Ba lua chiar elevul de la ultima or\u0103, seara r\u0103m\xE2nea f\u0103r\u0103 ce alege \u0219i ziua se \xEEnchidea cu cine se nimerea."]
 }, {
     v: "v2.39.4",
+    scurt: "Ziua în care s-a dat examen rămâne însemnată în calendar, cu rezultatul.",
     titlu: "Ziua examenului r\u0103m\xE2ne \xEEnsemnat\u0103",
     puncte: ["Ziua \xEEn care s-a dat examen r\u0103m\xE2ne colorat\u0103 \xEEn calendar \u0219i dup\u0103 ce notezi rezultatul \u2014 \u0219i la practic, \u0219i la teoretic, promovat sau respins.", "\xCEn ziua aceea apare scris cine a dat examen \u0219i cu ce rezultat. P\xE2n\u0103 acum, la respins data se golea pentru reprogramare \u0219i ziua r\u0103m\xE2nea goal\u0103, de parc\u0103 n-ar fi fost nimic."]
 }, {
     v: "v2.39.3",
+    scurt: "Un pachet nou plătește ședințele de după el, nu pe cele vechi.",
     titlu: "Pachetul acoper\u0103 \u0219edin\u021Bele de dup\u0103 el",
     puncte: ["Un pachet cu ore suplimentare acoper\u0103 acum \u0219edin\u021Bele de la ziua \xEEn care l-ai pus \xEEncolo. \xCEnainte, toate orele se adunau \xEEntr-o oal\u0103 \u0219i se d\u0103deau celor mai vechi \u0219edin\u021Be \u2014 a\u0219a un pachet pus azi pl\u0103tea \u0219edin\u021Be de acum trei luni, iar cele pentru care l-ai pus r\u0103m\xE2neau \u201Ede plat\u0103\u201D.", "Suma datorat\u0103 era corect\u0103 \u0219i \xEEnainte; gre\u0219it\u0103 era doar \xEEmp\u0103r\u021Birea pe \u0219edin\u021Be. La elevii de dinainte nu se schimb\u0103 nimic."]
 }, {
     v: "v2.39.2",
+    scurt: "Îți poți trece casa, iar planul îți dă prima și ultima ședință cu elevii chemați mai aproape de tine.",
     titlu: "Drumul t\u0103u de diminea\u021B\u0103 \u0219i de sear\u0103",
     puncte: ["\xCEn Set\u0103ri \u2192 Loca\u021Bii \xEE\u021Bi pui casa, cu aproxima\u021Bie \u2014 link de hart\u0103, coordonate, Plus Code sau luat\u0103 de la o loca\u021Bie salvat\u0103.", "Cu ea pus\u0103, planul \xEE\u021Bi d\u0103 prima \u0219i ultima \u0219edin\u021B\u0103 a zilei cu elevii pe care \xEEi chemi mai aproape de tine \u2014 socoteala se face dup\u0103 locul de \xEEnt\xE2lnire de pe fi\u0219a fiec\u0103ruia, nu dup\u0103 unde locuie\u0219te, iar cei de departe r\u0103m\xE2n la mijloc, c\xE2nd e\u0219ti oricum pe drum. Nu se schimb\u0103 cine lucreaz\u0103 \u0219i nici c\xE2te ore face cineva \u2014 doar ordinea, \u0219i numai dac\u0103 am\xE2ndoi elevii pot la ora cel\u0103lalt.", "Domiciliul elevului se vede pe fi\u0219a lui, ca r\xE2nd \xEEntreg pe care ape\u0219i \u0219i te duce \xEEn hart\u0103: \u201E25 km sud de tine\u201D, cu codul dedesubt. Locul de \xEEnt\xE2lnire \xEE\u0219i arat\u0103 \u0219i el distan\u021Ba, ca s\u0103 \u0219tii de ce planul \xEEl pune unde-l pune.", "\u0218i gruparea pe hart\u0103 din Plan socote\u0219te acum dup\u0103 locul de \xEEnt\xE2lnire: doi elevi pe care \xEEi chemi am\xE2ndoi la N\u0103vodari sunt, pentru tine, \xEEn acela\u0219i loc \u2014 chiar dac\u0103 unul st\u0103 \xEEn Corbu \u0219i altul l\xE2ng\u0103 Tulcea.", "F\u0103r\u0103 casa pus\u0103, planul lucreaz\u0103 exact ca p\xE2n\u0103 acum."]
 }, {
     v: "v2.38.5",
+    scurt: "În Elevi, căutarea rămâne sus cât derulezi lista.",
     titlu: "Bara de c\u0103utare r\u0103m\xE2ne sus",
     puncte: ["\xCEn fila Elevi, bara de c\u0103utare \u0219i sortarea r\u0103m\xE2n lipite de marginea de sus c\xE2t derulezi lista \u2014 nu mai urci tot drumul \xEEnapoi ca s\u0103 cau\u021Bi pe cineva.", "Semnul de \xEEn\u0219tiin\u021Bare a trecut \xEEn col\u021Bul din dreapta sus, ca bulina de pe aplica\u021Biile de mail."]
 }, {
     v: "v2.38.4",
+    scurt: "Din anunțul de pe Acasă, fișa elevului se deschide direct la Examene.",
     titlu: "Semnul desenat \u0219i saltul drept la teoretic",
     puncte: ["Semnul de \xEEn\u0219tiin\u021Bare e acum desenat \u2014 \u0219ase bra\u021Be dintr-un punct, ca o floricic\u0103 \u2014 \u0219i st\u0103 \xEEn col\u021Bul din st\xE2nga sus, nu lipit de cuv\xE2nt.", "Din \xEEn\u0219tiin\u021Barea de pe Acas\u0103, fi\u0219a se deschide cu sec\u021Biunea Examene adus\u0103 \xEEn c\xE2mpul vizual \u0219i cu fila Teoretic deja aleas\u0103."]
 }, {
     v: "v2.38.3",
+    scurt: null,
     titlu: "Anun\u021Bul de dup\u0103 adeverin\u021B\u0103, doar c\xE2nd trebuie",
     puncte: ["\u201E\u0218edin\u021Be obligatorii dup\u0103 adeverin\u021B\u0103\u201D nu mai apare pe fi\u0219a elevului c\u0103ruia i-ai prins deja o dat\u0103 de examen care n-a trecut. R\u0103m\xE2ne doar c\xE2t timp chiar a\u0219teapt\u0103 reprogramarea, \u0219i revine dac\u0103 data a trecut."]
 }, {
     v: "v2.38.2",
+    scurt: "După a zecea ședință, elevul primește un asterisc: e gata de teoretic.",
     titlu: "Gata de sal\u0103, de la a zecea \u0219edin\u021B\u0103",
     puncte: ["Dup\u0103 a zecea \u0219edin\u021B\u0103 efectuat\u0103, elevul prime\u0219te un asterisc l\xE2ng\u0103 nume, peste tot unde apare: Acas\u0103, calendar, list\u0103, plan, fi\u0219\u0103.", "Pe Acas\u0103 apare \u0219i scris cine e gata, cu num\u0103rul de \u0219edin\u021Be la zi. Atingi r\xE2ndul \u0219i se deschide fi\u0219a lui, drept la sec\u021Biunea Examene, unde \xEEi pui data.", "R\xE2ndul \u201EExamene\u201D poart\u0103 \u0219i el asteriscul, ca s\u0103 \u0219tii de unde vine semnul dac\u0103 vrei s\u0103 ajungi acolo singur.", "Semnul se stinge de \xEEndat\u0103 ce i-ai pus o dat\u0103 de teoretic sau dac\u0103 l-a luat deja. \u0218edin\u021Bele doar programate nu se pun la socoteal\u0103."]
 }, {
     v: "v2.38.1",
+    scurt: "Păstrarea ultimelor ședințe pentru examen e acum la alegerea ta, din Setări.",
     titlu: "Rezerva de examen, la alegerea ta",
     puncte: ["P\u0103strarea ultimelor \u0219edin\u021Be pentru perioada examenului e acum OPRIT\u0103 din pornire. Legea cere ca elevul s\u0103 aib\u0103 toate \u0219edin\u021Bele efectuate, iar aplica\u021Bia n-are de ce s\u0103 hot\u0103rasc\u0103 asta \xEEn locul t\u0103u.", "O porne\u0219ti din Set\u0103ri \u2192 Program de lucru, dac\u0103 o vrei, \u0219i alegi c\xE2te \u0219edin\u021Be p\u0103strezi \u2014 \xEEntre una \u0219i zece.", "C\xE2t e oprit\u0103, planul programeaz\u0103 toate orele elevului, iar bifa de rezerv\u0103 din Plan nu mai apare degeaba."]
 }, {
     v: "v2.38.0",
+    scurt: "Mesajul de schimbare către elev arată clar ce s-a mutat, cu harta locului nou.",
     titlu: "Mesajul de schimbare spune limpede ce s-a mutat",
     puncte: ["C\xE2nd schimbi o \u0219edin\u021B\u0103, mesajul c\u0103tre elev spune exact ce s-a mutat: ora, locul sau am\xE2ndou\u0103. Ce era iese \xEEnclinat, ce e acum iese \xEEngro\u0219at, cu harta locului nou.", "C\xE2nd se schimb\u0103 am\xE2ndou\u0103, mesajul scrie \xEEngro\u0219at, pe r\xE2ndul lui: \u201EATEN\u021AIE: se schimb\u0103 \u0219i ORA, \u0219i LOCUL\u201D.", "Reparat: c\xE2nd se schimbau \u0219i ora, \u0219i locul, aplica\u021Bia \u021Binea minte doar ora veche, iar mesajul nu pomenea c\u0103 s-a mutat \u0219i locul."]
 }, {
     v: "v2.37.9",
+    scurt: "Planul pune fiecare elev pe lângă orele la care vine de obicei.",
     titlu: "Planul \u021Bine minte ora fiec\u0103rui elev",
     puncte: ["Planul nu mai crede c\u0103 un elev cu o \u0219edin\u021B\u0103 la 9 \u0219i una la 18 e liber toat\u0103 ziua. Se uit\u0103 unde se \xEEngr\u0103m\u0103desc \u0219edin\u021Bele lui de p\xE2n\u0103 acum \u0219i \xEEl a\u0219az\u0103 pe aproape: cu 9, 18 \u0219i 20 \xEEn spate, \xEEl pune \xEEn jurul orei 19, nu la 9.", "Nu e o regul\u0103 de fier \u2014 dac\u0103 la ora aceea nu se poate, \xEEl a\u0219az\u0103 unde \xEEncape, ca p\xE2n\u0103 acum. Elevul f\u0103r\u0103 trecut n-are nicio preferin\u021B\u0103.", "\u0218edin\u021Bele deja puse r\u0103m\xE2n la vedere chiar dac\u0103 str\xE2ngi \xEEntre timp programul de lucru: una de la 7:30 nu dispare fiindc\u0103 ai mutat \xEEnceputul la 10."]
 }, {
     v: "v2.37.8",
+    scurt: "Zilele marcate indisponibile se văd direct în banda săptămânii.",
     titlu: "Zilele indisponibile se v\u0103d din band\u0103",
     puncte: ["Ziua pe care ai marcat-o indisponibil\u0103 poart\u0103 un semn de exclamare \u0219i o umbr\u0103 \xEEn c\u0103su\u021Ba ei din band\u0103 \u2014 o vezi derul\xE2nd prin s\u0103pt\u0103m\xE2ni, f\u0103r\u0103 s\u0103 intri \xEEn ea. Ziua barat\u0103 toat\u0103 e ha\u0219urat\u0103, una cu doar un interval oprit are doar umbra.", "Pauzele de mas\u0103 nu marcheaz\u0103 zilele: sunt \xEEn fiecare zi, deci n-ar deosebi nimic."]
 }, {
     v: "v2.37.7",
+    scurt: "Elevii se pot sorta după ședințele efectuate și căuta după numărul de înregistrare.",
     titlu: "Sortare \u0219i c\u0103utare dup\u0103 num\u0103r",
     puncte: ["Sortarea dup\u0103 ore r\u0103mase se lua dup\u0103 alt\u0103 cifr\u0103 dec\xE2t cea scris\u0103 pe card \u2014 sc\u0103dea \u0219i \u0219edin\u021Bele doar programate. Acum urmeaz\u0103 exact ce vezi.", "Sortare nou\u0103, dup\u0103 ore efectuate.", "C\u0103utarea \xEEn Elevi prinde \u0219i num\u0103rul de \xEEnregistrare, cu sau f\u0103r\u0103 spa\u021Bii: \u201Ect05sev\u201D g\u0103se\u0219te \u201ECT 05 SEV\u201D."]
 }, {
     v: "v2.37.6",
+    scurt: "Îți poți pune pauze de masă zilnice, iar ziua cu examen teoretic se vede în calendar.",
     titlu: "Pauze de mas\u0103, teoretice \u0219i \xEEncadrare",
     puncte: ["\xCEn Set\u0103ri \u2192 Program de lucru \xEE\u021Bi pui pauzele de mas\u0103 \u2014 c\xE2te ai nevoie, cu ora \u0219i durata lor. Se repet\u0103 singure \xEEn fiecare zi de lucru, apar barate \xEEn calendar, planul le ocole\u0219te, iar dac\u0103 programezi peste una e\u0219ti avertizat.", "Ziua cu examen teoretic e marcat\u0103 \xEEn band\u0103 \u0219i anun\u021Bat\u0103 \xEEn ziua ei, ca cea cu practic \u2014 cu chenar punctat, fiindc\u0103 teoreticul nu \xEE\u021Bi ocup\u0103 ma\u0219ina.", "\u0218i teoreticul se noteaz\u0103 direct din calendar: Promovat sau Respins, ca la practic, cu contorul de sus\u021Bineri.", "Ma\u0219ina din antet \xEEncape acum \xEEntreag\u0103 pe orice ecran."]
 }, {
     v: "v2.37.4",
+    scurt: "Fiecare zi a săptămânii poate avea programul ei de lucru.",
     titlu: "Program pe zile \u0219i ore la volan",
     puncte: ["\xCEn Set\u0103ri \u2192 Program de lucru po\u021Bi da fiec\u0103rei zile orele ei: de luni p\xE2n\u0103 vineri de la 8:30, s\xE2mb\u0103ta de la 7 \u0219i p\xE2n\u0103 mai t\xE2rziu. Zilele pe care nu le atingi merg pe programul de baz\u0103.", "Calendarul, planul \u0219i grila de ore din fi\u0219a \u0219edin\u021Bei urmeaz\u0103 toate programul zilei.", "Pe Acas\u0103, \xEEn locul banilor pe ore suplimentare vezi c\xE2te ore stai la volan azi."]
 }, {
     v: "v2.37.3",
+    scurt: "Notițele se văd direct pe cardurile ședințelor.",
     titlu: "Noti\u021Bele se v\u0103d pe carduri",
     puncte: ["Pe cardul \u0219edin\u021Bei apare noti\u021Ba ei, iar dac\u0103 n-are una, cea mai nou\u0103 noti\u021B\u0103 din agenda elevului. Sunt dou\u0103 locuri deosebite \u0219i p\xE2n\u0103 acum se vedea doar primul.", "Se v\u0103d \u0219i pe Acas\u0103, \u0219i \xEEn calendar, inclusiv pe ecrane \xEEnguste.", "Ap\u0103sarea lung\u0103 nu mai cheam\u0103 meniul browserului. \xCEn c\xE2mpurile \xEEn care scrii po\u021Bi lipi ca \xEEnainte."]
 }, {
     v: "v2.37.0",
+    scurt: "Fișa elevului arată progresul dintr-o privire și e așezată pe grupuri.",
     titlu: "Fi\u0219a elevului, ca un bord",
     puncte: ["Sus, numele \u0219i datele lui pe o f\xE2\u0219ie de drum \xEEn apus, desenat\u0103 din culorile aplica\u021Biei.", "Progresul e acum un cadran care se umple: procentul \xEEn mijloc, \u0219edin\u021Bele f\u0103cute al\u0103turi, c\xE2te au r\u0103mas dedesubt \u0219i butonul de \u0219edin\u021B\u0103 nou\u0103 chiar l\xE2ng\u0103 ele.", "Restul fi\u0219ei s-a a\u0219ezat pe grupuri: examenele, datele, banii, agenda, istoricul.", "Trimiterea programului a cobor\xEEt l\xE2ng\u0103 istoric, iar transferul la alt instructor a r\u0103mas ultimul, ca ac\u021Biune rar\u0103.", "Nicio func\u021Bie n-a fost schimbat\u0103 \u2014 doar a\u0219ezarea lor."]
 }, {
     v: "v2.36.9",
+    scurt: "În Finanțe vezi câte ședințe ai făcut luna asta și cât mai ai până la pragul de salariu.",
     titlu: "Cur\u0103\u021Benie \u0219i c\xE2teva \xEEndrept\u0103ri",
     puncte: ["Rearanjarea zilei a fost scoas\u0103 cu totul.", "\u021Ainutul ap\u0103sat nu mai ridic\u0103 meniul telefonului nic\u0103ieri; \xEEn c\xE2mpurile \xEEn care scrii, selec\u021Bia r\u0103m\xE2ne.", "Butoanele de status nu mai dispar din fi\u0219a \u0219edin\u021Bei dup\u0103 ce ai umblat prin c\u0103utarea de elev.", "Cutia de viteze a ie\u0219it din fi\u0219a elevului \u2014 o d\u0103 ma\u0219ina lui.", "\xCEn Finan\u021Be, \xEEn locul banilor pe ore suplimentare vezi c\xE2te \u0219edin\u021Be ai f\u0103cut luna asta \u0219i c\xE2t mai ai p\xE2n\u0103 la pragul de salariu.", "Noti\u021Ba \u0219edin\u021Bei se vede pe card, \xEEntre nume \u0219i status."]
 }, {
     v: "v2.36.8",
+    scurt: null,
     titlu: "O cifr\u0103 l\u0103murit\u0103 \u0219i lini\u0219te la ap\u0103sare",
     puncte: ["\xCEn Finan\u021Be, cifra din st\xE2nga sus se numea \u201EDe la elevi\u201D, de\u0219i ar\u0103ta valoarea orelor suplimentare din luna aceea. Acum \xEE\u0219i spune numele: \u201EOre suplimentare \u2014 de \xEEncasat\u201D. \xCEncas\u0103rile lunii se v\u0103d, ca \u0219i p\xE2n\u0103 acum, la \u201EDetalii de la elevi\u201D.", "\u021Ainutul ap\u0103sat nu mai ridic\u0103 meniul telefonului cu \u201ECopy, Share, Ask Gemini\u201D. \xCEn c\xE2mpurile \xEEn care scrii, selec\u021Bia r\u0103m\xE2ne ca \xEEnainte."]
 }, {
     v: "v2.36.7",
+    scurt: "Locurile de întâlnire folosite des urcă singure în față.",
     titlu: "Locurile, dup\u0103 c\xE2t le folose\u0219ti",
     puncte: ["\xCEn fi\u0219a \u0219edin\u021Bei \u0219i \xEEn cea a elevului, locurile de \xEEnt\xE2lnire se a\u0219az\u0103 singure: cele la care duci elevii \xEEn fiecare zi urc\u0103 \xEEn fa\u021B\u0103, cele rare cad spre coad\u0103.", "Se num\u0103r\u0103 din \u0219edin\u021Bele tale, f\u0103r\u0103 s\u0103 reglezi nimic. La folosiri egale r\u0103m\xE2ne r\xE2ndul din Set\u0103ri, iar \u0219edin\u021Bele anulate nu se pun la socoteal\u0103."]
 }, {
     v: "v2.36.6",
+    scurt: null,
     titlu: "Lumina \u021Bine pasul cu ma\u0219ina",
     puncte: ["Balta de lumin\u0103 din antet se leag\u0103n\u0103 odat\u0103 cu ma\u0219ina \u0219i se rote\u0219te cu botul ei, dar r\u0103m\xE2ne lipit\u0103 de asfalt.", "P\xE2lp\xE2ie u\u0219or, \xEEn ritmul leg\u0103n\u0103rii \u2014 un fascicul viu, nu o pat\u0103 desenat\u0103 pe jos."]
 }, {
     v: "v2.36.5",
+    scurt: null,
     titlu: "Loc pentru lista de elevi",
     puncte: ["C\xE2nd cau\u021Bi elevul, butoanele de status se retrag, ca lista s\u0103 aib\u0103 tot ecranul. Revin dup\u0103 ce ai ales.", "C\xE2mpul de c\u0103utare urc\u0103 \xEEn capul zonei vizibile, nu la mijloc \u2014 sub el se deschide lista.", "Butonul de hart\u0103 nu se mai suprapune peste \u201EToate locurile\u201D."]
 }, {
     v: "v2.36.4",
+    scurt: "Locurile obișnuite se aleg dintr-o atingere, iar sortarea elevilor e sub un singur buton.",
     titlu: "Locuri, sortare \u0219i indicatoare",
     puncte: ["Locurile obi\u0219nuite stau la vedere, ca butoane: o singur\u0103 ap\u0103sare \u0219i ai ales. Restul se deschid \xEEntr-o list\u0103.", "C\xE2nd deschizi o list\u0103, capul ei urc\u0103 \xEEn susul ecranului, ca s\u0103 vezi tot ce e \xEEn\u0103untru.", "Cele nou\u0103 criterii de sortare au intrat sub un singur buton \u201ESortare\u201D, cu criteriul ales scris al\u0103turi; \xEEl atingi ca s\u0103 \xEEntorci ordinea.", "Pe cardurile de \u0219edin\u021B\u0103 apare indicatorul rutier cu numele dedesubt, cu lumina pe conturul lui, nu \xEEntr-un chenar."]
 }, {
     v: "v2.36.3",
+    scurt: "Starea ședinței se alege din patru indicatoare rutiere, chiar lângă elev.",
     titlu: "Fi\u0219a \u0219edin\u021Bei, mai limpede",
     puncte: ["Statusul st\u0103 sus, l\xE2ng\u0103 elev: patru p\u0103trate cu indicatoare rutiere, cel ales se aprinde \u0219i cre\u0219te, celelalte se retrag.", "Au disp\u0103rut cardul de deasupra \u0219i rezumatul de jos \u2014 nu spuneau nimic ce nu se vedea deja.", "Dac\u0103 n-ai schimbat nimic, \xEEnchiderea nu te mai \xEEntreab\u0103 nimic."]
 }, {
     v: "v2.36.2",
+    scurt: "În Calendar, săptămâna și ziua se schimbă separat, iar butonul „Azi” te aduce înapoi.",
     titlu: "S\u0103pt\u0103m\xE2na \u0219i ziua, desp\u0103r\u021Bite",
     puncte: ["Comutatorul de s\u0103pt\u0103m\xE2n\u0103 schimb\u0103 doar banda de sus. Ziua r\u0103m\xE2ne cea aleas\u0103 de tine, p\xE2n\u0103 c\xE2nd atingi tu alta din band\u0103.", "Dac\u0103 ziua pe care o vezi nu e \xEEn s\u0103pt\u0103m\xE2na afi\u0219at\u0103, \u021Bi se spune limpede, cu ziua scris\u0103.", "Buton \u201EAzi\u201D care te aduce \xEEnapoi \u0219i cu banda, \u0219i cu ziua.", "Fiecare c\u0103su\u021B\u0103 din band\u0103 se umple de jos \xEEn sus, dup\u0103 c\xE2t e ziua de plin\u0103."]
 }, {
     v: "v2.35.8",
+    scurt: "Elevul retras își eliberează singur ședințele și examenul din calendar.",
     titlu: "\u0218ase \xEEndrept\u0103ri",
     puncte: ["Pachetul nu se mai adun\u0103 de dou\u0103 ori \xEEn rezumat la editarea unui elev.", "Elevul retras \xEEi elibereaz\u0103 calendarul: examenul lui iese, iar \u0219edin\u021Bele viitoare trec \xEEn anulate pe loc.", "C\u0103utarea \xEEn Elevi deschide singur\u0103 grupurile str\xE2nse care au pe cineva potrivit.", "\u021Ainutul ap\u0103sat pe o \u0219edin\u021B\u0103 nu mai cheam\u0103 meniul telefonului peste fereastr\u0103.", "\xCEn Set\u0103ri po\u021Bi schimba c\xE2te \u0219edin\u021Be se p\u0103streaz\u0103 pentru examen \u2014 era o cifr\u0103 fix\u0103.", "Tot \xEEn Set\u0103ri alegi ma\u0219ina implicit\u0103 pentru elevii noi; dac\u0103 ai una singur\u0103, o primesc to\u021Bi."]
 }, {
     v: "v2.35.5",
+    scurt: null,
     titlu: "Mai mult loc c\xE2nd scrii",
     puncte: ["\u201EElev\u201D nu se mai scrie de dou\u0103 ori \xEEn fi\u0219a \u0219edin\u021Bei.", "C\xE2mpurile de c\u0103utare nu mai cheam\u0103 bara telefonului cu cheia \u0219i cardul, care fura un r\xE2nd \xEEntreg.", "Listele \u0219i marginile ferestrei se str\xE2ng dup\u0103 c\xEEt loc a r\u0103mas cu adev\u0103rat \u2014 mai ales cu telefonul culcat."]
 }, {
     v: "v2.35.4",
+    scurt: null,
     titlu: "Reparat: punctul de domiciliu",
     puncte: ["C\xE2mpul de punct de pe fi\u0219a elevului nu mai primea nimic \u2014 nici coordonate, nici link, nici Plus Code. A fost o gre\u0219eal\u0103 strecurat\u0103 odat\u0103 cu Plus Code-urile; acum merg toate trei."]
 }, {
     v: "v2.35.3",
+    scurt: "Ferestrele nu mai rămân ascunse sub tastatură.",
     titlu: "Ferestrele nu mai fug sub tastatur\u0103",
     puncte: ["C\xE2nd se ridic\u0103 tastatura, fereastra se a\u0219az\u0103 \xEEn zona r\u0103mas\u0103 vizibil\u0103 \u0219i urc\u0103 \xEEn capul ei.", "C\xE2mpurile de c\u0103utare \u2014 la locuri \u0219i la elevi \u2014 se aduc singure \xEEn dreptul ochiului c\xE2nd le atingi."]
 }, {
     v: "v2.35.2",
+    scurt: "Fișa elevului e mai ușor de completat: pachetele se aleg din carduri, cu un rezumat jos.",
     titlu: "Fi\u0219a elevului, ref\u0103cut\u0103",
     puncte: ["Numele \u0219i prenumele stau pe toat\u0103 l\u0103\u021Bimea \u0219i scriu mai mare \u2014 sunt primul lucru pe care \xEEl completezi.", "Pachetele se aleg din fi\u0219e, nu dintr-o list\u0103 derulant\u0103: se v\u0103d deodat\u0103 pre\u021Bul, c\xE2te \u0219edin\u021Be aduc \u0219i dac\u0103 se achit\u0103 la \u0219coal\u0103.", "Jos apare un rezumat al cursului care se \xEEmprosp\u0103teaz\u0103 pe m\u0103sur\u0103 ce completezi, cu totalul de \u0219edin\u021Be scos \xEEn fa\u021B\u0103.", "Dac\u0103 lipse\u0219te numele, ro\u0219ul apare l\xE2ng\u0103 c\xE2mp, nu jos.", "Butonul spune ce face: \u201EAdaug\u0103 elev\u201D sau \u201ESalveaz\u0103 modific\u0103rile\u201D."]
 }, {
     v: "v2.35.1",
+    scurt: "Locațiile acceptă și Plus Code din Google Maps.",
     titlu: "Plus Code, zile cu examen \u0219i ferestre",
     puncte: ["Loca\u021Biile accept\u0103 acum \u0219i Plus Code din Google Maps \u2014 \u0219i cel lung, \u0219i cel scurt cu ora\u0219ul dup\u0103 el.", "\xCEn calendar, ziua cu examen practic are chenar mov, aceea\u0219i culoare cu intervalul de examen.", "Ferestrele se deschid din punctul \xEEn care ai atins, nu din mijlocul ecranului."]
 }, {
     v: "v2.35.0",
+    scurt: "Fișa ședinței e refăcută: starea se alege din indicatoare rutiere, iar ora dintr-o grilă.",
     titlu: "Fi\u0219a \u0219edin\u021Bei, refăcut\u0103",
     puncte: ["Editorul de \u0219edin\u021B\u0103 arat\u0103 altfel: sus elevul, ziua \u0219i ora, apoi starea \u0219i locul \u2014 adic\u0103 exact ce atingi de fiecare dat\u0103.", "Starea se alege din patru indicatoare rutiere: STOP, alte pericole, drum cu prioritate, sf\xE2r\u0219itul restric\u021Biilor.", "Ora se alege dintr-o gril\u0103 de intervale, cu cele ocupate t\u0103iate.", "Locul de \xEEnt\xE2lnire st\u0103 pe un singur r\xE2nd \u0219i se alege dintr-o fereastr\u0103 cu c\u0103utare, oric\xE2te loca\u021Bii ai.", "Limba, instructorul \u0219i noti\u021Bele au trecut \xEEn \u201EDetalii avansate\u201D, iar jos apare un rezumat al \u0219edin\u021Bei.", "Nimic din felul \xEEn care func\u021Bioneaz\u0103 nu s-a schimbat."]
 }, {
     v: "v2.34.50",
+    scurt: "Poți programa peste un interval indisponibil, dar ești avertizat întâi.",
     titlu: "Ferestre \u0219i intervale indisponibile",
     puncte: ["\u201EPublic\u0103 acum\u201D \u0219i \u201EGenereaz\u0103 plan\u201D se deschid ca ferestre adev\u0103rate, cu acelea\u0219i reguli ca toate celelalte. Nu mai derulezi pagina dup\u0103 ele.", "Deschiderile s-au domolit: ferestrele \u0219i listele se desf\u0103\u0219oar\u0103 \xEEntr-o secund\u0103, ca s\u0103 se vad\u0103 de unde vin.", "Peste un interval marcat indisponibil po\u021Bi programa, dar e\u0219ti avertizat \xEEnt\xE2i, cu tot cu motiv. \u0218edin\u021Ba se vede apoi normal, cu ha\u0219ura peste ea.", "Lista cu elevii care au toate orele programate a trecut de la \u201ENecesit\u0103 aten\u021Bie\u201D la Statistici, unde \xEEi e locul."]
 }, {
     v: "v2.34.49",
+    scurt: "Sugestiile din calendar nu mai propun elevi pe care nu i-ai programa.",
     titlu: "Sugestii mai cur\u0103\u021Bite \u0219i un semnal la \xEEnchidere",
     puncte: ["C\xE2nd atingi pe l\xE2ng\u0103 o fereastr\u0103, conturul ei clipe\u0219te ro\u0219u \u0219i \u021Bi se spune s-o \xEEnchizi \u2014 la fel ca la ap\u0103sarea unei file.", "La sugestiile din calendar nu mai apar elevii pe care planul nu i-ar programa: cei pleca\u021Bi, cei din zile nepotrivite \u0219i cei care au cerut o pauz\u0103 \xEEntre \u0219edin\u021Be."]
 }, {
     v: "v2.34.48",
+    scurt: "Ferestrele nu se mai închid din greșeală, iar dacă ai modificări nesalvate ești întrebat.",
     titlu: "Ferestre care nu se \xEEnchid din gre\u0219eal\u0103",
     puncte: ["Ferestrele nu se mai \xEEnchid c\xE2nd atingi pe l\xE2ng\u0103 ele. Se \xEEnchid de la \u201E\xD7\u201D sau de la butoanele din josul lor.", "Dac\u0103 ai schimbat ceva \u0219i \xEEnchizi, e\u0219ti \xEEntrebat: p\u0103strezi modific\u0103rile, renun\u021Bi la ele, sau te \xEEntorci la fi\u0219\u0103.", "Listele se deruleaz\u0103 de sub titlul lor, ca s\u0103 se vad\u0103 de unde s-au deschis.", "Examenul teoretic are butoane de promovat \u0219i respins, cu contorul lui de sus\u021Bineri.", "Elevul trimis altui instructor \xEE\u021Bi p\u0103streaz\u0103 indicativul pe \u0219edin\u021Bele f\u0103cute cu tine.", "C\xE2mpul de \u0219edin\u021Be pe s\u0103pt\u0103m\xE2n\u0103 se las\u0103 golit \u0219i rescris."]
 }, {
     v: "v2.34.47",
+    scurt: "Fișa elevului are o agendă cu mementouri și notițe.",
     titlu: "Agenda elevului \u0219i denumiri mai limpezi",
     puncte: ["Grup nou \u201EAgend\u0103\u201D pe fi\u0219a elevului: mementouri \u0219i noti\u021Be la un loc. Noti\u021Bele pot fi mai multe, fiecare cu ziua ei, \u0219i se pot schimba sau \u0219terge.", "Pe cardul elevului apare noti\u021Ba sau mementoul; dac\u0103 sunt mai multe, se str\xE2ng \xEEntr-o list\u0103.", "Se scrie \u201E\u0219edin\u021Be\u201D, nu \u201Eore\u201D, ca s\u0103 nu se \xEEn\u021Beleag\u0103 gre\u0219it.", "Examenele nu mai deschid alte dou\u0103 liste: alegi practic sau teoretic dintr-un comutator.", "Pe Acas\u0103, examenele teoretice au cobor\xEEt la coada listei, iar cine d\u0103 teoreticul azi are anun\u021Bul lui.", "\u201ECe e nou\u201D arat\u0103 doar titlurile; am\u0103nuntele se deschid la atingere."]
 }, {
     v: "v2.34.46",
+    scurt: "Fișa elevului e împărțită pe grupuri care se pliază.",
     titlu: "Fi\u0219a elevului, str\xE2ns\u0103 pe grupuri",
     puncte: ["Formularul e \xEEmp\u0103r\u021Bit \xEEn \u0219apte grupuri care se pliaz\u0103: Persoana, Dosar, Ore \u0219i plat\u0103, Cum \xEEl programezi, C\xE2nd poate veni, Examene, Mementouri.", "Fiecare grup arat\u0103 pe r\xE2nd un rezumat, ca s\u0103 \u0219tii ce e \xEEn\u0103untru f\u0103r\u0103 s\u0103-l deschizi.", "Indisponibilitatea a intrat l\xE2ng\u0103 disponibilitate, unde \xEEi e locul.", "Explica\u021Biile nu mai stau la vedere: sunt \xEEntr-un \u201Ei\u201D \xEEncercuit, cu buton de \xEEnchidere."]
 }, {
     v: "v2.34.45",
+    scurt: "Tortul de ziua elevului apare peste tot lângă numele lui.",
     titlu: "Tortul peste tot \u0219i calendar mai curat",
     puncte: ["Tortul apare acum l\xE2ng\u0103 numele elevului oriunde \xEEl vezi: Acas\u0103, \xEEn calendar, la sugestii, \xEEn rapoarte.", "Elevii pleca\u021Bi o perioad\u0103 nu mai sunt propu\u0219i nici la ad\u0103ugarea rapid\u0103 din calendar.", "Butonul \u201ETraseul zilei\u201D a fost scos \u2014 drumul care conteaz\u0103 e cel p\xE2n\u0103 la urm\u0103toarea \u0219edin\u021B\u0103, iar butonul acela a r\u0103mas."]
 }, {
     v: "v2.34.44",
+    scurt: "Poți marca un elev ca plecat o perioadă; revine singur în liste.",
     titlu: "Elevi pleca\u021Bi o perioad\u0103",
     puncte: ["Pe fi\u0219a elevului bifezi \u201EIndisponibil o perioad\u0103\u201D \u0219i dai fie ziua \xEEntoarcerii, fie c\xE2te zile lipse\u0219te.", "C\xE2t lipse\u0219te nu apare la programare \u0219i nici \xEEn plan, iar \xEEn ziua \xEEn care revine intr\u0103 singur \xEEnapoi \xEEn liste.", "\xCEn lista de elevi are un semn cu ziua \xEEn care se \xEEntoarce."]
 }, {
     v: "v2.34.43",
+    scurt: null,
     titlu: "Pornire lini\u0219tit\u0103 dup\u0103 actualizare",
     puncte: ["Dup\u0103 o versiune nou\u0103, aplica\u021Bia se reînc\u0103rca singur\u0103 \u0219i p\u0103rea c\u0103 se \xEEnchide \u0219i se redeschide. Acum pornirea e dintr-o bucat\u0103.", "Mesajul \u201ECe e nou\u201D nu mai arat\u0103 din gre\u0219eal\u0103 schimb\u0103ri vechi."]
 }, {
     v: "v2.34.41",
+    scurt: null,
     titlu: "Scrisul din c\xE2mpuri, vizibil pe noapte",
     puncte: ["Num\u0103rul de \u0219edin\u021Be pe s\u0103pt\u0103m\xE2n\u0103 din Plan \u2014 \u0219i orice alt c\xE2mp scris ca text \u2014 r\u0103m\xE2nea negru pe tema \xEEntunecat\u0103. Acum toate c\xE2mpurile iau culoarea temei."]
 }, {
     v: "v2.34.40",
+    scurt: "La programare, elevii care au deja o ședință în ziua aceea nu mai apar în listă.",
     titlu: "Programare mai curat\u0103",
     puncte: ["La programarea unei \u0219edin\u021Be, elevii care au deja una \xEEn ziua aceea nu mai apar \xEEn list\u0103 \u2014 iar sub list\u0103 scrie c\xE2\u021Bi au r\u0103mas deoparte \u0219i de ce."]
 }, {
     v: "v2.34.39",
+    scurt: "Îți treci mașinile, iar planul îi grupează pe elevii cu aceeași mașină.",
     titlu: "Ma\u0219inile tale \u0219i banii \u0219colii",
     puncte: ["\xCE\u021Bi treci ma\u0219inile \xEEn Set\u0103ri \u2192 Ma\u0219inile mele, cu num\u0103rul \u0219i cutia fiec\u0103reia.", "Pe fi\u0219a elevului alegi cutia \u0219i ma\u0219ina lui, iar planul \xEEi a\u0219az\u0103 grupat pe cei cu aceea\u0219i ma\u0219in\u0103, ca s-o schimbi c\xE2t mai rar.", "Banii du\u0219i la \u0219coal\u0103 se deschid la atingere: vezi din ce \xEEncas\u0103ri s-au adunat \u0219i ce ai dus p\xE2n\u0103 acum.", "La elevul achitat la zi, butonul devine \u201EPl\u0103te\u0219te \xEEn avans\u201D.", "Op\u021Biunile din Plan sunt str\xE2nse sub un singur titlu.", "Ma\u0219inile din antet sunt modele adev\u0103rate, cu paletar de culori."]
 }, {
     v: "v2.34.27",
+    scurt: "Alegi vehiculul din antet: autoturism, motocicletă, camion sau autobuz.",
     titlu: "Garajul",
     puncte: ["Alegi din Set\u0103ri vehiculul din capul paginii: hatchback, sedan, break, ma\u0219inu\u021B\u0103 de 16 ani, motociclet\u0103 cu sau f\u0103r\u0103 ata\u0219, cap tractor sau autobuz.", "Fiec\u0103ruia i se poate prinde remorca potrivit\u0103 categoriei lui, iar caseta \u0218COALA r\u0103m\xE2ne pe oricare."]
 }, {
     v: "v2.32.27",
+    scurt: null,
     titlu: "Ma\u0219ina, mai aproape de realitate",
     puncte: ["Tabla, geamurile \u0219i cromul oglindesc acum lumina din jur, iar vopseaua are strat de lac \u2014 de aici vine diferen\u021Ba fa\u021B\u0103 de o suprafa\u021B\u0103 mat\u0103."]
 }, {
     v: "v2.31.23",
+    scurt: "Mașina din antet e desenată din nou.",
     titlu: "Ma\u0219ina \u0219i ferestrele",
     puncte: ["Ma\u0219ina din capul paginii e desenat\u0103 din nou, mai aproape de un Clio: faruri cu semn\u0103tura \xEEn C, stopuri asortate \u0219i lumini care se a\u0219az\u0103 pe asfalt noaptea.", "C\xE2t timp e deschis\u0103 o fereastr\u0103, taburile nu mai schimb\u0103 fila \u2014 fereastra clipe\u0219te ro\u0219u ca s\u0103 \u0219tii ce ai de \xEEnchis.", "Licen\u021Bele se deschid ca fereastr\u0103, la fel ca restul."]
 }, {
     v: "v2.33.27",
+    scurt: "În Plan vezi cât apuci să faci până la sfârșitul lunii și banii care ies din asta.",
     titlu: "Mai mult\u0103 lumin\u0103 \u0219i un calcul nou",
     puncte: ["Ma\u0219ina din antet are acum vopsea metalizat\u0103 care oglinde\u0219te cerul \u0219i drumul, cu redare pe curb\u0103 de film.", "\xCEn Plan vezi \u0219i c\xE2t apuci s\u0103 faci p\xE2n\u0103 \xEEn ultima zi a lunii, cu banii care ies din asta.", "Fereastra deschis\u0103 nu mai pare c\u0103 se \xEEnchide \u0219i se redeschide c\xE2nd atingi o fil\u0103."]
 }, {
     v: "v2.32.26",
+    scurt: null,
     titlu: "Ma\u0219ina din antet",
     puncte: ["Ma\u0219ina e desenat\u0103 din nou, cu propor\u021Biile unui hatchback real: arcade peste ro\u021Bi, plafon plutitor, gril\u0103 cu romb \u0219i l\u0103mpi verticale \xEEn spate.", "Caseta de plafon e la cotele legale \u2014 420 \xD7 380 \xD7 120 mm, cu inscrip\u021Bia de 300 \xD7 90 mm \u2014 \u0219i se aprinde noaptea.", "Noaptea, farurile \xEE\u0219i a\u0219tern lumina pe asfalt."]
 }, {
     v: "v2.31.25",
+    scurt: null,
     titlu: "Ferestre",
     puncte: ["C\xE2t timp e deschis\u0103 o fereastr\u0103, filele nu se mai schimb\u0103: fereastra clipe\u0219te ro\u0219u \u0219i \xEE\u021Bi spune s\u0103 o \xEEnchizi.", "Licen\u021Bele se deschid ca fereastr\u0103, ca restul."]
 }, {
     v: "v2.31.22",
+    scurt: "Elevul se alege căutându-l, iar confirmarea ședinței se poate trimite și mai târziu.",
     titlu: "Programare mai u\u0219oar\u0103",
     puncte: ["Elevul se alege c\u0103ut\xE2ndu-l dup\u0103 nume, grup\u0103 sau telefon.", "Po\u021Bi trimite confirmarea unei \u0219edin\u021Be \u0219i mai t\xE2rziu, direct din fi\u0219a ei.", "\xCEn Plan schimbi num\u0103rul de \u0219edin\u021Be pe s\u0103pt\u0103m\xE2n\u0103 pentru to\u021Bi elevii deodat\u0103.", "Locul de \xEEnt\xE2lnire are din nou link de hart\u0103 \xEEn mesaje, chiar dac\u0103 nu i-ai salvat punctul."]
 }, {
     v: "v2.30.22",
+    scurt: "Pachete de școlarizare, mesaj de bun venit și tort în ziua de naștere a elevului.",
     titlu: "\u0218colarizare, bun venit \u0219i zile de na\u0219tere",
     puncte: ["La ad\u0103ugarea unui elev alegi pachetul de \u0219colarizare: \xEEi pune singur \u0219edin\u021Bele incluse \u0219i, dup\u0103 caz, plata sau datoria.", "Buton de mesaj de bun venit pe fi\u0219a fiec\u0103rui elev nou. Numele t\u0103u, \u0219coala \u0219i textul se scriu o dat\u0103 \xEEn Set\u0103ri.", "\xCEn ziua lui de na\u0219tere, elevul are un tort l\xE2ng\u0103 nume.", "Noti\u021Bele elevului apar pe fi\u0219a lui.", "\xCEn Plan alegi data de la care \xEEncepe planul \u0219i po\u021Bi \u0219terge dintr-o dat\u0103 propunerile pe care elevii nu le-au confirmat.", "C\xE2nd raportezi o problem\u0103, spui \u0219i \xEEn ce parte a aplica\u021Biei ai \xEEnt\xE2lnit-o."]
 }, {
     v: "v2.29.22",
+    scurt: "Fișa elevului are data nașterii, iar căutarea merge și fără diacritice.",
     titlu: "Data na\u0219terii",
     puncte: ["Fi\u0219a elevului are data na\u0219terii \u0219i \xEE\u021Bi arat\u0103 v\xE2rsta.", "C\u0103utarea g\u0103se\u0219te numele \u0219i f\u0103r\u0103 diacritice."]
 }, {
     v: "v2.28.19",
+    scurt: "Locurile de întâlnire au punct pe hartă, trimis și elevului.",
     titlu: "Locuri de \xEEnt\xE2lnire",
     puncte: ["Fiecare loca\u021Bie poate \u021Bine minte punctul exact de pe hart\u0103.", "Elevul prime\u0219te locul \u0219i harta \xEEn mesaj, iar tu deschizi traseul dintr-o atingere.", "\xCEn Calendar ai traseul zilei \u0219i drumul spre urm\u0103toarea \u0219edin\u021B\u0103."]
 }, {
     v: "v2.27.19",
+    scurt: "Elevul picat la examen intră în așteptare până la adeverință.",
     titlu: "A\u0219teptare dup\u0103 examen",
     puncte: ["Elevul picat la examen intr\u0103 \xEEn a\u0219teptare \u0219i nu mai apare la programare p\xE2n\u0103 \xEEi eliberezi adeverin\u021Ba.", "\u0218edin\u021Bele viitoare se pot trimite \xEEn calendarul telefonului, cu alarme."]
 }, {
     v: "v2.24.19",
+    scurt: "Planul poate grupa elevii care stau aproape unul de altul.",
     titlu: "Planificare pe zone",
     puncte: ["Planul poate grupa elevii care stau aproape unul de altul.", "Elevii care lucreaz\u0103 \xEEn ture nu mai sunt programa\u021Bi \xEEn timpul serviciului."]
 }, {
     v: "v2.21.19",
+    scurt: "Evidența banilor duși la școală și rapoarte pe care le salvezi ca PDF.",
     titlu: "Bani \u0219i rapoarte",
     puncte: ["\u021Aii eviden\u021Ba banilor du\u0219i la \u0219coal\u0103 \u0219i vezi c\xE2t mai ai de dat.", "Dou\u0103 rapoarte, de elevi \u0219i de bani, pe care le po\u021Bi salva ca PDF."]
 }, {
     v: "v2.18.12",
+    scurt: "Setările și Finanțele sunt pe categorii.",
     titlu: "Set\u0103ri \u0219i Finan\u021Be pe grupuri",
     puncte: ["Set\u0103rile \u0219i Finan\u021Bele sunt str\xE2nse pe categorii, mai u\u0219or de parcurs."]
 }, {
     v: "v2.12.6",
+    scurt: "Alegi durata ședinței și pasul orelor din calendar.",
     titlu: "Programul, pe m\u0103sura ta",
     puncte: ["Alegi durata unei \u0219edin\u021Be \u0219i pasul orelor din calendar."]
 }, {
     v: "v2.10.5",
+    scurt: "Aplicația se deschide cu un cod de acces; datele rămân ale tale.",
     titlu: "Acces pe perioad\u0103",
     puncte: ["Aplica\u021Bia se deschide cu un cod primit o singur\u0103 dat\u0103.", "La expirare datele r\u0103m\xE2n \xEEntregi; doar modific\u0103rile se opresc."]
 }, {
     v: "v2.0.0",
+    scurt: "Plățile se pot corecta sau șterge.",
     titlu: "Pl\u0103\u021Bi corectabile",
     puncte: ["Orice plat\u0103 se poate corecta sau \u0219terge, iar datoria se recalculeaz\u0103 singur\u0103."]
 }, {
     v: "v1.32.0",
+    scurt: "Taxe, pachete și plăți, plus calculul salariului.",
     eticheta: "p\xE2n\u0103 la v1.32.9",
     titlu: "Bani, taxe \u0219i salariu",
     puncte: ["Taxe \u0219i pachete stabilite de tine, pl\u0103\u021Bi \xEEncasate de tine sau la \u0219coal\u0103.", "Salariul de la angajator se calculeaz\u0103 singur, cu prag lunar \u0219i tarife pentru englez\u0103."]
 }, {
     v: "v1.31.0",
+    scurt: "Planificatorul respectă zilele și orele fiecărui elev.",
     eticheta: "p\xE2n\u0103 la v1.32.9",
     titlu: "Planificare pe m\u0103sura fiec\u0103rui elev",
     puncte: ["Planificatorul respect\u0103 zilele \u0219i orele \xEEn care poate veni fiecare elev.", "Ultimele \u0219edin\u021Be se p\u0103streaz\u0103 pentru preg\u0103tirea de dinaintea examenului."]
 }, {
     v: "v1.30.0",
+    scurt: "Mesaje gata scrise pentru elevi, mementouri și transfer către alt instructor.",
     eticheta: "p\xE2n\u0103 la v1.32.9",
     titlu: "Elevii \u0219i leg\u0103tura cu ei",
     puncte: ["Mesaje gata scrise pentru WhatsApp \u0219i SMS, la programare, mutare sau anulare.", "Mementouri, transfer de elev c\u0103tre alt instructor \u0219i eviden\u021Ba \u0219edin\u021Belor cu al\u021Bi instructori."]
@@ -13785,13 +13961,21 @@ function d3({
     }, "Nu pleac\u0103 nic\u0103ieri \u0219i nu le vede nimeni altcineva \u2014 nici eu. Tocmai de aceea, descarc\u0103 din c\xE2nd \xEEn c\xE2nd un backup din Set\u0103ri: dac\u0103 schimbi telefonul sau \u0219tergi aplica\u021Bia, doar el te salveaz\u0103.")))
 }
 
+/* „Ce e nou”, în două feluri. Proprietarul vede amănuntele, ca până acum, și
+   poate trece pe „Pe scurt” ca să vadă ce văd ceilalți. Ceilalți utilizatori
+   văd doar felul scurt: o frază pentru fiecare versiune, iar cele care îl
+   privesc doar pe proprietar (scurt: null) nu le apar. Fiecare intrare nouă
+   din u3 are și „scurt”. */
 function c3({
     open: n,
     dela: e,
-    onClose: t
+    onClose: t,
+    proprietar: iasProp
 }) {
+    let [iasDetaliat, iasPuneDetaliat] = (0, o.useState)(!0);
     if (!n) return null;
-    let a = u3.filter(r => !e || sS(r.v, e) > 0);
+    let iasScurt = !iasProp || !iasDetaliat,
+        a = u3.filter(r => (!e || sS(r.v, e) > 0) && (!iasScurt || !!r.scurt));
     return o.default.createElement(oi, {
         open: n,
         onClose: t,
@@ -13803,11 +13987,23 @@ function c3({
         }, "Am \xEEn\u021Beles")
     }, e && o.default.createElement("p", {
         className: "text-xs text-slate-400 mb-3"
-    }, "Schimb\u0103rile de la versiunea ", e, " \xEEncoace."), a.length === 0 && o.default.createElement("p", {
+    }, "Schimb\u0103rile de la versiunea ", e, " \xEEncoace."), iasProp && o.default.createElement("div", {
+        className: "flex mb-3 rounded-xl border border-slate-200 p-0.5",
+        role: "group",
+        "aria-label": "Cum arată schimbările",
+        "data-ias-noutati-fel": iasDetaliat ? "detaliat" : "scurt"
+    }, [[!0, "Detaliat"], [!1, "Pe scurt \xB7 cum v\u0103d ceilal\u021Bi"]].map(([iasV, iasT]) => o.default.createElement("button", {
+        key: iasT,
+        type: "button",
+        "aria-pressed": iasDetaliat === iasV,
+        onClick: () => iasPuneDetaliat(iasV),
+        className: "flex-1 py-2 rounded-lg text-xs font-medium " + (iasDetaliat === iasV ? "bg-slate-900 text-white" : "text-slate-500")
+    }, iasT))), a.length === 0 && o.default.createElement("p", {
         className: "text-sm text-slate-400 py-4 text-center"
     }, "Nimic nou de la ultima deschidere."), a.map(r => o.default.createElement(IasNoutate, {
-        key: r.v,
-        intrare: r
+        key: r.v + (iasScurt ? "s" : ""),
+        intrare: r,
+        scurt: iasScurt
     })))
 }
 var f3 = "https://github.com/ias-auto/ias/edit/main/licente.json",
@@ -14364,7 +14560,10 @@ function y3() {
                 return
             }
             let F = JSON.parse(I);
-            sS(ri, F.versiune) > 0 && (X(F.versiune), C("noutati"))
+            /* Ceilalți utilizatori văd „Ce e nou” singur doar dacă s-a schimbat
+               ceva care îi privește; schimbările doar pentru proprietar nu le
+               mai deschid fereastra. */
+            sS(ri, F.versiune) > 0 && ((_ && _.rol === "proprietar") || u3.some(r => r.scurt && sS(r.v, F.versiune) > 0)) && (X(F.versiune), C("noutati"))
         } catch {}
     }, []), (0, o.useEffect)(() => {
         try {
@@ -16047,7 +16246,8 @@ function y3() {
     }), o.default.createElement(c3, {
         open: N === "noutati",
         dela: W,
-        onClose: q
+        onClose: q,
+        proprietar: Ct.rol === "proprietar"
     })), o.default.createElement(Nk, {
         prompt: g,
         onClose: () => v(null)
