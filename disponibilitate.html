@@ -10,10 +10,10 @@
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#e9eef6" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#080d16" media="(prefers-color-scheme: dark)">
-<title>Programul tău la volan</title>
+<title data-t="titlu">Programul tău la volan</title>
 <link rel="icon" href="icon-192.png">
 <!--
-  IAS — pagina pe care elevul își spune programul.  (v2.59.3.5)
+  IAS — pagina pe care elevul își spune programul.  (v2.61.3.6)
 
   Îndrumătorul o trimite din fișa elevului („Cere-i programul”). Linkul aduce
   doar codul fișei, orele de lucru ale îndrumătorului și numărul lui de
@@ -75,6 +75,11 @@ main{max-width:560px;margin:0 auto;padding:20px 16px 0}
 /* ---------- capul paginii ---------- */
 .cap{display:flex;gap:14px;align-items:flex-start;margin-bottom:6px}
 .cap img{width:44px;height:44px;border-radius:12px;flex:none;box-shadow:var(--shadow)}
+/* Limba paginii: o pastilă mică, sus în dreapta, cu lista nativă dedesubt. */
+.limba-alege{position:relative;margin-left:auto;flex:none;display:inline-flex;align-items:center;gap:4px;min-height:36px;padding:0 10px;
+  border-radius:999px;border:1px solid var(--line-2);background:var(--surface);font:600 13px var(--mono);color:var(--text-2)}
+.limba-alege[hidden]{display:none}
+.limba-alege select{position:absolute;inset:0;width:100%;height:100%;opacity:0;font-size:16px;cursor:pointer}
 h1{font-family:var(--display);font-weight:600;font-size:30px;line-height:1.1;letter-spacing:.005em;margin:2px 0 0}
 .intro{color:var(--text-2);margin:10px 0 4px;max-width:34em}
 .intro b{color:var(--text);font-weight:600}
@@ -250,50 +255,51 @@ textarea.camp{min-height:92px;resize:vertical}
   <header class="cap">
     <img src="icon-192.png" alt="" width="44" height="44">
     <div>
-      <h1>Când poți veni la volan?</h1>
+      <h1 data-t="h1">Când poți veni la volan?</h1>
     </div>
+    <label class="limba-alege" id="limba-alege" hidden><span id="limba-cod" aria-hidden="true">RO</span><span aria-hidden="true">▾</span><select id="limba" aria-label="Limba paginii" data-t-aria="ariaLimba"></select></label>
   </header>
   <p class="intro" id="intro"></p>
   <p class="sedinta" id="sedinta"></p>
   <p class="aviz" id="aviz" hidden></p>
 
-  <h2>Calendarul tău</h2>
-  <p class="sub">Alege luna, apoi atinge o zi și spune cum poți. Ce alegi se pune singur în fiecare zi la fel din săptămână — o zi anume o poți schimba separat.</p>
+  <h2 data-t="calTitlu">Calendarul tău</h2>
+  <p class="sub" data-t="calSub">Alege luna, apoi atinge o zi și spune cum poți. Ce alegi se pune singur în fiecare zi la fel din săptămână — o zi anume o poți schimba separat.</p>
   <div class="vad" id="vad"></div>
   <div id="repede"></div>
   <section class="cal" aria-labelledby="titlu-cal">
     <div class="cal-sus">
       <div class="luna-rand"><h3 class="luna" id="titlu-cal" aria-live="polite"></h3><span class="luna-cat" id="luna-cat"></span></div>
-      <div class="luni" id="luni" role="group" aria-label="Alege luna"></div>
-      <div class="grila" id="capete" role="group" aria-label="Zilele săptămânii"></div>
+      <div class="luni" id="luni" role="group" aria-label="Alege luna" data-t-aria="ariaLuni"></div>
+      <div class="grila" id="capete" role="group" aria-label="Zilele săptămânii" data-t-aria="ariaZile"></div>
     </div>
     <div class="grila" id="calendar" role="group" aria-labelledby="titlu-cal" style="margin-top:6px"></div>
     <div class="pagini" id="pagini"></div>
   </section>
   <div class="legenda" aria-hidden="true">
-    <span><i class="l-poti"></i>poți</span>
-    <span><i class="l-nu"></i>nu poți</span>
-    <span><i class="l-nes"></i>de ales</span>
-    <span><i class="l-exc"></i>doar ziua aceea</span>
+    <span><i class="l-poti"></i><span data-t="legPoti">poți</span></span>
+    <span><i class="l-nu"></i><span data-t="legNu">nu poți</span></span>
+    <span><i class="l-nes"></i><span data-t="legNes">de ales</span></span>
+    <span><i class="l-exc"></i><span data-t="legExc">doar ziua aceea</span></span>
   </div>
 
-  <h2>Pe scurt</h2>
-  <p class="sub">Asta primește îndrumătorul. Atinge un rând ca să-l schimbi.</p>
+  <h2 data-t="scurtTitlu">Pe scurt</h2>
+  <p class="sub" data-t="scurtSub">Asta primește îndrumătorul. Atinge un rând ca să-l schimbi.</p>
   <div class="lista" id="zile"></div>
 
-  <h2>Altceva de știut</h2>
-  <p class="sub">Doar dacă e cazul.</p>
+  <h2 data-t="alteTitlu">Altceva de știut</h2>
+  <p class="sub" data-t="alteSub">Doar dacă e cazul.</p>
   <div id="alte"></div>
 
   <div class="sub-bara">
-    <button class="leg" id="copiaza" type="button">Copiază mesajul (pentru SMS)</button>
-    <button class="leg slab" id="dinNou" type="button">Începe din nou</button>
+    <button class="leg" id="copiaza" type="button" data-t="copiaza">Copiază mesajul (pentru SMS)</button>
+    <button class="leg slab" id="dinNou" type="button" data-t="dinNou">Începe din nou</button>
   </div>
-  <p class="versiune" id="versiune">IAS v2.59.3.5</p>
+  <p class="versiune" id="versiune">IAS v2.61.3.6</p>
 
   <footer class="bara">
     <p class="stare" id="stare" role="status" aria-live="polite"></p>
-    <button class="trimite" id="trimite" type="button">Trimite îndrumătorului</button>
+    <button class="trimite" id="trimite" type="button" data-t="trimite">Trimite îndrumătorului</button>
   </footer>
 </main>
 <div id="strat"></div>
@@ -302,21 +308,889 @@ textarea.camp{min-height:92px;resize:vertical}
 (function () {
   'use strict';
 
+  /* ================= limba paginii =================
+     Pagina vorbește limba elevului: o aduce linkul îndrumătorului (l), iar
+     elevul o poate schimba de sus. Româna rămâne cuvânt cu cuvânt cea de
+     dinainte. Celelalte limbi îl iau pe elev cu „dumneavoastră", ca mesajele
+     pe care le primește din aplicație. */
+  function pl(n, unu, cativa, multi) {
+    var a = n % 10, b = n % 100;
+    return a === 1 && b !== 11 ? unu : a >= 2 && a <= 4 && (b < 10 || b >= 20) ? cativa : multi;
+  }
+  function mare(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
+  var LIMBI = {
+    ro: {
+      nume: 'Română', html: 'ro',
+      zile: ['Duminică', 'Luni', 'Marți', 'Miercuri', 'Joi', 'Vineri', 'Sâmbătă'],
+      mici: ['duminică', 'luni', 'marți', 'miercuri', 'joi', 'vineri', 'sâmbătă'],
+      lit: ['D', 'L', 'M', 'M', 'J', 'V', 'S'],
+      toate: ['duminică', 'luni', 'marți', 'miercuri', 'joi', 'vineri', 'sâmbătă'],
+      luni: ['ianuarie', 'februarie', 'martie', 'aprilie', 'mai', 'iunie', 'iulie', 'august', 'septembrie', 'octombrie', 'noiembrie', 'decembrie'],
+      lunaNume: function (m) { return this.luni[m]; },
+      lunaScurt: function (m) { return mare(this.luni[m].slice(0, 3)); },
+      data: function (d, m) { return d + ' ' + this.luni[m]; },
+      dataLunga: function (z, t) { return this.mici[z] + ' ' + t; },
+      ziData: function (z, t) { return this.zile[z] + ', ' + t; },
+      vazut: function (a, b, m) { return (a === b ? a : a + '–' + b) + ' ' + this.luni[m]; },
+      durata: function (h, m) {
+        var s = '';
+        if (h) s = h + (h === 1 ? ' oră' : ' ore');
+        if (m) s += (h ? ' și ' : '') + m + (m >= 20 ? ' de minute' : ' minute');
+        return s;
+      },
+      titlu: 'Programul tău la volan', h1: 'Când poți veni la volan?',
+      calTitlu: 'Calendarul tău',
+      calSub: 'Alege luna, apoi atinge o zi și spune cum poți. Ce alegi se pune singur în fiecare zi la fel din săptămână — o zi anume o poți schimba separat.',
+      ariaLuni: 'Alege luna', ariaZile: 'Zilele săptămânii', ariaLimba: 'Limba paginii',
+      legPoti: 'poți', legNu: 'nu poți', legNes: 'de ales', legExc: 'doar ziua aceea',
+      scurtTitlu: 'Pe scurt', scurtSub: 'Asta primește îndrumătorul. Atinge un rând ca să-l schimbi.',
+      alteTitlu: 'Altceva de știut', alteSub: 'Doar dacă e cazul.',
+      copiaza: 'Copiază mesajul (pentru SMS)', dinNou: 'Începe din nou', trimite: 'Trimite îndrumătorului',
+      vederi: ['1 săpt.', '2 săpt.', '3 săpt.', 'Toată luna'],
+      feluri: { oricand: 'Oricând', dupa: 'De la…', pana: 'Până la…', intre: 'Între…', afara: 'Nu pot între…', nu: 'Indisponibil' },
+      lipsaDupa: 'Alege ora de la care poți.', lipsaPana: 'Alege ora până la care poți.',
+      lipsaLo: 'Alege întâi ora de început.', lipsaHi: 'Acum alege ora de sfârșit.',
+      faraLoc: 'Așa nu mai rămâne loc pentru o ședință în ziua asta. Alege „Indisponibil”.',
+      alege: 'Alege',
+      rez: {
+        oricand: 'Oricând', nu: 'Indisponibil',
+        dupa: function (a) { return 'De la ' + a; }, pana: function (b) { return 'Până la ' + b; },
+        intre: function (a, b) { return 'Între ' + a + ' și ' + b; }, afara: function (a, b) { return 'Nu pot între ' + a + ' și ' + b; }
+      },
+      txt: {
+        oricand: 'oricând', nu: 'indisponibil',
+        dupa: function (a) { return 'de la ' + a; }, pana: function (b) { return 'până la ' + b; },
+        intre: function (a, b) { return 'între ' + a + ' și ' + b; }, afara: function (a, b) { return 'oricând, mai puțin între ' + a + ' și ' + b; }
+      },
+      nuLucreaza: 'îndrumătorul nu lucrează', aTrecut: 'a trecut', lipsesti: 'lipsești', deAles: 'de ales', doarAsta: ', doar ziua asta',
+      alegeFiecare: function (z) { return 'Alege pentru fiecare ' + this.mici[z]; },
+      acum: function (t) { return ' (acum: ' + t + ')'; },
+      arata: 'Arată', ariaVedere: 'Cât să arate calendarul',
+      sapt: function (n) { return n + (n === 1 ? ' săptămână' : ' săptămâni'); },
+      cuZileAnume: ', cu zile anume',
+      pagini: function (a, b, n) { return 'săpt. ' + a + (b ? '–' + b : '') + ' din ' + n; },
+      maiDeparte: function (l) { return 'Mai departe e ' + l + ': alege-o din filele de sus.'; },
+      ariaInapoi: function (l) { return 'Săptămânile de dinainte, în ' + l; }, inapoi: '‹ Înapoi',
+      ariaInainte: function (l) { return 'Săptămânile următoare, în ' + l; }, inainte: 'Înainte ›',
+      repede: '✓ Pot oricând, în toate zilele',
+      doar: function (d) { return 'Doar ' + d; },
+      lipsescTitlu: 'Lipsesc o perioadă', lipsescSub: 'Concediu, plecare, sesiune de examene.',
+      primaZi: 'Prima zi în care lipsesc', ultimaZi: 'Ultima zi în care lipsesc', maiVrei: 'Mai vrei să-i spui ceva? (opțional)',
+      plAlege: 'Alege prima și ultima zi.', plInvers: 'Ultima zi e înaintea primei.', plTrecut: 'Perioada a trecut deja.',
+      fraza: {
+        gol: 'Alege una dintre variantele de mai jos.',
+        oricand: function (S, E) { return 'Poți toată ziua, ' + S + '–' + E + '.'; },
+        nu: 'Nu poți deloc în ziua asta.',
+        dupa: function (a, E) { return 'Poți de la ' + a + ' până la ' + E + '.'; },
+        pana: function (S, b) { return 'Poți de la ' + S + ' până la ' + b + '.'; },
+        intre: function (a, b) { return 'Poți doar între ' + a + ' și ' + b + '.'; },
+        afara: function (a, b) { return 'Nu poți între ' + a + ' și ' + b + '. În rest, da.'; }
+      },
+      fiecare: function (z) { return 'În fiecare ' + this.mici[z]; },
+      lucreaza: function (S, E) { return 'Îndrumătorul lucrează ' + S + '–' + E + '.'; },
+      inchide: 'Închide', cumPoti: 'Cum poți?',
+      potIncepe: 'Pot începe de la', notaDupa: 'Poți începe la ora aleasă sau oricând după ea.',
+      terminPana: 'Trebuie să termin până la', notaPana: 'Ședința se termină cel târziu la ora aleasă.',
+      potDe: 'Pot de la', nuPotDe: 'Nu pot de la', panaLa: 'până la',
+      notaIntre: 'Ședința începe și se termină în intervalul ăsta. Arătăm doar orele în care încape o ședință întreagă.',
+      notaAfara: 'În restul zilei poți. Ședința nu va atinge intervalul ăsta.',
+      laFel: function (z) { return 'La fel în fiecare ' + this.mici[z]; },
+      sePune: function (z) { return 'Se pune în toate zilele de ' + this.mici[z] + '.'; },
+      doarPe: function (d) { return 'Doar pe ' + d + '.'; },
+      sterge: 'Șterge', gataUrm: 'Gata · ziua următoare', gata: 'Gata',
+      stTrimis: 'S-a deschis WhatsApp cu mesajul gata scris. Apasă Trimite acolo.',
+      stGata: 'Totul e completat. Mesajul se deschide în WhatsApp.',
+      stMaiAi: function (l) { return 'Mai ai de ales: ' + l + '.'; },
+      si: ' și ', siInca: function (n) { return ' și încă ' + n; },
+      toateGata: 'Gata: oricând, în fiecare zi. O zi anume o poți schimba atingând-o.',
+      msgCap: 'Bună! Programul meu pentru ședințele de condus:', msgAnume: '*Doar în anumite zile:*',
+      msgLipsesc: function (a, b) { return '*Lipsesc:* de pe ' + a + ' până pe ' + b + ', inclusiv.'; },
+      msgMaiAm: '*Mai am de spus:* ', msgPentru: 'Pentru aplicația IAS:',
+      maiAiZi: function (d) { return 'Mai ai de ales ' + d + '.'; },
+      copiat: 'Mesajul e copiat. Lipește-l în conversația cu îndrumătorul.', necopiat: 'Nu s-a putut copia. Folosește butonul verde.',
+      confirmNou: 'Ștergi tot ce ai ales și o iei de la capăt?',
+      cine: 'Îndrumătorul tău',
+      intro: function (cine, sc) { return cine + ' îți face programul pentru ședințele de condus' + (sc ? ' la ' + sc : '') + '. Spune-i când poți, apoi trimite-i răspunsul pe WhatsApp.'; },
+      sedinta: function (d) { return 'O ședință durează ' + d + '.'; },
+      avizLink: 'Linkul nu e cel trimis de îndrumător sau s-a tăiat pe drum. Poți completa oricum, dar cere-i linkul întreg ca orele să fie cele ale lui.',
+      avizWa: 'Când apeși Trimite, alege-l pe îndrumător din lista ta de WhatsApp.'
+    },
+
+    en: {
+      nume: 'English', html: 'en',
+      zile: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+      mici: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+      lit: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
+      toate: ['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays'],
+      luni: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+      lunaNume: function (m) { return this.luni[m]; },
+      lunaScurt: function (m) { return this.luni[m].slice(0, 3); },
+      data: function (d, m) { return d + ' ' + this.luni[m]; },
+      dataLunga: function (z, t) { return this.mici[z] + ', ' + t; },
+      ziData: function (z, t) { return this.zile[z] + ', ' + t; },
+      vazut: function (a, b, m) { return (a === b ? a : a + '–' + b) + ' ' + this.luni[m]; },
+      durata: function (h, m) {
+        return [h ? h + (h === 1 ? ' hour' : ' hours') : '', m ? m + ' minutes' : ''].filter(Boolean).join(' and ');
+      },
+      titlu: 'Your driving schedule', h1: 'When are you free to drive?',
+      calTitlu: 'Your calendar',
+      calSub: 'Pick the month, then tap a day and say when you can. Your choice is copied to the same weekday every week — you can change a single day separately.',
+      ariaLuni: 'Choose the month', ariaZile: 'Days of the week', ariaLimba: 'Page language',
+      legPoti: 'available', legNu: 'not available', legNes: 'to choose', legExc: 'that day only',
+      scurtTitlu: 'Summary', scurtSub: 'This is what your instructor receives. Tap a row to change it.',
+      alteTitlu: 'Anything else?', alteSub: 'Only if needed.',
+      copiaza: 'Copy the message (for SMS)', dinNou: 'Start over', trimite: 'Send to instructor',
+      vederi: ['1 wk', '2 wks', '3 wks', 'Month'],
+      feluri: { oricand: 'Any time', dupa: 'From…', pana: 'Until…', intre: 'Between…', afara: 'Not between…', nu: 'Not available' },
+      lipsaDupa: 'Pick the time you can start from.', lipsaPana: 'Pick the time you must finish by.',
+      lipsaLo: 'First pick the start time.', lipsaHi: 'Now pick the end time.',
+      faraLoc: 'That leaves no room for a lesson on this day. Choose “Not available”.',
+      alege: 'Choose',
+      rez: {
+        oricand: 'Any time', nu: 'Not available',
+        dupa: function (a) { return 'From ' + a; }, pana: function (b) { return 'Until ' + b; },
+        intre: function (a, b) { return 'Between ' + a + ' and ' + b; }, afara: function (a, b) { return 'Not between ' + a + ' and ' + b; }
+      },
+      txt: {
+        oricand: 'any time', nu: 'not available',
+        dupa: function (a) { return 'from ' + a; }, pana: function (b) { return 'until ' + b; },
+        intre: function (a, b) { return 'between ' + a + ' and ' + b; }, afara: function (a, b) { return 'any time except between ' + a + ' and ' + b; }
+      },
+      nuLucreaza: 'your instructor doesn’t work', aTrecut: 'past', lipsesti: 'you’re away', deAles: 'to choose', doarAsta: ', this day only',
+      alegeFiecare: function (z) { return 'Choose for every ' + this.mici[z]; },
+      acum: function (t) { return ' (now: ' + t + ')'; },
+      arata: 'Show', ariaVedere: 'How much the calendar shows',
+      sapt: function (n) { return n + (n === 1 ? ' week' : ' weeks'); },
+      cuZileAnume: ', with specific days',
+      pagini: function (a, b, n) { return 'wk ' + a + (b ? '–' + b : '') + ' of ' + n; },
+      maiDeparte: function (l) { return 'Next comes ' + l + ': pick it from the tabs above.'; },
+      ariaInapoi: function (l) { return 'Previous weeks, in ' + l; }, inapoi: '‹ Back',
+      ariaInainte: function (l) { return 'Next weeks, in ' + l; }, inainte: 'Next ›',
+      repede: '✓ I can any time, every day',
+      doar: function (d) { return 'Only ' + d; },
+      lipsescTitlu: 'I’ll be away for a while', lipsescSub: 'Holiday, a trip, exams.',
+      primaZi: 'First day away', ultimaZi: 'Last day away', maiVrei: 'Anything else to tell your instructor? (optional)',
+      plAlege: 'Pick the first and the last day.', plInvers: 'The last day is before the first one.', plTrecut: 'That period is already over.',
+      fraza: {
+        gol: 'Pick one of the options below.',
+        oricand: function (S, E) { return 'You can all day, ' + S + '–' + E + '.'; },
+        nu: 'You can’t at all on this day.',
+        dupa: function (a, E) { return 'You can from ' + a + ' until ' + E + '.'; },
+        pana: function (S, b) { return 'You can from ' + S + ' until ' + b + '.'; },
+        intre: function (a, b) { return 'You can only between ' + a + ' and ' + b + '.'; },
+        afara: function (a, b) { return 'You can’t between ' + a + ' and ' + b + '. Otherwise, yes.'; }
+      },
+      fiecare: function (z) { return 'Every ' + this.mici[z]; },
+      lucreaza: function (S, E) { return 'Your instructor works ' + S + '–' + E + '.'; },
+      inchide: 'Close', cumPoti: 'When can you?',
+      potIncepe: 'I can start from', notaDupa: 'You can start at the chosen time or any time after it.',
+      terminPana: 'I have to finish by', notaPana: 'The lesson ends at the chosen time at the latest.',
+      potDe: 'I can from', nuPotDe: 'I can’t from', panaLa: 'until',
+      notaIntre: 'The lesson starts and ends within this interval. Only times that fit a whole lesson are shown.',
+      notaAfara: 'You can for the rest of the day. The lesson won’t touch this interval.',
+      laFel: function (z) { return 'The same every ' + this.mici[z]; },
+      sePune: function (z) { return 'Applies to every ' + this.mici[z] + '.'; },
+      doarPe: function (d) { return 'Only on ' + d + '.'; },
+      sterge: 'Delete', gataUrm: 'Done · next day', gata: 'Done',
+      stTrimis: 'WhatsApp opened with the message ready. Tap Send there.',
+      stGata: 'All filled in. The message opens in WhatsApp.',
+      stMaiAi: function (l) { return 'Still to choose: ' + l + '.'; },
+      si: ' and ', siInca: function (n) { return ' and ' + n + ' more'; },
+      toateGata: 'Done: any time, every day. You can change a single day by tapping it.',
+      msgCap: 'Hi! My availability for driving lessons:', msgAnume: '*Only on certain days:*',
+      msgLipsesc: function (a, b) { return '*I’m away:* from ' + a + ' to ' + b + ', inclusive.'; },
+      msgMaiAm: '*Also:* ', msgPentru: 'For the IAS app:',
+      maiAiZi: function (d) { return 'You still have to choose ' + d + '.'; },
+      copiat: 'The message is copied. Paste it in your chat with the instructor.', necopiat: 'Couldn’t copy. Use the green button.',
+      confirmNou: 'Delete everything you chose and start over?',
+      cine: 'Your instructor',
+      intro: function (cine, sc) { return cine + ' is planning your driving lessons' + (sc ? ' at ' + sc : '') + '. Say when you can, then send the answer on WhatsApp.'; },
+      sedinta: function (d) { return 'A lesson lasts ' + d + '.'; },
+      avizLink: 'This isn’t the link your instructor sent, or it got cut off. You can fill it in anyway, but ask for the full link so the hours are the right ones.',
+      avizWa: 'When you tap Send, choose your instructor from your WhatsApp contacts.'
+    },
+
+    uk: {
+      nume: 'Українська', html: 'uk',
+      zile: ['Неділя', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота'],
+      mici: ['неділя', 'понеділок', 'вівторок', 'середа', 'четвер', 'пʼятниця', 'субота'],
+      lit: ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'],
+      toate: ['неділі', 'понеділки', 'вівторки', 'середи', 'четверги', 'пʼятниці', 'суботи'],
+      kozhen: ['щонеділі', 'щопонеділка', 'щовівторка', 'щосереди', 'щочетверга', 'щопʼятниці', 'щосуботи'],
+      luni: ['січня', 'лютого', 'березня', 'квітня', 'травня', 'червня', 'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня'],
+      nom: ['січень', 'лютий', 'березень', 'квітень', 'травень', 'червень', 'липень', 'серпень', 'вересень', 'жовтень', 'листопад', 'грудень'],
+      lunaNume: function (m) { return this.nom[m]; },
+      lunaScurt: function (m) { return mare(this.nom[m].slice(0, 3)); },
+      data: function (d, m) { return d + ' ' + this.luni[m]; },
+      dataLunga: function (z, t) { return this.mici[z] + ', ' + t; },
+      ziData: function (z, t) { return this.zile[z] + ', ' + t; },
+      vazut: function (a, b, m) { return (a === b ? a : a + '–' + b) + ' ' + this.luni[m]; },
+      durata: function (h, m) {
+        return [h ? h + ' ' + pl(h, 'година', 'години', 'годин') : '', m ? m + ' ' + pl(m, 'хвилина', 'хвилини', 'хвилин') : ''].filter(Boolean).join(' ');
+      },
+      titlu: 'Ваш розклад водіння', h1: 'Коли вам зручно водити?',
+      calTitlu: 'Ваш календар',
+      calSub: 'Оберіть місяць, потім торкніться дня і вкажіть, коли можете. Ваш вибір сам повторюється в той самий день кожного тижня — окремий день можна змінити окремо.',
+      ariaLuni: 'Оберіть місяць', ariaZile: 'Дні тижня', ariaLimba: 'Мова сторінки',
+      legPoti: 'можу', legNu: 'не можу', legNes: 'треба обрати', legExc: 'лише цей день',
+      scurtTitlu: 'Коротко', scurtSub: 'Це отримає інструктор. Торкніться рядка, щоб змінити.',
+      alteTitlu: 'Щось іще?', alteSub: 'Лише якщо потрібно.',
+      copiaza: 'Скопіювати повідомлення (для SMS)', dinNou: 'Почати спочатку', trimite: 'Надіслати інструктору',
+      vederi: ['1 тиж.', '2 тиж.', '3 тиж.', 'Місяць'],
+      feluri: { oricand: 'Будь-коли', dupa: 'З…', pana: 'До…', intre: 'Між…', afara: 'Не між…', nu: 'Не можу' },
+      lipsaDupa: 'Оберіть, з котрої години можете.', lipsaPana: 'Оберіть, до котрої години можете.',
+      lipsaLo: 'Спочатку оберіть час початку.', lipsaHi: 'Тепер оберіть час завершення.',
+      faraLoc: 'Так у цей день не лишається місця для заняття. Оберіть «Не можу».',
+      alege: 'Обрати',
+      rez: {
+        oricand: 'Будь-коли', nu: 'Не можу',
+        dupa: function (a) { return 'З ' + a; }, pana: function (b) { return 'До ' + b; },
+        intre: function (a, b) { return 'Між ' + a + ' і ' + b; }, afara: function (a, b) { return 'Не між ' + a + ' і ' + b; }
+      },
+      txt: {
+        oricand: 'будь-коли', nu: 'не можу',
+        dupa: function (a) { return 'з ' + a; }, pana: function (b) { return 'до ' + b; },
+        intre: function (a, b) { return 'між ' + a + ' і ' + b; }, afara: function (a, b) { return 'будь-коли, крім ' + a + '–' + b; }
+      },
+      nuLucreaza: 'інструктор не працює', aTrecut: 'минуло', lipsesti: 'вас не буде', deAles: 'треба обрати', doarAsta: ', лише цей день',
+      alegeFiecare: function (z) { return 'Обрати: ' + this.kozhen[z]; },
+      acum: function (t) { return ' (зараз: ' + t + ')'; },
+      arata: 'Показати', ariaVedere: 'Скільки показує календар',
+      sapt: function (n) { return n + ' ' + pl(n, 'тиждень', 'тижні', 'тижнів'); },
+      cuZileAnume: ', з окремими днями',
+      pagini: function (a, b, n) { return 'тиж. ' + a + (b ? '–' + b : '') + ' з ' + n; },
+      maiDeparte: function (l) { return 'Далі — ' + l + ': оберіть його вгорі.'; },
+      ariaInapoi: function (l) { return 'Попередні тижні, ' + l; }, inapoi: '‹ Назад',
+      ariaInainte: function (l) { return 'Наступні тижні, ' + l; }, inainte: 'Далі ›',
+      repede: '✓ Можу будь-коли, щодня',
+      doar: function (d) { return 'Лише ' + d; },
+      lipsescTitlu: 'Мене не буде якийсь час', lipsescSub: 'Відпустка, поїздка, сесія.',
+      primaZi: 'Перший день, коли мене не буде', ultimaZi: 'Останній день, коли мене не буде', maiVrei: 'Хочете ще щось сказати? (необовʼязково)',
+      plAlege: 'Оберіть перший і останній день.', plInvers: 'Останній день раніше за перший.', plTrecut: 'Цей період уже минув.',
+      fraza: {
+        gol: 'Оберіть один із варіантів нижче.',
+        oricand: function (S, E) { return 'Можете весь день, ' + S + '–' + E + '.'; },
+        nu: 'У цей день не можете зовсім.',
+        dupa: function (a, E) { return 'Можете з ' + a + ' до ' + E + '.'; },
+        pana: function (S, b) { return 'Можете з ' + S + ' до ' + b + '.'; },
+        intre: function (a, b) { return 'Можете лише між ' + a + ' і ' + b + '.'; },
+        afara: function (a, b) { return 'Не можете між ' + a + ' і ' + b + '. В інший час — так.'; }
+      },
+      fiecare: function (z) { return mare(this.kozhen[z]); },
+      lucreaza: function (S, E) { return 'Інструктор працює ' + S + '–' + E + '.'; },
+      inchide: 'Закрити', cumPoti: 'Коли можете?',
+      potIncepe: 'Можу почати з', notaDupa: 'Можна почати в обраний час або будь-коли пізніше.',
+      terminPana: 'Маю закінчити до', notaPana: 'Заняття закінчиться не пізніше обраного часу.',
+      potDe: 'Можу з', nuPotDe: 'Не можу з', panaLa: 'до',
+      notaIntre: 'Заняття почнеться і закінчиться в цьому проміжку. Показано лише час, у який вміщується ціле заняття.',
+      notaAfara: 'Решту дня можете. Заняття не зачепить цей проміжок.',
+      laFel: function (z) { return 'Так само ' + this.kozhen[z]; },
+      sePune: function (z) { return 'Діятиме ' + this.kozhen[z] + '.'; },
+      doarPe: function (d) { return 'Лише ' + d + '.'; },
+      sterge: 'Видалити', gataUrm: 'Готово · наступний день', gata: 'Готово',
+      stTrimis: 'WhatsApp відкрито з готовим повідомленням. Натисніть там «Надіслати».',
+      stGata: 'Усе заповнено. Повідомлення відкриється у WhatsApp.',
+      stMaiAi: function (l) { return 'Ще треба обрати: ' + l + '.'; },
+      si: ' і ', siInca: function (n) { return ' і ще ' + n; },
+      toateGata: 'Готово: будь-коли, щодня. Окремий день можна змінити, торкнувшись його.',
+      msgCap: 'Добрий день! Мій розклад для занять з водіння:', msgAnume: '*Лише в окремі дні:*',
+      msgLipsesc: function (a, b) { return '*Мене не буде:* з ' + a + ' по ' + b + ' включно.'; },
+      msgMaiAm: '*Ще:* ', msgPentru: 'Для застосунку IAS:',
+      maiAiZi: function (d) { return 'Ще треба обрати: ' + d + '.'; },
+      copiat: 'Повідомлення скопійовано. Вставте його в чат з інструктором.', necopiat: 'Не вдалося скопіювати. Скористайтеся зеленою кнопкою.',
+      confirmNou: 'Видалити все обране і почати спочатку?',
+      cine: 'Ваш інструктор',
+      intro: function (cine, sc) { return cine + ' складає розклад ваших занять з водіння' + (sc ? ' в ' + sc : '') + '. Вкажіть, коли можете, і надішліть відповідь у WhatsApp.'; },
+      sedinta: function (d) { return 'Одне заняття триває ' + d + '.'; },
+      avizLink: 'Це не те посилання, яке надіслав інструктор, або воно обрізалося. Ви все одно можете заповнити, але попросіть повне посилання, щоб години були правильні.',
+      avizWa: 'Коли натиснете «Надіслати», оберіть інструктора зі своїх контактів WhatsApp.'
+    },
+
+    ru: {
+      nume: 'Русский', html: 'ru',
+      zile: ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'],
+      mici: ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'],
+      lit: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'],
+      toate: ['воскресенья', 'понедельники', 'вторники', 'среды', 'четверги', 'пятницы', 'субботы'],
+      kozhen: ['каждое воскресенье', 'каждый понедельник', 'каждый вторник', 'каждую среду', 'каждый четверг', 'каждую пятницу', 'каждую субботу'],
+      luni: ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'],
+      nom: ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'],
+      lunaNume: function (m) { return this.nom[m]; },
+      lunaScurt: function (m) { return mare(this.nom[m].slice(0, 3)); },
+      data: function (d, m) { return d + ' ' + this.luni[m]; },
+      dataLunga: function (z, t) { return this.mici[z] + ', ' + t; },
+      ziData: function (z, t) { return this.zile[z] + ', ' + t; },
+      vazut: function (a, b, m) { return (a === b ? a : a + '–' + b) + ' ' + this.luni[m]; },
+      durata: function (h, m) {
+        return [h ? h + ' ' + pl(h, 'час', 'часа', 'часов') : '', m ? m + ' ' + pl(m, 'минута', 'минуты', 'минут') : ''].filter(Boolean).join(' ');
+      },
+      titlu: 'Ваше расписание вождения', h1: 'Когда вам удобно водить?',
+      calTitlu: 'Ваш календарь',
+      calSub: 'Выберите месяц, затем коснитесь дня и укажите, когда можете. Ваш выбор сам повторяется в тот же день каждой недели — отдельный день можно изменить отдельно.',
+      ariaLuni: 'Выберите месяц', ariaZile: 'Дни недели', ariaLimba: 'Язык страницы',
+      legPoti: 'могу', legNu: 'не могу', legNes: 'нужно выбрать', legExc: 'только этот день',
+      scurtTitlu: 'Кратко', scurtSub: 'Это получит инструктор. Коснитесь строки, чтобы изменить.',
+      alteTitlu: 'Что-то ещё?', alteSub: 'Только если нужно.',
+      copiaza: 'Скопировать сообщение (для SMS)', dinNou: 'Начать заново', trimite: 'Отправить инструктору',
+      vederi: ['1 нед.', '2 нед.', '3 нед.', 'Месяц'],
+      feluri: { oricand: 'В любое время', dupa: 'С…', pana: 'До…', intre: 'Между…', afara: 'Не между…', nu: 'Не могу' },
+      lipsaDupa: 'Выберите, с какого часа можете.', lipsaPana: 'Выберите, до какого часа можете.',
+      lipsaLo: 'Сначала выберите время начала.', lipsaHi: 'Теперь выберите время окончания.',
+      faraLoc: 'Так в этот день не остаётся места для занятия. Выберите «Не могу».',
+      alege: 'Выбрать',
+      rez: {
+        oricand: 'В любое время', nu: 'Не могу',
+        dupa: function (a) { return 'С ' + a; }, pana: function (b) { return 'До ' + b; },
+        intre: function (a, b) { return 'Между ' + a + ' и ' + b; }, afara: function (a, b) { return 'Не между ' + a + ' и ' + b; }
+      },
+      txt: {
+        oricand: 'в любое время', nu: 'не могу',
+        dupa: function (a) { return 'с ' + a; }, pana: function (b) { return 'до ' + b; },
+        intre: function (a, b) { return 'между ' + a + ' и ' + b; }, afara: function (a, b) { return 'в любое время, кроме ' + a + '–' + b; }
+      },
+      nuLucreaza: 'инструктор не работает', aTrecut: 'прошло', lipsesti: 'вас не будет', deAles: 'нужно выбрать', doarAsta: ', только этот день',
+      alegeFiecare: function (z) { return 'Выбрать: ' + this.kozhen[z]; },
+      acum: function (t) { return ' (сейчас: ' + t + ')'; },
+      arata: 'Показать', ariaVedere: 'Сколько показывает календарь',
+      sapt: function (n) { return n + ' ' + pl(n, 'неделя', 'недели', 'недель'); },
+      cuZileAnume: ', с отдельными днями',
+      pagini: function (a, b, n) { return 'нед. ' + a + (b ? '–' + b : '') + ' из ' + n; },
+      maiDeparte: function (l) { return 'Дальше — ' + l + ': выберите его вверху.'; },
+      ariaInapoi: function (l) { return 'Предыдущие недели, ' + l; }, inapoi: '‹ Назад',
+      ariaInainte: function (l) { return 'Следующие недели, ' + l; }, inainte: 'Вперёд ›',
+      repede: '✓ Могу в любое время, каждый день',
+      doar: function (d) { return 'Только ' + d; },
+      lipsescTitlu: 'Меня не будет некоторое время', lipsescSub: 'Отпуск, поездка, сессия.',
+      primaZi: 'Первый день, когда меня не будет', ultimaZi: 'Последний день, когда меня не будет', maiVrei: 'Хотите что-то добавить? (необязательно)',
+      plAlege: 'Выберите первый и последний день.', plInvers: 'Последний день раньше первого.', plTrecut: 'Этот период уже прошёл.',
+      fraza: {
+        gol: 'Выберите один из вариантов ниже.',
+        oricand: function (S, E) { return 'Можете весь день, ' + S + '–' + E + '.'; },
+        nu: 'В этот день не можете совсем.',
+        dupa: function (a, E) { return 'Можете с ' + a + ' до ' + E + '.'; },
+        pana: function (S, b) { return 'Можете с ' + S + ' до ' + b + '.'; },
+        intre: function (a, b) { return 'Можете только между ' + a + ' и ' + b + '.'; },
+        afara: function (a, b) { return 'Не можете между ' + a + ' и ' + b + '. В остальное время — да.'; }
+      },
+      fiecare: function (z) { return mare(this.kozhen[z]); },
+      lucreaza: function (S, E) { return 'Инструктор работает ' + S + '–' + E + '.'; },
+      inchide: 'Закрыть', cumPoti: 'Когда можете?',
+      potIncepe: 'Могу начать с', notaDupa: 'Можно начать в выбранное время или позже.',
+      terminPana: 'Мне нужно закончить до', notaPana: 'Занятие закончится не позже выбранного времени.',
+      potDe: 'Могу с', nuPotDe: 'Не могу с', panaLa: 'до',
+      notaIntre: 'Занятие начнётся и закончится в этом промежутке. Показано только время, в которое помещается целое занятие.',
+      notaAfara: 'В остальное время дня можете. Занятие не затронет этот промежуток.',
+      laFel: function (z) { return 'Так же ' + this.kozhen[z]; },
+      sePune: function (z) { return 'Будет действовать ' + this.kozhen[z] + '.'; },
+      doarPe: function (d) { return 'Только ' + d + '.'; },
+      sterge: 'Удалить', gataUrm: 'Готово · следующий день', gata: 'Готово',
+      stTrimis: 'WhatsApp открыт с готовым сообщением. Нажмите там «Отправить».',
+      stGata: 'Всё заполнено. Сообщение откроется в WhatsApp.',
+      stMaiAi: function (l) { return 'Ещё нужно выбрать: ' + l + '.'; },
+      si: ' и ', siInca: function (n) { return ' и ещё ' + n; },
+      toateGata: 'Готово: в любое время, каждый день. Отдельный день можно изменить, коснувшись его.',
+      msgCap: 'Здравствуйте! Моё расписание для занятий по вождению:', msgAnume: '*Только в отдельные дни:*',
+      msgLipsesc: function (a, b) { return '*Меня не будет:* с ' + a + ' по ' + b + ' включительно.'; },
+      msgMaiAm: '*Ещё:* ', msgPentru: 'Для приложения IAS:',
+      maiAiZi: function (d) { return 'Ещё нужно выбрать: ' + d + '.'; },
+      copiat: 'Сообщение скопировано. Вставьте его в чат с инструктором.', necopiat: 'Не удалось скопировать. Воспользуйтесь зелёной кнопкой.',
+      confirmNou: 'Удалить всё выбранное и начать заново?',
+      cine: 'Ваш инструктор',
+      intro: function (cine, sc) { return cine + ' составляет расписание ваших занятий по вождению' + (sc ? ' в ' + sc : '') + '. Укажите, когда можете, и отправьте ответ в WhatsApp.'; },
+      sedinta: function (d) { return 'Одно занятие длится ' + d + '.'; },
+      avizLink: 'Это не та ссылка, которую прислал инструктор, или она обрезалась. Вы всё равно можете заполнить, но попросите полную ссылку, чтобы часы были правильными.',
+      avizWa: 'Когда нажмёте «Отправить», выберите инструктора из своих контактов WhatsApp.'
+    },
+
+    tr: {
+      nume: 'Türkçe', html: 'tr',
+      zile: ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'],
+      mici: ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'],
+      lit: ['Pz', 'Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct'],
+      toate: ['Pazarlar', 'Pazartesiler', 'Salılar', 'Çarşambalar', 'Perşembeler', 'Cumalar', 'Cumartesiler'],
+      luni: ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'],
+      lunaNume: function (m) { return this.luni[m]; },
+      lunaScurt: function (m) { return this.luni[m].slice(0, 3); },
+      data: function (d, m) { return d + ' ' + this.luni[m]; },
+      dataLunga: function (z, t) { return t + ' ' + this.mici[z]; },
+      ziData: function (z, t) { return t + ' ' + this.zile[z]; },
+      vazut: function (a, b, m) { return (a === b ? a : a + '–' + b) + ' ' + this.luni[m]; },
+      durata: function (h, m) { return [h ? h + ' saat' : '', m ? m + ' dakika' : ''].filter(Boolean).join(' '); },
+      titlu: 'Sürüş programınız', h1: 'Ne zaman müsaitsiniz?',
+      calTitlu: 'Takviminiz',
+      calSub: 'Ayı seçin, sonra bir güne dokunun ve ne zaman uygun olduğunuzu söyleyin. Seçiminiz her haftanın aynı gününe kendiliğinden uygulanır — belirli bir günü ayrıca değiştirebilirsiniz.',
+      ariaLuni: 'Ayı seçin', ariaZile: 'Haftanın günleri', ariaLimba: 'Sayfanın dili',
+      legPoti: 'uygun', legNu: 'uygun değil', legNes: 'seçilecek', legExc: 'sadece o gün',
+      scurtTitlu: 'Özet', scurtSub: 'Eğitmeninize giden budur. Değiştirmek için bir satıra dokunun.',
+      alteTitlu: 'Başka bir şey var mı?', alteSub: 'Sadece gerekirse.',
+      copiaza: 'Mesajı kopyala (SMS için)', dinNou: 'Baştan başla', trimite: 'Eğitmene gönder',
+      vederi: ['1 hf.', '2 hf.', '3 hf.', 'Tüm ay'],
+      feluri: { oricand: 'Her zaman', dupa: 'En erken…', pana: 'En geç…', intre: 'Arası…', afara: 'Arası hariç…', nu: 'Uygun değil' },
+      lipsaDupa: 'En erken başlayabileceğiniz saati seçin.', lipsaPana: 'En geç bitirmeniz gereken saati seçin.',
+      lipsaLo: 'Önce başlangıç saatini seçin.', lipsaHi: 'Şimdi bitiş saatini seçin.',
+      faraLoc: 'Böyle o gün bir ders için yer kalmıyor. “Uygun değil” seçeneğini seçin.',
+      alege: 'Seçin',
+      rez: {
+        oricand: 'Her zaman', nu: 'Uygun değil',
+        dupa: function (a) { return 'En erken ' + a; }, pana: function (b) { return 'En geç ' + b; },
+        intre: function (a, b) { return a + ' – ' + b + ' arası'; }, afara: function (a, b) { return a + ' – ' + b + ' arası hariç'; }
+      },
+      txt: {
+        oricand: 'her zaman', nu: 'uygun değil',
+        dupa: function (a) { return 'en erken ' + a; }, pana: function (b) { return 'en geç ' + b; },
+        intre: function (a, b) { return a + ' – ' + b + ' arası'; }, afara: function (a, b) { return 'her zaman, ' + a + ' – ' + b + ' arası hariç'; }
+      },
+      nuLucreaza: 'eğitmen çalışmıyor', aTrecut: 'geçti', lipsesti: 'yoksunuz', deAles: 'seçilecek', doarAsta: ', sadece bu gün',
+      alegeFiecare: function (z) { return 'Her ' + this.mici[z] + ' için seçin'; },
+      acum: function (t) { return ' (şu an: ' + t + ')'; },
+      arata: 'Göster', ariaVedere: 'Takvimin ne kadar göstereceği',
+      sapt: function (n) { return n + ' hafta'; },
+      cuZileAnume: ', belirli günlerle',
+      pagini: function (a, b, n) { return 'hf. ' + a + (b ? '–' + b : '') + ' / ' + n; },
+      maiDeparte: function (l) { return 'Sonra ' + l + ' geliyor: yukarıdaki sekmelerden seçin.'; },
+      ariaInapoi: function (l) { return l + ': önceki haftalar'; }, inapoi: '‹ Geri',
+      ariaInainte: function (l) { return l + ': sonraki haftalar'; }, inainte: 'İleri ›',
+      repede: '✓ Her zaman, her gün uygunum',
+      doar: function (d) { return 'Sadece ' + d; },
+      lipsescTitlu: 'Bir süre yokum', lipsescSub: 'Tatil, seyahat, sınav dönemi.',
+      primaZi: 'Olmadığım ilk gün', ultimaZi: 'Olmadığım son gün', maiVrei: 'Eklemek istediğiniz bir şey var mı? (isteğe bağlı)',
+      plAlege: 'İlk ve son günü seçin.', plInvers: 'Son gün, ilk günden önce.', plTrecut: 'Bu dönem zaten geçti.',
+      fraza: {
+        gol: 'Aşağıdaki seçeneklerden birini seçin.',
+        oricand: function (S, E) { return 'Tüm gün uygunsunuz, ' + S + '–' + E + '.'; },
+        nu: 'Bu gün hiç uygun değilsiniz.',
+        dupa: function (a, E) { return a + ' – ' + E + ' arası uygunsunuz.'; },
+        pana: function (S, b) { return S + ' – ' + b + ' arası uygunsunuz.'; },
+        intre: function (a, b) { return 'Sadece ' + a + ' – ' + b + ' arası uygunsunuz.'; },
+        afara: function (a, b) { return a + ' – ' + b + ' arası uygun değilsiniz. Geri kalan saatlerde uygunsunuz.'; }
+      },
+      fiecare: function (z) { return 'Her ' + this.mici[z]; },
+      lucreaza: function (S, E) { return 'Eğitmeniniz ' + S + '–' + E + ' arası çalışıyor.'; },
+      inchide: 'Kapat', cumPoti: 'Ne zaman uygunsunuz?',
+      potIncepe: 'En erken başlayabileceğim saat', notaDupa: 'Seçtiğiniz saatte ya da daha sonra başlayabilirsiniz.',
+      terminPana: 'En geç bitirmem gereken saat', notaPana: 'Ders en geç seçtiğiniz saatte biter.',
+      potDe: 'Uygun olduğum aralığın başı', nuPotDe: 'Uygun olmadığım aralığın başı', panaLa: 'Aralığın sonu',
+      notaIntre: 'Ders bu aralıkta başlar ve biter. Sadece tam bir dersin sığdığı saatler gösterilir.',
+      notaAfara: 'Günün geri kalanında uygunsunuz. Ders bu aralığa denk gelmez.',
+      laFel: function (z) { return 'Her ' + this.mici[z] + ' aynı'; },
+      sePune: function (z) { return 'Her ' + this.mici[z] + ' için geçerli.'; },
+      doarPe: function (d) { return 'Sadece ' + d + '.'; },
+      sterge: 'Sil', gataUrm: 'Tamam · sonraki gün', gata: 'Tamam',
+      stTrimis: 'WhatsApp, mesaj hazır şekilde açıldı. Orada Gönder’e dokunun.',
+      stGata: 'Her şey dolduruldu. Mesaj WhatsApp’ta açılır.',
+      stMaiAi: function (l) { return 'Seçilmesi gerekenler: ' + l + '.'; },
+      si: ' ve ', siInca: function (n) { return ' ve ' + n + ' gün daha'; },
+      toateGata: 'Tamam: her zaman, her gün. Belirli bir günü ona dokunarak değiştirebilirsiniz.',
+      msgCap: 'Merhaba! Sürüş dersleri için uygun olduğum zamanlar:', msgAnume: '*Sadece belirli günlerde:*',
+      msgLipsesc: function (a, b) { return '*Yokum:* ' + a + ' – ' + b + ' (dahil).'; },
+      msgMaiAm: '*Ayrıca:* ', msgPentru: 'IAS uygulaması için:',
+      maiAiZi: function (d) { return 'Seçilmesi gereken: ' + d + '.'; },
+      copiat: 'Mesaj kopyalandı. Eğitmeninizle olan sohbete yapıştırın.', necopiat: 'Kopyalanamadı. Yeşil düğmeyi kullanın.',
+      confirmNou: 'Seçtiğiniz her şey silinip baştan başlansın mı?',
+      cine: 'Eğitmeniniz',
+      intro: function (cine, sc) { return cine + (sc ? ' (' + sc + ')' : '') + ' sürüş derslerinizi planlıyor. Ne zaman uygun olduğunuzu söyleyin, sonra cevabı WhatsApp ile gönderin.'; },
+      sedinta: function (d) { return 'Bir ders ' + d + ' sürer.'; },
+      avizLink: 'Bu, eğitmeninizin gönderdiği bağlantı değil ya da yolda kesilmiş. Yine de doldurabilirsiniz, ama saatlerin doğru olması için tam bağlantıyı isteyin.',
+      avizWa: 'Gönder’e dokunduğunuzda WhatsApp kişilerinizden eğitmeninizi seçin.'
+    },
+
+    fr: {
+      nume: 'Français', html: 'fr',
+      zile: ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'],
+      mici: ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'],
+      lit: ['D', 'L', 'M', 'M', 'J', 'V', 'S'],
+      toate: ['les dimanches', 'les lundis', 'les mardis', 'les mercredis', 'les jeudis', 'les vendredis', 'les samedis'],
+      luni: ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'],
+      scurt: ['Janv', 'Févr', 'Mars', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc'],
+      lunaNume: function (m) { return this.luni[m]; },
+      lunaScurt: function (m) { return this.scurt[m]; },
+      data: function (d, m) { return d + ' ' + this.luni[m]; },
+      dataLunga: function (z, t) { return this.mici[z] + ' ' + t; },
+      ziData: function (z, t) { return this.zile[z] + ' ' + t; },
+      vazut: function (a, b, m) { return (a === b ? a : a + '–' + b) + ' ' + this.luni[m]; },
+      durata: function (h, m) {
+        return [h ? h + (h === 1 ? ' heure' : ' heures') : '', m ? m + ' minutes' : ''].filter(Boolean).join(' et ');
+      },
+      titlu: 'Vos horaires de conduite', h1: 'Quand pouvez-vous conduire ?',
+      calTitlu: 'Votre calendrier',
+      calSub: 'Choisissez le mois, puis touchez un jour et indiquez quand vous pouvez. Votre choix se répète tout seul le même jour chaque semaine — un jour précis se modifie à part.',
+      ariaLuni: 'Choisir le mois', ariaZile: 'Jours de la semaine', ariaLimba: 'Langue de la page',
+      legPoti: 'possible', legNu: 'impossible', legNes: 'à choisir', legExc: 'ce jour seulement',
+      scurtTitlu: 'En bref', scurtSub: 'Voici ce que reçoit votre moniteur. Touchez une ligne pour la modifier.',
+      alteTitlu: 'Autre chose ?', alteSub: 'Seulement si besoin.',
+      copiaza: 'Copier le message (pour SMS)', dinNou: 'Recommencer', trimite: 'Envoyer au moniteur',
+      vederi: ['1 sem.', '2 sem.', '3 sem.', 'Mois'],
+      feluri: { oricand: 'À tout moment', dupa: 'À partir de…', pana: 'Jusqu’à…', intre: 'Entre…', afara: 'Pas entre…', nu: 'Indisponible' },
+      lipsaDupa: 'Choisissez l’heure à partir de laquelle vous pouvez.', lipsaPana: 'Choisissez l’heure jusqu’à laquelle vous pouvez.',
+      lipsaLo: 'Choisissez d’abord l’heure de début.', lipsaHi: 'Choisissez maintenant l’heure de fin.',
+      faraLoc: 'Il ne reste alors plus de place pour une leçon ce jour-là. Choisissez « Indisponible ».',
+      alege: 'Choisir',
+      rez: {
+        oricand: 'À tout moment', nu: 'Indisponible',
+        dupa: function (a) { return 'À partir de ' + a; }, pana: function (b) { return 'Jusqu’à ' + b; },
+        intre: function (a, b) { return 'Entre ' + a + ' et ' + b; }, afara: function (a, b) { return 'Pas entre ' + a + ' et ' + b; }
+      },
+      txt: {
+        oricand: 'à tout moment', nu: 'indisponible',
+        dupa: function (a) { return 'à partir de ' + a; }, pana: function (b) { return 'jusqu’à ' + b; },
+        intre: function (a, b) { return 'entre ' + a + ' et ' + b; }, afara: function (a, b) { return 'à tout moment, sauf entre ' + a + ' et ' + b; }
+      },
+      nuLucreaza: 'le moniteur ne travaille pas', aTrecut: 'passé', lipsesti: 'vous êtes absent', deAles: 'à choisir', doarAsta: ', ce jour seulement',
+      alegeFiecare: function (z) { return 'Choisir pour chaque ' + this.mici[z]; },
+      acum: function (t) { return ' (actuellement : ' + t + ')'; },
+      arata: 'Afficher', ariaVedere: 'Ce que montre le calendrier',
+      sapt: function (n) { return n + (n === 1 ? ' semaine' : ' semaines'); },
+      cuZileAnume: ', avec des jours précis',
+      pagini: function (a, b, n) { return 'sem. ' + a + (b ? '–' + b : '') + ' sur ' + n; },
+      maiDeparte: function (l) { return 'Ensuite vient ' + l + ' : choisissez-le dans les onglets en haut.'; },
+      ariaInapoi: function (l) { return 'Semaines précédentes, en ' + l; }, inapoi: '‹ Retour',
+      ariaInainte: function (l) { return 'Semaines suivantes, en ' + l; }, inainte: 'Suivant ›',
+      repede: '✓ Je peux à tout moment, tous les jours',
+      doar: function (d) { return 'Seulement ' + d; },
+      lipsescTitlu: 'Je serai absent un moment', lipsescSub: 'Vacances, voyage, examens.',
+      primaZi: 'Premier jour d’absence', ultimaZi: 'Dernier jour d’absence', maiVrei: 'Autre chose à dire à votre moniteur ? (facultatif)',
+      plAlege: 'Choisissez le premier et le dernier jour.', plInvers: 'Le dernier jour est avant le premier.', plTrecut: 'Cette période est déjà passée.',
+      fraza: {
+        gol: 'Choisissez une des options ci-dessous.',
+        oricand: function (S, E) { return 'Vous pouvez toute la journée, ' + S + '–' + E + '.'; },
+        nu: 'Vous ne pouvez pas du tout ce jour-là.',
+        dupa: function (a, E) { return 'Vous pouvez de ' + a + ' à ' + E + '.'; },
+        pana: function (S, b) { return 'Vous pouvez de ' + S + ' à ' + b + '.'; },
+        intre: function (a, b) { return 'Vous pouvez seulement entre ' + a + ' et ' + b + '.'; },
+        afara: function (a, b) { return 'Vous ne pouvez pas entre ' + a + ' et ' + b + '. Le reste du temps, oui.'; }
+      },
+      fiecare: function (z) { return 'Chaque ' + this.mici[z]; },
+      lucreaza: function (S, E) { return 'Votre moniteur travaille de ' + S + ' à ' + E + '.'; },
+      inchide: 'Fermer', cumPoti: 'Quand pouvez-vous ?',
+      potIncepe: 'Je peux commencer à partir de', notaDupa: 'Vous pouvez commencer à l’heure choisie ou plus tard.',
+      terminPana: 'Je dois finir au plus tard à', notaPana: 'La leçon se termine au plus tard à l’heure choisie.',
+      potDe: 'Je peux de', nuPotDe: 'Je ne peux pas de', panaLa: 'à',
+      notaIntre: 'La leçon commence et finit dans cet intervalle. Seules les heures où tient une leçon entière sont proposées.',
+      notaAfara: 'Le reste de la journée, vous pouvez. La leçon ne touchera pas cet intervalle.',
+      laFel: function (z) { return 'Pareil chaque ' + this.mici[z]; },
+      sePune: function (z) { return 'S’applique à tous les ' + this.mici[z] + 's.'; },
+      doarPe: function (d) { return 'Seulement le ' + d + '.'; },
+      sterge: 'Supprimer', gataUrm: 'OK · jour suivant', gata: 'OK',
+      stTrimis: 'WhatsApp s’est ouvert avec le message prêt. Appuyez sur Envoyer.',
+      stGata: 'Tout est rempli. Le message s’ouvre dans WhatsApp.',
+      stMaiAi: function (l) { return 'Reste à choisir : ' + l + '.'; },
+      si: ' et ', siInca: function (n) { return ' et ' + n + ' autres'; },
+      toateGata: 'C’est fait : à tout moment, tous les jours. Touchez un jour pour le modifier.',
+      msgCap: 'Bonjour ! Mes disponibilités pour les leçons de conduite :', msgAnume: '*Seulement certains jours :*',
+      msgLipsesc: function (a, b) { return '*Absent :* du ' + a + ' au ' + b + ' inclus.'; },
+      msgMaiAm: '*À ajouter :* ', msgPentru: 'Pour l’application IAS :',
+      maiAiZi: function (d) { return 'Il reste à choisir : ' + d + '.'; },
+      copiat: 'Message copié. Collez-le dans la conversation avec votre moniteur.', necopiat: 'Impossible de copier. Utilisez le bouton vert.',
+      confirmNou: 'Effacer tous vos choix et recommencer ?',
+      cine: 'Votre moniteur',
+      intro: function (cine, sc) { return cine + ' prépare le planning de vos leçons de conduite' + (sc ? ' chez ' + sc : '') + '. Indiquez quand vous pouvez, puis envoyez la réponse sur WhatsApp.'; },
+      sedinta: function (d) { return 'Une leçon dure ' + d + '.'; },
+      avizLink: 'Ce lien n’est pas celui envoyé par votre moniteur, ou il a été coupé. Vous pouvez remplir quand même, mais demandez le lien complet pour avoir ses horaires.',
+      avizWa: 'Quand vous appuyez sur Envoyer, choisissez votre moniteur dans vos contacts WhatsApp.'
+    },
+
+    de: {
+      nume: 'Deutsch', html: 'de',
+      zile: ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'],
+      mici: ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'],
+      lit: ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'],
+      toate: ['Sonntage', 'Montage', 'Dienstage', 'Mittwoche', 'Donnerstage', 'Freitage', 'Samstage'],
+      luni: ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'],
+      scurt: ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'],
+      lunaNume: function (m) { return this.luni[m]; },
+      lunaScurt: function (m) { return this.scurt[m]; },
+      data: function (d, m) { return d + '. ' + this.luni[m]; },
+      dataLunga: function (z, t) { return this.mici[z] + ', ' + t; },
+      ziData: function (z, t) { return this.zile[z] + ', ' + t; },
+      vazut: function (a, b, m) { return (a === b ? a + '.' : a + '.–' + b + '.') + ' ' + this.luni[m]; },
+      durata: function (h, m) {
+        return [h ? h + (h === 1 ? ' Stunde' : ' Stunden') : '', m ? m + ' Minuten' : ''].filter(Boolean).join(' und ');
+      },
+      titlu: 'Ihre Zeiten für die Fahrstunden', h1: 'Wann haben Sie Zeit zum Fahren?',
+      calTitlu: 'Ihr Kalender',
+      calSub: 'Wählen Sie den Monat, tippen Sie dann auf einen Tag und sagen Sie, wann Sie können. Ihre Auswahl gilt von selbst für denselben Wochentag jeder Woche — einen einzelnen Tag ändern Sie gesondert.',
+      ariaLuni: 'Monat wählen', ariaZile: 'Wochentage', ariaLimba: 'Sprache der Seite',
+      legPoti: 'geht', legNu: 'geht nicht', legNes: 'noch offen', legExc: 'nur dieser Tag',
+      scurtTitlu: 'Kurz gefasst', scurtSub: 'Das bekommt Ihr Fahrlehrer. Tippen Sie auf eine Zeile, um sie zu ändern.',
+      alteTitlu: 'Sonst noch etwas?', alteSub: 'Nur falls nötig.',
+      copiaza: 'Nachricht kopieren (für SMS)', dinNou: 'Neu anfangen', trimite: 'An den Fahrlehrer senden',
+      vederi: ['1 Wo.', '2 Wo.', '3 Wo.', 'Monat'],
+      feluri: { oricand: 'Jederzeit', dupa: 'Ab…', pana: 'Bis…', intre: 'Zwischen…', afara: 'Nicht zwischen…', nu: 'Keine Zeit' },
+      lipsaDupa: 'Wählen Sie, ab wann Sie können.', lipsaPana: 'Wählen Sie, bis wann Sie können.',
+      lipsaLo: 'Wählen Sie zuerst den Beginn.', lipsaHi: 'Wählen Sie jetzt das Ende.',
+      faraLoc: 'So bleibt an diesem Tag kein Platz für eine Fahrstunde. Wählen Sie „Keine Zeit“.',
+      alege: 'Wählen',
+      rez: {
+        oricand: 'Jederzeit', nu: 'Keine Zeit',
+        dupa: function (a) { return 'Ab ' + a; }, pana: function (b) { return 'Bis ' + b; },
+        intre: function (a, b) { return 'Zwischen ' + a + ' und ' + b; }, afara: function (a, b) { return 'Nicht zwischen ' + a + ' und ' + b; }
+      },
+      txt: {
+        oricand: 'jederzeit', nu: 'keine Zeit',
+        dupa: function (a) { return 'ab ' + a; }, pana: function (b) { return 'bis ' + b; },
+        intre: function (a, b) { return 'zwischen ' + a + ' und ' + b; }, afara: function (a, b) { return 'jederzeit, außer zwischen ' + a + ' und ' + b; }
+      },
+      nuLucreaza: 'der Fahrlehrer arbeitet nicht', aTrecut: 'vorbei', lipsesti: 'Sie sind nicht da', deAles: 'noch offen', doarAsta: ', nur dieser Tag',
+      alegeFiecare: function (z) { return 'Für jeden ' + this.mici[z] + ' wählen'; },
+      acum: function (t) { return ' (jetzt: ' + t + ')'; },
+      arata: 'Zeigen', ariaVedere: 'Wie viel der Kalender zeigt',
+      sapt: function (n) { return n + (n === 1 ? ' Woche' : ' Wochen'); },
+      cuZileAnume: ', mit einzelnen Tagen',
+      pagini: function (a, b, n) { return 'Wo. ' + a + (b ? '–' + b : '') + ' von ' + n; },
+      maiDeparte: function (l) { return 'Danach kommt der ' + l + ': wählen Sie ihn oben aus.'; },
+      ariaInapoi: function (l) { return 'Vorherige Wochen, im ' + l; }, inapoi: '‹ Zurück',
+      ariaInainte: function (l) { return 'Nächste Wochen, im ' + l; }, inainte: 'Weiter ›',
+      repede: '✓ Ich kann jederzeit, an allen Tagen',
+      doar: function (d) { return 'Nur ' + d; },
+      lipsescTitlu: 'Ich bin eine Zeit lang nicht da', lipsescSub: 'Urlaub, Reise, Prüfungszeit.',
+      primaZi: 'Erster Tag weg', ultimaZi: 'Letzter Tag weg', maiVrei: 'Möchten Sie Ihrem Fahrlehrer noch etwas sagen? (optional)',
+      plAlege: 'Wählen Sie den ersten und den letzten Tag.', plInvers: 'Der letzte Tag liegt vor dem ersten.', plTrecut: 'Dieser Zeitraum ist schon vorbei.',
+      fraza: {
+        gol: 'Wählen Sie eine der Möglichkeiten unten.',
+        oricand: function (S, E) { return 'Sie können den ganzen Tag, ' + S + '–' + E + '.'; },
+        nu: 'Sie können an diesem Tag gar nicht.',
+        dupa: function (a, E) { return 'Sie können von ' + a + ' bis ' + E + '.'; },
+        pana: function (S, b) { return 'Sie können von ' + S + ' bis ' + b + '.'; },
+        intre: function (a, b) { return 'Sie können nur zwischen ' + a + ' und ' + b + '.'; },
+        afara: function (a, b) { return 'Sie können nicht zwischen ' + a + ' und ' + b + '. Sonst ja.'; }
+      },
+      fiecare: function (z) { return 'Jeden ' + this.mici[z]; },
+      lucreaza: function (S, E) { return 'Ihr Fahrlehrer arbeitet ' + S + '–' + E + '.'; },
+      inchide: 'Schließen', cumPoti: 'Wann können Sie?',
+      potIncepe: 'Ich kann anfangen ab', notaDupa: 'Sie können zur gewählten Zeit oder später anfangen.',
+      terminPana: 'Ich muss fertig sein bis', notaPana: 'Die Fahrstunde endet spätestens zur gewählten Zeit.',
+      potDe: 'Ich kann von', nuPotDe: 'Ich kann nicht von', panaLa: 'bis',
+      notaIntre: 'Die Fahrstunde beginnt und endet in diesem Zeitraum. Es werden nur Zeiten gezeigt, in die eine ganze Fahrstunde passt.',
+      notaAfara: 'Den Rest des Tages können Sie. Die Fahrstunde berührt diesen Zeitraum nicht.',
+      laFel: function (z) { return 'Gleich an jedem ' + this.mici[z]; },
+      sePune: function (z) { return 'Gilt für jeden ' + this.mici[z] + '.'; },
+      doarPe: function (d) { return 'Nur am ' + d + '.'; },
+      sterge: 'Löschen', gataUrm: 'Fertig · nächster Tag', gata: 'Fertig',
+      stTrimis: 'WhatsApp ist mit der fertigen Nachricht geöffnet. Tippen Sie dort auf Senden.',
+      stGata: 'Alles ausgefüllt. Die Nachricht öffnet sich in WhatsApp.',
+      stMaiAi: function (l) { return 'Noch zu wählen: ' + l + '.'; },
+      si: ' und ', siInca: function (n) { return ' und ' + n + ' weitere'; },
+      toateGata: 'Fertig: jederzeit, an jedem Tag. Einen einzelnen Tag ändern Sie durch Antippen.',
+      msgCap: 'Hallo! Meine Zeiten für die Fahrstunden:', msgAnume: '*Nur an bestimmten Tagen:*',
+      msgLipsesc: function (a, b) { return '*Ich bin nicht da:* vom ' + a + ' bis zum ' + b + ', einschließlich.'; },
+      msgMaiAm: '*Außerdem:* ', msgPentru: 'Für die IAS-App:',
+      maiAiZi: function (d) { return 'Noch zu wählen: ' + d + '.'; },
+      copiat: 'Die Nachricht ist kopiert. Fügen Sie sie im Chat mit Ihrem Fahrlehrer ein.', necopiat: 'Kopieren hat nicht geklappt. Nehmen Sie den grünen Knopf.',
+      confirmNou: 'Alles löschen und von vorn anfangen?',
+      cine: 'Ihr Fahrlehrer',
+      intro: function (cine, sc) { return cine + ' plant Ihre Fahrstunden' + (sc ? ' bei ' + sc : '') + '. Sagen Sie, wann Sie können, und schicken Sie die Antwort per WhatsApp.'; },
+      sedinta: function (d) { return 'Eine Fahrstunde dauert ' + d + '.'; },
+      avizLink: 'Das ist nicht der Link Ihres Fahrlehrers, oder er wurde abgeschnitten. Sie können trotzdem ausfüllen, aber bitten Sie um den ganzen Link, damit die Zeiten stimmen.',
+      avizWa: 'Wenn Sie auf Senden tippen, wählen Sie Ihren Fahrlehrer aus Ihren WhatsApp-Kontakten.'
+    },
+
+    it: {
+      nume: 'Italiano', html: 'it',
+      zile: ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'],
+      mici: ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'],
+      lit: ['D', 'L', 'M', 'M', 'G', 'V', 'S'],
+      toate: ['le domeniche', 'i lunedì', 'i martedì', 'i mercoledì', 'i giovedì', 'i venerdì', 'i sabati'],
+      luni: ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'],
+      lunaNume: function (m) { return this.luni[m]; },
+      lunaScurt: function (m) { return mare(this.luni[m].slice(0, 3)); },
+      data: function (d, m) { return d + ' ' + this.luni[m]; },
+      dataLunga: function (z, t) { return this.mici[z] + ' ' + t; },
+      ziData: function (z, t) { return this.zile[z] + ' ' + t; },
+      vazut: function (a, b, m) { return (a === b ? a : a + '–' + b) + ' ' + this.luni[m]; },
+      durata: function (h, m) {
+        return [h ? h + (h === 1 ? ' ora' : ' ore') : '', m ? m + ' minuti' : ''].filter(Boolean).join(' e ');
+      },
+      titlu: 'I suoi orari di guida', h1: 'Quando può guidare?',
+      calTitlu: 'Il suo calendario',
+      calSub: 'Scelga il mese, poi tocchi un giorno e dica quando può. La scelta si ripete da sola lo stesso giorno di ogni settimana — un giorno preciso lo può cambiare a parte.',
+      ariaLuni: 'Scegli il mese', ariaZile: 'Giorni della settimana', ariaLimba: 'Lingua della pagina',
+      legPoti: 'può', legNu: 'non può', legNes: 'da scegliere', legExc: 'solo quel giorno',
+      scurtTitlu: 'In breve', scurtSub: 'Questo riceve l’istruttore. Tocchi una riga per cambiarla.',
+      alteTitlu: 'Altro da dire?', alteSub: 'Solo se serve.',
+      copiaza: 'Copia il messaggio (per SMS)', dinNou: 'Ricomincia', trimite: 'Invia all’istruttore',
+      vederi: ['1 sett.', '2 sett.', '3 sett.', 'Mese'],
+      feluri: { oricand: 'Sempre', dupa: 'Dalle…', pana: 'Fino alle…', intre: 'Tra…', afara: 'Non tra…', nu: 'Non disponibile' },
+      lipsaDupa: 'Scelga l’ora da cui può.', lipsaPana: 'Scelga l’ora entro cui deve finire.',
+      lipsaLo: 'Scelga prima l’ora di inizio.', lipsaHi: 'Adesso scelga l’ora di fine.',
+      faraLoc: 'Così non resta spazio per una lezione in questo giorno. Scelga «Non disponibile».',
+      alege: 'Scegli',
+      rez: {
+        oricand: 'Sempre', nu: 'Non disponibile',
+        dupa: function (a) { return 'Dalle ' + a; }, pana: function (b) { return 'Fino alle ' + b; },
+        intre: function (a, b) { return 'Tra le ' + a + ' e le ' + b; }, afara: function (a, b) { return 'Non tra le ' + a + ' e le ' + b; }
+      },
+      txt: {
+        oricand: 'sempre', nu: 'non disponibile',
+        dupa: function (a) { return 'dalle ' + a; }, pana: function (b) { return 'fino alle ' + b; },
+        intre: function (a, b) { return 'tra le ' + a + ' e le ' + b; }, afara: function (a, b) { return 'sempre, tranne tra le ' + a + ' e le ' + b; }
+      },
+      nuLucreaza: 'l’istruttore non lavora', aTrecut: 'passato', lipsesti: 'lei è via', deAles: 'da scegliere', doarAsta: ', solo questo giorno',
+      alegeFiecare: function (z) { return 'Scegli per ogni ' + this.mici[z]; },
+      acum: function (t) { return ' (adesso: ' + t + ')'; },
+      arata: 'Mostra', ariaVedere: 'Quanto mostra il calendario',
+      sapt: function (n) { return n + (n === 1 ? ' settimana' : ' settimane'); },
+      cuZileAnume: ', con giorni precisi',
+      pagini: function (a, b, n) { return 'sett. ' + a + (b ? '–' + b : '') + ' di ' + n; },
+      maiDeparte: function (l) { return 'Dopo viene ' + l + ': lo scelga dalle schede in alto.'; },
+      ariaInapoi: function (l) { return 'Settimane precedenti, a ' + l; }, inapoi: '‹ Indietro',
+      ariaInainte: function (l) { return 'Settimane successive, a ' + l; }, inainte: 'Avanti ›',
+      repede: '✓ Posso sempre, tutti i giorni',
+      doar: function (d) { return 'Solo ' + d; },
+      lipsescTitlu: 'Sarò via per un periodo', lipsescSub: 'Ferie, viaggio, esami.',
+      primaZi: 'Primo giorno di assenza', ultimaZi: 'Ultimo giorno di assenza', maiVrei: 'Vuole dire altro all’istruttore? (facoltativo)',
+      plAlege: 'Scelga il primo e l’ultimo giorno.', plInvers: 'L’ultimo giorno è prima del primo.', plTrecut: 'Il periodo è già passato.',
+      fraza: {
+        gol: 'Scelga una delle opzioni qui sotto.',
+        oricand: function (S, E) { return 'Può tutto il giorno, ' + S + '–' + E + '.'; },
+        nu: 'Non può affatto in questo giorno.',
+        dupa: function (a, E) { return 'Può dalle ' + a + ' alle ' + E + '.'; },
+        pana: function (S, b) { return 'Può dalle ' + S + ' alle ' + b + '.'; },
+        intre: function (a, b) { return 'Può solo tra le ' + a + ' e le ' + b + '.'; },
+        afara: function (a, b) { return 'Non può tra le ' + a + ' e le ' + b + '. Per il resto, sì.'; }
+      },
+      fiecare: function (z) { return 'Ogni ' + this.mici[z]; },
+      lucreaza: function (S, E) { return 'L’istruttore lavora dalle ' + S + ' alle ' + E + '.'; },
+      inchide: 'Chiudi', cumPoti: 'Quando può?',
+      potIncepe: 'Posso iniziare dalle', notaDupa: 'Può iniziare all’ora scelta o in qualsiasi momento dopo.',
+      terminPana: 'Devo finire entro le', notaPana: 'La lezione finisce al più tardi all’ora scelta.',
+      potDe: 'Posso dalle', nuPotDe: 'Non posso dalle', panaLa: 'alle',
+      notaIntre: 'La lezione inizia e finisce in questo intervallo. Mostriamo solo gli orari in cui entra una lezione intera.',
+      notaAfara: 'Nel resto della giornata può. La lezione non toccherà questo intervallo.',
+      laFel: function (z) { return 'Uguale ogni ' + this.mici[z]; },
+      sePune: function (z) { return 'Vale per ogni ' + this.mici[z] + '.'; },
+      doarPe: function (d) { return 'Solo il ' + d + '.'; },
+      sterge: 'Elimina', gataUrm: 'Fatto · giorno dopo', gata: 'Fatto',
+      stTrimis: 'WhatsApp si è aperto con il messaggio pronto. Prema Invia lì.',
+      stGata: 'Tutto compilato. Il messaggio si apre in WhatsApp.',
+      stMaiAi: function (l) { return 'Resta da scegliere: ' + l + '.'; },
+      si: ' e ', siInca: function (n) { return ' e altri ' + n; },
+      toateGata: 'Fatto: sempre, ogni giorno. Un giorno preciso lo può cambiare toccandolo.',
+      msgCap: 'Buongiorno! La mia disponibilità per le lezioni di guida:', msgAnume: '*Solo in certi giorni:*',
+      msgLipsesc: function (a, b) { return '*Sono via:* dal ' + a + ' al ' + b + ', compresi.'; },
+      msgMaiAm: '*Inoltre:* ', msgPentru: 'Per l’app IAS:',
+      maiAiZi: function (d) { return 'Resta da scegliere: ' + d + '.'; },
+      copiat: 'Messaggio copiato. Lo incolli nella chat con l’istruttore.', necopiat: 'Copia non riuscita. Usi il pulsante verde.',
+      confirmNou: 'Cancellare tutte le scelte e ricominciare?',
+      cine: 'Il suo istruttore',
+      intro: function (cine, sc) { return cine + ' sta organizzando le sue lezioni di guida' + (sc ? ' presso ' + sc : '') + '. Dica quando può, poi invii la risposta su WhatsApp.'; },
+      sedinta: function (d) { return 'Una lezione dura ' + d + '.'; },
+      avizLink: 'Questo non è il link inviato dall’istruttore, oppure si è interrotto. Può compilare comunque, ma chieda il link completo perché gli orari siano i suoi.',
+      avizWa: 'Quando preme Invia, scelga l’istruttore tra i contatti di WhatsApp.'
+    },
+
+    es: {
+      nume: 'Español', html: 'es',
+      zile: ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'],
+      mici: ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'],
+      lit: ['D', 'L', 'M', 'X', 'J', 'V', 'S'],
+      toate: ['los domingos', 'los lunes', 'los martes', 'los miércoles', 'los jueves', 'los viernes', 'los sábados'],
+      luni: ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'],
+      lunaNume: function (m) { return this.luni[m]; },
+      lunaScurt: function (m) { return mare(this.luni[m].slice(0, 3)); },
+      data: function (d, m) { return d + ' de ' + this.luni[m]; },
+      dataLunga: function (z, t) { return this.mici[z] + ', ' + t; },
+      ziData: function (z, t) { return this.zile[z] + ', ' + t; },
+      vazut: function (a, b, m) { return (a === b ? a : a + '–' + b) + ' de ' + this.luni[m]; },
+      durata: function (h, m) {
+        return [h ? h + (h === 1 ? ' hora' : ' horas') : '', m ? m + ' minutos' : ''].filter(Boolean).join(' y ');
+      },
+      titlu: 'Su horario de conducir', h1: '¿Cuándo puede conducir?',
+      calTitlu: 'Su calendario',
+      calSub: 'Elija el mes, toque un día y diga cuándo puede. Lo que elija se repite solo el mismo día de cada semana; un día concreto lo puede cambiar aparte.',
+      ariaLuni: 'Elegir el mes', ariaZile: 'Días de la semana', ariaLimba: 'Idioma de la página',
+      legPoti: 'puede', legNu: 'no puede', legNes: 'por elegir', legExc: 'solo ese día',
+      scurtTitlu: 'Resumen', scurtSub: 'Esto es lo que recibe su instructor. Toque una fila para cambiarla.',
+      alteTitlu: '¿Algo más?', alteSub: 'Solo si hace falta.',
+      copiaza: 'Copiar el mensaje (para SMS)', dinNou: 'Empezar de nuevo', trimite: 'Enviar al instructor',
+      vederi: ['1 sem.', '2 sem.', '3 sem.', 'Mes'],
+      feluri: { oricand: 'Cuando sea', dupa: 'Desde…', pana: 'Hasta…', intre: 'Entre…', afara: 'No entre…', nu: 'No disponible' },
+      lipsaDupa: 'Elija la hora desde la que puede.', lipsaPana: 'Elija la hora hasta la que puede.',
+      lipsaLo: 'Elija primero la hora de inicio.', lipsaHi: 'Ahora elija la hora de fin.',
+      faraLoc: 'Así no queda sitio para una clase ese día. Elija «No disponible».',
+      alege: 'Elegir',
+      rez: {
+        oricand: 'Cuando sea', nu: 'No disponible',
+        dupa: function (a) { return 'Desde las ' + a; }, pana: function (b) { return 'Hasta las ' + b; },
+        intre: function (a, b) { return 'Entre las ' + a + ' y las ' + b; }, afara: function (a, b) { return 'No entre las ' + a + ' y las ' + b; }
+      },
+      txt: {
+        oricand: 'cuando sea', nu: 'no disponible',
+        dupa: function (a) { return 'desde las ' + a; }, pana: function (b) { return 'hasta las ' + b; },
+        intre: function (a, b) { return 'entre las ' + a + ' y las ' + b; }, afara: function (a, b) { return 'cuando sea, menos entre las ' + a + ' y las ' + b; }
+      },
+      nuLucreaza: 'el instructor no trabaja', aTrecut: 'ya pasó', lipsesti: 'no estará', deAles: 'por elegir', doarAsta: ', solo este día',
+      alegeFiecare: function (z) { return 'Elegir para cada ' + this.mici[z]; },
+      acum: function (t) { return ' (ahora: ' + t + ')'; },
+      arata: 'Mostrar', ariaVedere: 'Cuánto muestra el calendario',
+      sapt: function (n) { return n + (n === 1 ? ' semana' : ' semanas'); },
+      cuZileAnume: ', con días concretos',
+      pagini: function (a, b, n) { return 'sem. ' + a + (b ? '–' + b : '') + ' de ' + n; },
+      maiDeparte: function (l) { return 'Después viene ' + l + ': elíjalo en las pestañas de arriba.'; },
+      ariaInapoi: function (l) { return 'Semanas anteriores, en ' + l; }, inapoi: '‹ Atrás',
+      ariaInainte: function (l) { return 'Semanas siguientes, en ' + l; }, inainte: 'Adelante ›',
+      repede: '✓ Puedo cuando sea, todos los días',
+      doar: function (d) { return 'Solo ' + d; },
+      lipsescTitlu: 'Voy a estar fuera un tiempo', lipsescSub: 'Vacaciones, un viaje, exámenes.',
+      primaZi: 'Primer día fuera', ultimaZi: 'Último día fuera', maiVrei: '¿Quiere decirle algo más a su instructor? (opcional)',
+      plAlege: 'Elija el primer y el último día.', plInvers: 'El último día es anterior al primero.', plTrecut: 'Ese periodo ya pasó.',
+      fraza: {
+        gol: 'Elija una de las opciones de abajo.',
+        oricand: function (S, E) { return 'Puede todo el día, ' + S + '–' + E + '.'; },
+        nu: 'No puede nada ese día.',
+        dupa: function (a, E) { return 'Puede desde las ' + a + ' hasta las ' + E + '.'; },
+        pana: function (S, b) { return 'Puede desde las ' + S + ' hasta las ' + b + '.'; },
+        intre: function (a, b) { return 'Puede solo entre las ' + a + ' y las ' + b + '.'; },
+        afara: function (a, b) { return 'No puede entre las ' + a + ' y las ' + b + '. El resto, sí.'; }
+      },
+      fiecare: function (z) { return 'Cada ' + this.mici[z]; },
+      lucreaza: function (S, E) { return 'Su instructor trabaja de ' + S + ' a ' + E + '.'; },
+      inchide: 'Cerrar', cumPoti: '¿Cuándo puede?',
+      potIncepe: 'Puedo empezar desde las', notaDupa: 'Puede empezar a la hora elegida o más tarde.',
+      terminPana: 'Tengo que terminar antes de las', notaPana: 'La clase termina como muy tarde a la hora elegida.',
+      potDe: 'Puedo desde las', nuPotDe: 'No puedo desde las', panaLa: 'hasta las',
+      notaIntre: 'La clase empieza y termina en este intervalo. Solo se muestran las horas en las que cabe una clase entera.',
+      notaAfara: 'El resto del día puede. La clase no tocará este intervalo.',
+      laFel: function (z) { return 'Igual cada ' + this.mici[z]; },
+      sePune: function (z) { return 'Se aplica cada ' + this.mici[z] + '.'; },
+      doarPe: function (d) { return 'Solo el ' + d + '.'; },
+      sterge: 'Borrar', gataUrm: 'Listo · día siguiente', gata: 'Listo',
+      stTrimis: 'WhatsApp se abrió con el mensaje listo. Pulse Enviar allí.',
+      stGata: 'Todo completo. El mensaje se abre en WhatsApp.',
+      stMaiAi: function (l) { return 'Falta por elegir: ' + l + '.'; },
+      si: ' y ', siInca: function (n) { return ' y ' + n + ' más'; },
+      toateGata: 'Listo: cuando sea, todos los días. Un día concreto lo puede cambiar tocándolo.',
+      msgCap: '¡Hola! Mi disponibilidad para las clases de conducir:', msgAnume: '*Solo ciertos días:*',
+      msgLipsesc: function (a, b) { return '*No estaré:* del ' + a + ' al ' + b + ', ambos incluidos.'; },
+      msgMaiAm: '*Además:* ', msgPentru: 'Para la app IAS:',
+      maiAiZi: function (d) { return 'Falta por elegir: ' + d + '.'; },
+      copiat: 'Mensaje copiado. Péguelo en el chat con su instructor.', necopiat: 'No se pudo copiar. Use el botón verde.',
+      confirmNou: '¿Borrar todo lo elegido y empezar de nuevo?',
+      cine: 'Su instructor',
+      intro: function (cine, sc) { return cine + ' está organizando sus clases de conducir' + (sc ? ' en ' + sc : '') + '. Diga cuándo puede y luego envíe la respuesta por WhatsApp.'; },
+      sedinta: function (d) { return 'Una clase dura ' + d + '.'; },
+      avizLink: 'Este no es el enlace que le envió su instructor, o se cortó por el camino. Puede rellenarlo igual, pero pídale el enlace completo para que las horas sean las suyas.',
+      avizWa: 'Cuando pulse Enviar, elija a su instructor entre sus contactos de WhatsApp.'
+    }
+  };
+  var ORDINE_LIMBI = ['ro', 'en', 'uk', 'ru', 'tr', 'fr', 'de', 'it', 'es'];
+
   /* ================= ce știm din link ================= */
   var ZILE = [1, 2, 3, 4, 5, 6, 0];
-  var NUME = ['Duminică', 'Luni', 'Marți', 'Miercuri', 'Joi', 'Vineri', 'Sâmbătă'];
-  var MIC = ['duminică', 'luni', 'marți', 'miercuri', 'joi', 'vineri', 'sâmbătă'];
-  var LIT = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
-  var LUNI = ['ianuarie', 'februarie', 'martie', 'aprilie', 'mai', 'iunie', 'iulie', 'august',
-    'septembrie', 'octombrie', 'noiembrie', 'decembrie'];
+  /* Limba aleasă și numele zilelor și lunilor în ea (vezi puneLimba). */
+  var T = LIMBI.ro, NUME = T.zile, MIC = T.mici, LIT = T.lit;
   /* Cât arată calendarul deodată: o săptămână, două, trei sau toată luna (0). */
-  var VEDERI = [[1, '1 săpt.'], [2, '2 săpt.'], [3, '3 săpt.'], [0, 'Toată luna']];
+  var VEDERI = [[1, ''], [2, ''], [3, ''], [0, '']];
   /* Lunile din care se poate alege: luna de acum și următoarele cinci. */
   var CATE_LUNI = 6;
   /* Aceleași șase feluri ca pe fișa elevului din aplicație — răspunsul intră
      direct în câmpurile de acolo, fără nicio traducere. */
-  var FELURI = [['oricand', 'Oricând'], ['dupa', 'De la…'], ['pana', 'Până la…'],
-    ['intre', 'Între…'], ['afara', 'Nu pot între…'], ['nu', 'Indisponibil']];
+  var FELURI = [['oricand', ''], ['dupa', ''], ['pana', ''], ['intre', ''], ['afara', ''], ['nu', '']];
+  function puneLimba(L) {
+    T = LIMBI[L] || LIMBI.ro;
+    NUME = T.zile; MIC = T.mici; LIT = T.lit;
+    VEDERI.forEach(function (v, k) { v[1] = T.vederi[k]; });
+    FELURI.forEach(function (f) { f[1] = T.feluri[f[0]]; });
+  }
 
   function H(m) { return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); }
   function esc(s) {
@@ -324,12 +1198,7 @@ textarea.camp{min-height:92px;resize:vertical}
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
-  function durata(d) {
-    var h = Math.floor(d / 60), m = d % 60, s = '';
-    if (h) s = h + (h === 1 ? ' oră' : ' ore');
-    if (m) s += (h ? ' și ' : '') + m + (m >= 20 ? ' de minute' : ' minute');
-    return s;
-  }
+  function durata(d) { return T.durata(Math.floor(d / 60), d % 60); }
   function iso(d) {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
@@ -339,10 +1208,10 @@ textarea.camp{min-height:92px;resize:vertical}
   function ziSapt(t) { return dinIso(t).getDay(); }
   function dataText(t) {
     var p = t.split('-').map(Number);
-    var s = p[2] + ' ' + LUNI[p[1] - 1];
+    var s = T.data(p[2], p[1] - 1);
     return p[0] === new Date().getFullYear() ? s : s + ' ' + p[0];
   }
-  function dataLunga(t) { return MIC[ziSapt(t)] + ' ' + dataText(t); }
+  function dataLunga(t) { return T.dataLunga(ziSapt(t), dataText(t)); }
 
   /* Text ↔ link: JSON scurt, în base64 fără caracterele care se strică în
      linkuri. Diacriticele trec prin UTF-8. */
@@ -362,7 +1231,7 @@ textarea.camp{min-height:92px;resize:vertical}
 
   function citesteCererea() {
     var implicit = { e: null, w: '', z: [0, 1, 2, 3, 4, 5, 6].map(function () { return [420, 1260]; }),
-      d: 90, n: '', s: '', ok: false };
+      d: 90, n: '', s: '', l: '', ok: false };
     var c = null, o = null;
     try { c = new URLSearchParams(location.hash.slice(1)).get('c'); } catch (x) { }
     if (!c) return implicit;
@@ -380,12 +1249,15 @@ textarea.camp{min-height:92px;resize:vertical}
       d: Number.isInteger(o.d) && o.d >= 30 && o.d <= 300 ? o.d : 90,
       n: typeof o.n === 'string' ? o.n.slice(0, 60).trim() : '',
       s: typeof o.s === 'string' ? o.s.slice(0, 80).trim() : '',
+      l: typeof o.l === 'string' && LIMBI[o.l] ? o.l : '',
       ok: true
     };
   }
 
   var CER = citesteCererea();
   var CHEIE = 'ias-program:' + (CER.e || 'general');
+  /* Limba din link, până o schimbă elevul de sus (atunci se ține minte). */
+  puneLimba(CER.l || 'ro');
 
   /* ================= ce a ales elevul =================
      zile — regula fiecărei zile din săptămână (cheia: 0 = duminică … 6)
@@ -394,7 +1266,7 @@ textarea.camp{min-height:92px;resize:vertical}
     var z = {};
     ZILE.forEach(function (d) { z[d] = null; });
     return {
-      zile: z, date: {}, vedere: 0, luna: '', vazutPana: '',
+      zile: z, date: {}, vedere: 0, luna: '', vazutPana: '', limba: '',
       lipsa: { on: false, din: '', pana: '' },
       mesaj: '', trimis: false
     };
@@ -412,8 +1284,10 @@ textarea.camp{min-height:92px;resize:vertical}
       delete st.sapt;
       if ([0, 1, 2, 3].indexOf(st.vedere) < 0) st.vedere = 0;
       st.trimis = false;
+      if (!LIMBI[st.limba]) st.limba = '';
     }
   } catch (x) { }
+  if (st.limba) puneLimba(st.limba);
   /* Foaia deschisă nu se ține minte: la redeschidere pagina pornește curată. */
   var foaie = null;
   /* Luna ținută minte, dacă a trecut, devine luna de acum. */
@@ -472,14 +1346,14 @@ textarea.camp{min-height:92px;resize:vertical}
   function stareRegula(z, r) {
     if (!r || !r.fel) return { k: 'lipsa' };
     if (r.fel === 'oricand' || r.fel === 'nu') return { k: 'gata' };
-    if (r.fel === 'dupa' && r.lo == null) return { k: 'lipsa', m: 'Alege ora de la care poți.' };
-    if (r.fel === 'pana' && r.hi == null) return { k: 'lipsa', m: 'Alege ora până la care poți.' };
+    if (r.fel === 'dupa' && r.lo == null) return { k: 'lipsa', m: T.lipsaDupa };
+    if (r.fel === 'pana' && r.hi == null) return { k: 'lipsa', m: T.lipsaPana };
     if ((r.fel === 'intre' || r.fel === 'afara') && (r.lo == null || r.hi == null))
-      return { k: 'lipsa', m: r.lo == null ? 'Alege întâi ora de început.' : 'Acum alege ora de sfârșit.' };
+      return { k: 'lipsa', m: r.lo == null ? T.lipsaLo : T.lipsaHi };
     if (r.fel === 'afara') {
       var S = CER.z[z][0], E = CER.z[z][1];
       if (r.lo - S < CER.d && E - r.hi < CER.d)
-        return { k: 'eroare', m: 'Așa nu mai rămâne loc pentru o ședință în ziua asta. Alege „Indisponibil”.' };
+        return { k: 'eroare', m: T.faraLoc };
     }
     return { k: 'gata' };
   }
@@ -492,28 +1366,29 @@ textarea.camp{min-height:92px;resize:vertical}
   }
 
   function rezumat(r) {
-    if (!r || !r.fel) return 'Alege';
-    var q = '…';
+    if (!r || !r.fel) return T.alege;
+    var q = '…', a = r.lo != null ? H(r.lo) : q, b = r.hi != null ? H(r.hi) : q, R = T.rez;
     switch (r.fel) {
-      case 'oricand': return 'Oricând';
-      case 'nu': return 'Indisponibil';
-      case 'dupa': return 'De la ' + (r.lo != null ? H(r.lo) : q);
-      case 'pana': return 'Până la ' + (r.hi != null ? H(r.hi) : q);
-      case 'intre': return 'Între ' + (r.lo != null ? H(r.lo) : q) + ' și ' + (r.hi != null ? H(r.hi) : q);
-      case 'afara': return 'Nu pot între ' + (r.lo != null ? H(r.lo) : q) + ' și ' + (r.hi != null ? H(r.hi) : q);
+      case 'oricand': return R.oricand;
+      case 'nu': return R.nu;
+      case 'dupa': return R.dupa(a);
+      case 'pana': return R.pana(b);
+      case 'intre': return R.intre(a, b);
+      case 'afara': return R.afara(a, b);
     }
-    return 'Alege';
+    return T.alege;
   }
   /* La fel, dar pentru mesajul pe WhatsApp. */
   function textRegula(r) {
     if (!r || !r.fel) return '';
+    var X = T.txt;
     switch (r.fel) {
-      case 'oricand': return 'oricând';
-      case 'nu': return 'indisponibil';
-      case 'dupa': return 'de la ' + H(r.lo);
-      case 'pana': return 'până la ' + H(r.hi);
-      case 'intre': return 'între ' + H(r.lo) + ' și ' + H(r.hi);
-      case 'afara': return 'oricând, mai puțin între ' + H(r.lo) + ' și ' + H(r.hi);
+      case 'oricand': return X.oricand;
+      case 'nu': return X.nu;
+      case 'dupa': return X.dupa(H(r.lo));
+      case 'pana': return X.pana(H(r.hi));
+      case 'intre': return X.intre(H(r.lo), H(r.hi));
+      case 'afara': return X.afara(H(r.lo), H(r.hi));
     }
     return '';
   }
@@ -552,8 +1427,7 @@ textarea.camp{min-height:92px;resize:vertical}
     for (var k = 0; k < CATE_LUNI; k++) out.push(iso(new Date(d.getFullYear(), d.getMonth() + k, 1, 12)).slice(0, 7));
     return out;
   }
-  function numeLuna(l) { return LUNI[Number(l.slice(5, 7)) - 1]; }
-  function mare(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
+  function numeLuna(l) { return T.lunaNume(Number(l.slice(5, 7)) - 1); }
   /* Săptămânile care ating luna aleasă, fiecare prin lunea ei: patru, cinci
      sau șase, după cum cade luna. */
   function saptamaniLuna(l) {
@@ -605,11 +1479,11 @@ textarea.camp{min-height:92px;resize:vertical}
       var toate = dinVedere.filter(function (t) { return ziSapt(t) === z && lucreaza(z) && !inLipsa(t); });
       var lipsesc = lipsa.filter(function (t) { return ziSapt(t) === z; });
       if (!lipsesc.length) return;
-      if (lipsesc.length === toate.length && toate.length > 1) parti.push(MIC[z]);
+      if (lipsesc.length === toate.length && toate.length > 1) parti.push(T.toate[z]);
       else lipsesc.forEach(function (t) { parti.push(dataLunga(t)); });
     });
-    if (parti.length > 4) return parti.slice(0, 3).join(', ') + ' și încă ' + (parti.length - 3);
-    return parti.length > 1 ? parti.slice(0, -1).join(', ') + ' și ' + parti[parti.length - 1] : parti[0] || '';
+    if (parti.length > 4) return parti.slice(0, 3).join(', ') + T.siInca(parti.length - 3);
+    return parti.length > 1 ? parti.slice(0, -1).join(', ') + T.si + parti[parti.length - 1] : parti[0] || '';
   }
 
   /* ================= desenarea ================= */
@@ -643,11 +1517,11 @@ textarea.camp{min-height:92px;resize:vertical}
       var trecut = t < a, lip = inLipsa(t), lucru = lucreaza(z);
       var gata = r && stareRegula(z, r).k === 'gata';
       var cls = 'cel', stare;
-      if (!lucru) { cls += ' inc'; stare = 'îndrumătorul nu lucrează'; }
-      else if (trecut) { cls += ' trecut'; stare = 'a trecut'; }
-      else if (lip) { cls += ' plecat'; stare = 'lipsești'; }
-      else if (!gata) { cls += ' nes'; stare = 'de ales'; }
-      else { if (r.fel === 'nu') cls += ' nu'; stare = textRegula(r) + (exc ? ', doar ziua asta' : ''); }
+      if (!lucru) { cls += ' inc'; stare = T.nuLucreaza; }
+      else if (trecut) { cls += ' trecut'; stare = T.aTrecut; }
+      else if (lip) { cls += ' plecat'; stare = T.lipsesti; }
+      else if (!gata) { cls += ' nes'; stare = T.deAles; }
+      else { if (r.fel === 'nu') cls += ' nu'; stare = textRegula(r) + (exc ? T.doarAsta : ''); }
       if (exc && lucru && !trecut && !lip) cls += ' exc';
       if (t === a) cls += ' azi';
       if (foaie && foaie.mod === 'data' && foaie.t === t) cls += ' sel';
@@ -664,17 +1538,17 @@ textarea.camp{min-height:92px;resize:vertical}
   function htmlCapete() {
     return ZILE.map(function (z) {
       var are = !!(st.zile[z] && stareRegula(z, st.zile[z]).k === 'gata');
-      if (!lucreaza(z)) return '<button type="button" class="kp" disabled aria-label="' + MIC[z] + ': îndrumătorul nu lucrează">' + LIT[z] + '<i></i></button>';
+      if (!lucreaza(z)) return '<button type="button" class="kp" disabled aria-label="' + esc(MIC[z] + ': ' + T.nuLucreaza) + '">' + LIT[z] + '<i></i></button>';
       return '<button type="button" class="kp' + (are ? ' are' : '') + '" data-act="zi" data-zi="' + z + '" aria-label="' +
-        esc('Alege pentru fiecare ' + MIC[z] + (are ? ' (acum: ' + textRegula(st.zile[z]) + ')' : '')) + '">' + LIT[z] + '<i></i></button>';
+        esc(T.alegeFiecare(z) + (are ? T.acum(textRegula(st.zile[z])) : '')) + '">' + LIT[z] + '<i></i></button>';
     }).join('');
   }
 
   function htmlVad() {
-    return '<span>Arată</span><span class="seg" role="group" aria-label="Cât să arate calendarul">' +
+    return '<span>' + T.arata + '</span><span class="seg" role="group" aria-label="' + esc(T.ariaVedere) + '">' +
       VEDERI.map(function (v) {
         return '<button type="button" data-act="vedere" data-n="' + v[0] + '" aria-pressed="' + (st.vedere === v[0]) + '"' +
-          (v[0] ? ' aria-label="' + v[0] + (v[0] === 1 ? ' săptămână' : ' săptămâni') + '"' : '') + '>' + v[1] + '</button>';
+          (v[0] ? ' aria-label="' + esc(T.sapt(v[0])) + '"' : '') + '>' + v[1] + '</button>';
       }).join('') + '</span>';
   }
   /* Filele lunilor. Punctul arată lunile în care ai ales zile anume. */
@@ -682,23 +1556,23 @@ textarea.camp{min-height:92px;resize:vertical}
     return luniDeAles().map(function (l) {
       var are = Object.keys(st.date).some(function (t) { return lunaDe(t) === l && t >= azi(); });
       return '<button type="button" data-act="luna" data-luna="' + l + '" aria-pressed="' + (l === st.luna) + '" aria-label="' +
-        esc(numeLuna(l) + ' ' + l.slice(0, 4) + (are ? ', cu zile anume' : '')) + '">' +
+        esc(numeLuna(l) + ' ' + l.slice(0, 4) + (are ? T.cuZileAnume : '')) + '">' +
         (are ? '<span class="pct" aria-hidden="true"></span>' : '') +
-        '<b>' + mare(numeLuna(l).slice(0, 3)) + '</b><small>' + l.slice(0, 4) + '</small></button>';
+        '<b>' + esc(T.lunaScurt(Number(l.slice(5, 7)) - 1)) + '</b><small>' + l.slice(0, 4) + '</small></button>';
     }).join('');
   }
   /* Sub calendar, când se văd doar 1–3 săptămâni: înainte și înapoi, în luna aleasă. */
   function htmlPagini() {
     if (!st.vedere) return '';
     var s = saptamaniLuna(st.luna), de = pagAcum(), pana = Math.min(de + st.vedere, s.length);
-    var et = 'săpt. ' + (de + 1) + (pana - de > 1 ? '–' + pana : '') + ' din ' + s.length;
+    var et = T.pagini(de + 1, pana - de > 1 ? pana : 0, s.length);
     var luni = luniDeAles(), urm = luni[luni.indexOf(st.luna) + 1];
-    var mai = de >= pagMax() && urm ? '<p class="mai">Mai departe e ' + numeLuna(urm) + ': alege-o din filele de sus.</p>' : '';
+    var mai = de >= pagMax() && urm ? '<p class="mai">' + esc(T.maiDeparte(numeLuna(urm))) + '</p>' : '';
     return '<button type="button" class="pag" data-act="pag" data-dir="-1"' + (de <= pagMin() ? ' disabled' : '') +
-      ' aria-label="Săptămânile de dinainte, în ' + numeLuna(st.luna) + '">‹ Înapoi</button>' +
+      ' aria-label="' + esc(T.ariaInapoi(numeLuna(st.luna))) + '">' + T.inapoi + '</button>' +
       '<span>' + et + '</span>' +
       '<button type="button" class="pag" data-act="pag" data-dir="1"' + (de >= pagMax() ? ' disabled' : '') +
-      ' aria-label="Săptămânile următoare, în ' + numeLuna(st.luna) + '">Înainte ›</button>' + mai;
+      ' aria-label="' + esc(T.ariaInainte(numeLuna(st.luna))) + '">' + T.inainte + '</button>' + mai;
   }
   /* „7–20 decembrie”: ce zile ale lunii se văd, când nu e toată luna. */
   function textVazut() {
@@ -706,30 +1580,30 @@ textarea.camp{min-height:92px;resize:vertical}
     var v = zileVazute().filter(function (t) { return lunaDe(t) === st.luna; });
     if (!v.length) return '';
     var a = Number(v[0].slice(8)), b = Number(v[v.length - 1].slice(8));
-    return (a === b ? a : a + '–' + b) + ' ' + numeLuna(st.luna);
+    return T.vazut(a, b, Number(st.luna.slice(5, 7)) - 1);
   }
 
   function htmlRepede() {
     var nimic = !ZILE.some(function (z) { return st.zile[z] && st.zile[z].fel; });
-    return nimic ? '<button type="button" class="repede" data-act="toate">✓ Pot oricând, în toate zilele</button>' : '';
+    return nimic ? '<button type="button" class="repede" data-act="toate">' + T.repede + '</button>' : '';
   }
 
   function htmlLista() {
     var t = '';
     ZILE.forEach(function (z) {
       if (!lucreaza(z)) {
-        t += '<div class="zi-r inchisa" id="zi-' + z + '"><span class="zi-nume">' + NUME[z] + '</span><span class="zi-rez">îndrumătorul nu lucrează</span></div>';
+        t += '<div class="zi-r inchisa" id="zi-' + z + '"><span class="zi-nume">' + NUME[z] + '</span><span class="zi-rez">' + T.nuLucreaza + '</span></div>';
         return;
       }
       var r = st.zile[z], gata = r && stareRegula(z, r).k === 'gata';
       t += '<button type="button" class="zi-r' + (gata ? '' : ' lipsa') + '" id="zi-' + z + '" data-act="zi" data-zi="' + z + '">' +
         '<span class="zi-nume">' + NUME[z] + '</span>' + htmlBanda(z, gata ? r : null, 'mini') +
-        '<span class="zi-rez">' + (gata ? rezumat(r) : 'Alege') + '</span></button>';
+        '<span class="zi-rez">' + (gata ? rezumat(r) : T.alege) + '</span></button>';
     });
     Object.keys(st.date).sort().forEach(function (d) {
       var z = ziSapt(d), r = st.date[d];
       t += '<button type="button" class="zi-r exceptie" data-act="data" data-iso="' + d + '">' +
-        '<span class="zi-nume">Doar ' + esc(dataLunga(d)) + '</span>' + htmlBanda(z, r, 'mini') +
+        '<span class="zi-nume">' + esc(T.doar(dataLunga(d))) + '</span>' + htmlBanda(z, r, 'mini') +
         '<span class="zi-rez">' + rezumat(r) + '</span></button>';
     });
     return t;
@@ -743,17 +1617,17 @@ textarea.camp{min-height:92px;resize:vertical}
   function htmlAlte() {
     var L = st.lipsa, t = '';
     /* Plecat o perioadă */
-    t += '<div class="optiune" id="op-lipsa">' + htmlComutator('lipsa', L.on, 'Lipsesc o perioadă', 'Concediu, plecare, sesiune de examene.');
+    t += '<div class="optiune" id="op-lipsa">' + htmlComutator('lipsa', L.on, T.lipsescTitlu, T.lipsescSub);
     if (L.on) {
       t += '<div class="optiune-corp"><div class="doua">' +
-        '<label><span class="eticheta">Prima zi în care lipsesc</span><input class="camp" type="date" data-camp="din" min="' + azi() + '" value="' + esc(L.din) + '"></label>' +
-        '<label><span class="eticheta">Ultima zi în care lipsesc</span><input class="camp" type="date" data-camp="pana" min="' + esc(L.din || azi()) + '" value="' + esc(L.pana) + '"></label></div>';
+        '<label><span class="eticheta">' + T.primaZi + '</span><input class="camp" type="date" data-camp="din" min="' + azi() + '" value="' + esc(L.din) + '"></label>' +
+        '<label><span class="eticheta">' + T.ultimaZi + '</span><input class="camp" type="date" data-camp="pana" min="' + esc(L.din || azi()) + '" value="' + esc(L.pana) + '"></label></div>';
       var pl = problemaLipsa(); if (pl) t += '<p class="nota"><b>' + pl + '</b></p>';
       t += '</div>';
     }
     t += '</div>';
     /* Un cuvânt în plus */
-    t += '<div class="optiune"><div class="optiune-corp" style="border:0;padding-top:4px"><label class="eticheta" for="mesaj">Mai vrei să-i spui ceva? (opțional)</label>' +
+    t += '<div class="optiune"><div class="optiune-corp" style="border:0;padding-top:4px"><label class="eticheta" for="mesaj">' + T.maiVrei + '</label>' +
       '<textarea class="camp" id="mesaj" maxlength="300" data-camp="mesaj">' + esc(st.mesaj) + '</textarea>' +
       '<div class="contor" id="contor">' + st.mesaj.length + '/300</div></div></div>';
     return t;
@@ -762,9 +1636,9 @@ textarea.camp{min-height:92px;resize:vertical}
   function problemaLipsa() {
     var L = st.lipsa;
     if (!L.on) return '';
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(L.din) || !/^\d{4}-\d{2}-\d{2}$/.test(L.pana)) return 'Alege prima și ultima zi.';
-    if (L.din > L.pana) return 'Ultima zi e înaintea primei.';
-    if (L.pana < azi()) return 'Perioada a trecut deja.';
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(L.din) || !/^\d{4}-\d{2}-\d{2}$/.test(L.pana)) return T.plAlege;
+    if (L.din > L.pana) return T.plInvers;
+    if (L.pana < azi()) return T.plTrecut;
     return '';
   }
 
@@ -781,15 +1655,16 @@ textarea.camp{min-height:92px;resize:vertical}
 
   function fraza(z, r) {
     var S = CER.z[z][0], E = CER.z[z][1], s = stareRegula(z, r);
-    if (!r || !r.fel) return 'Alege una dintre variantele de mai jos.';
+    var F = T.fraza;
+    if (!r || !r.fel) return F.gol;
     if (s.k !== 'gata') return s.m || '';
     switch (r.fel) {
-      case 'oricand': return 'Poți toată ziua, ' + H(S) + '–' + H(E) + '.';
-      case 'nu': return 'Nu poți deloc în ziua asta.';
-      case 'dupa': return 'Poți de la ' + H(r.lo) + ' până la ' + H(E) + '.';
-      case 'pana': return 'Poți de la ' + H(S) + ' până la ' + H(r.hi) + '.';
-      case 'intre': return 'Poți doar între ' + H(r.lo) + ' și ' + H(r.hi) + '.';
-      case 'afara': return 'Nu poți între ' + H(r.lo) + ' și ' + H(r.hi) + '. În rest, da.';
+      case 'oricand': return F.oricand(H(S), H(E));
+      case 'nu': return F.nu;
+      case 'dupa': return F.dupa(H(r.lo), H(E));
+      case 'pana': return F.pana(H(S), H(r.hi));
+      case 'intre': return F.intre(H(r.lo), H(r.hi));
+      case 'afara': return F.afara(H(r.lo), H(r.hi));
     }
     return '';
   }
@@ -797,43 +1672,41 @@ textarea.camp{min-height:92px;resize:vertical}
   function htmlFoaie() {
     if (!foaie) return '';
     var z = foaie.z, r = foaie.r, s = stareRegula(z, r), S = CER.z[z][0], E = CER.z[z][1];
-    var titlu = foaie.mod === 'zi' ? 'În fiecare ' + MIC[z] : NUME[z] + ', ' + dataText(foaie.t);
-    var t = '<button type="button" class="voal" data-act="inchide" tabindex="-1" aria-label="Închide"></button>' +
+    var titlu = foaie.mod === 'zi' ? T.fiecare(z) : T.ziData(z, dataText(foaie.t));
+    var t = '<button type="button" class="voal" data-act="inchide" tabindex="-1" aria-label="' + esc(T.inchide) + '"></button>' +
       '<section class="foaie" id="foaie" role="dialog" aria-modal="true" aria-labelledby="f-titlu">' +
-      '<div class="f-cap"><div><h2 id="f-titlu">' + esc(titlu) + '</h2><p class="sub">Îndrumătorul lucrează ' + H(S) + '–' + H(E) + '.</p></div>' +
-      '<button type="button" class="x" data-act="inchide" aria-label="Închide">×</button></div>' +
+      '<div class="f-cap"><div><h2 id="f-titlu">' + esc(titlu) + '</h2><p class="sub">' + esc(T.lucreaza(H(S), H(E))) + '</p></div>' +
+      '<button type="button" class="x" data-act="inchide" aria-label="' + esc(T.inchide) + '">×</button></div>' +
       htmlBanda(z, s.k === 'gata' ? r : null, 'drum') +
       '<span class="capete" aria-hidden="true"><span>' + H(S) + '</span><span>' + H(E) + '</span></span>' +
       '<p class="fraza" aria-live="polite">' + esc(fraza(z, r)) + '</p>' +
-      '<span class="eticheta" id="f-fel">Cum poți?</span><div class="feluri" role="group" aria-labelledby="f-fel">';
+      '<span class="eticheta" id="f-fel">' + T.cumPoti + '</span><div class="feluri" role="group" aria-labelledby="f-fel">';
     FELURI.forEach(function (f) {
       t += '<button type="button" class="alege" data-act="fel" data-fel="' + f[0] + '" aria-pressed="' + (r.fel === f[0]) + '">' + f[1] + '</button>';
     });
     t += '</div>';
     if (r.fel === 'dupa') {
-      t += htmlSir(z, 'lo', 'Pot începe de la', optiuni(z, 'dupa', 'lo', r), r.lo);
-      t += '<p class="nota">Poți începe la ora aleasă sau oricând după ea.</p>';
+      t += htmlSir(z, 'lo', T.potIncepe, optiuni(z, 'dupa', 'lo', r), r.lo);
+      t += '<p class="nota">' + T.notaDupa + '</p>';
     } else if (r.fel === 'pana') {
-      t += htmlSir(z, 'hi', 'Trebuie să termin până la', optiuni(z, 'pana', 'hi', r), r.hi);
-      t += '<p class="nota">Ședința se termină cel târziu la ora aleasă.</p>';
+      t += htmlSir(z, 'hi', T.terminPana, optiuni(z, 'pana', 'hi', r), r.hi);
+      t += '<p class="nota">' + T.notaPana + '</p>';
     } else if (r.fel === 'intre' || r.fel === 'afara') {
-      t += htmlSir(z, 'lo', r.fel === 'intre' ? 'Pot de la' : 'Nu pot de la', optiuni(z, r.fel, 'lo', r), r.lo);
-      if (r.lo != null) t += htmlSir(z, 'hi', 'până la', optiuni(z, r.fel, 'hi', r), r.hi);
-      t += '<p class="nota">' + (r.fel === 'intre'
-        ? 'Ședința începe și se termină în intervalul ăsta. Arătăm doar orele în care încape o ședință întreagă.'
-        : 'În restul zilei poți. Ședința nu va atinge intervalul ăsta.') + '</p>';
+      t += htmlSir(z, 'lo', r.fel === 'intre' ? T.potDe : T.nuPotDe, optiuni(z, r.fel, 'lo', r), r.lo);
+      if (r.lo != null) t += htmlSir(z, 'hi', T.panaLa, optiuni(z, r.fel, 'hi', r), r.hi);
+      t += '<p class="nota">' + (r.fel === 'intre' ? T.notaIntre : T.notaAfara) + '</p>';
     }
     if (s.k === 'eroare') t += '<p class="greseala">' + s.m + '</p>';
     if (foaie.mod === 'data') {
-      t += '<div class="lafel">' + htmlComutator('lafel', foaie.laFel, 'La fel în fiecare ' + MIC[z],
-        foaie.laFel ? 'Se pune în toate zilele de ' + MIC[z] + '.' : 'Doar pe ' + dataText(foaie.t) + '.') + '</div>';
+      t += '<div class="lafel">' + htmlComutator('lafel', foaie.laFel, esc(T.laFel(z)),
+        esc(foaie.laFel ? T.sePune(z) : T.doarPe(dataText(foaie.t)))) + '</div>';
     }
     var areCeva = foaie.mod === 'zi' ? !!st.zile[z] : (!!st.date[foaie.t] || !!st.zile[z]);
     var urm = urmatoarea();
     t += '<div class="f-jos">' +
-      (areCeva ? '<button type="button" class="mic" data-act="sterge">Șterge</button>' : '') +
+      (areCeva ? '<button type="button" class="mic" data-act="sterge">' + T.sterge + '</button>' : '') +
       '<button type="button" class="mic plin" data-act="gata"' + (s.k === 'gata' ? '' : ' disabled') + '>' +
-      (urm ? 'Gata · ziua următoare' : 'Gata') + '</button></div>';
+      (urm ? T.gataUrm : T.gata) + '</button></div>';
     return t + '</section>';
   }
 
@@ -842,9 +1715,9 @@ textarea.camp{min-height:92px;resize:vertical}
     elTrimite.classList.toggle('neterminat', !gata);
     elStare.className = 'stare';
     if (mesajNou) { elStare.textContent = mesajNou.t; if (mesajNou.c) elStare.classList.add(mesajNou.c); return; }
-    if (st.trimis) { elStare.textContent = 'S-a deschis WhatsApp cu mesajul gata scris. Apasă Trimite acolo.'; elStare.classList.add('bine'); return; }
-    if (gata) { elStare.textContent = 'Totul e completat. Mesajul se deschide în WhatsApp.'; return; }
-    if (lipsa.length) { elStare.textContent = 'Mai ai de ales: ' + listaDeAles(lipsa) + '.'; return; }
+    if (st.trimis) { elStare.textContent = T.stTrimis; elStare.classList.add('bine'); return; }
+    if (gata) { elStare.textContent = T.stGata; return; }
+    if (lipsa.length) { elStare.textContent = T.stMaiAi(listaDeAles(lipsa)); return; }
     elStare.textContent = pl;
   }
 
@@ -973,7 +1846,7 @@ textarea.camp{min-height:92px;resize:vertical}
     if (act === 'toate') {
       ZILE.forEach(function (z) { if (lucreaza(z)) st.zile[z] = { fel: 'oricand' }; });
       pastreaza(); deseneaza();
-      deseneazaStarea({ t: 'Gata: oricând, în fiecare zi. O zi anume o poți schimba atingând-o.', c: 'bine' });
+      deseneazaStarea({ t: T.toateGata, c: 'bine' });
       return;
     }
     if (act === 'comuta') {
@@ -1083,18 +1956,18 @@ textarea.camp{min-height:92px;resize:vertical}
     return new URL('./', location.href).href.split('#')[0] + '#disp=' + in64(raspuns());
   }
   function mesaj() {
-    var L = ['Bună! Programul meu pentru ședințele de condus:', ''];
+    var L = [T.msgCap, ''];
     ZILE.forEach(function (z) {
       if (lucreaza(z) && st.zile[z] && stareRegula(z, st.zile[z]).k === 'gata') L.push('*' + NUME[z] + ':* ' + textRegula(st.zile[z]));
     });
     var x = exceptiiDeTrimis();
     if (x.length) {
-      L.push('', '*Doar în anumite zile:*');
+      L.push('', T.msgAnume);
       x.forEach(function (t) { L.push('- ' + dataLunga(t) + ': ' + textRegula(st.date[t])); });
     }
-    if (st.lipsa.on) L.push('', '*Lipsesc:* de pe ' + dataText(st.lipsa.din) + ' până pe ' + dataText(st.lipsa.pana) + ', inclusiv.');
-    if (st.mesaj.trim()) L.push('', '*Mai am de spus:* ' + st.mesaj.trim());
-    L.push('', 'Pentru aplicația IAS:', linkRaspuns());
+    if (st.lipsa.on) L.push('', T.msgLipsesc(dataText(st.lipsa.din), dataText(st.lipsa.pana)));
+    if (st.mesaj.trim()) L.push('', T.msgMaiAm + st.mesaj.trim());
+    L.push('', T.msgPentru, linkRaspuns());
     return L.join('\n');
   }
 
@@ -1108,7 +1981,7 @@ textarea.camp{min-height:92px;resize:vertical}
     var lipsa = deAles();
     if (lipsa.length) {
       deschideData(lipsa[0]);
-      deseneazaStarea({ t: 'Mai ai de ales ' + dataLunga(lipsa[0]) + '.', c: 'rau' });
+      deseneazaStarea({ t: T.maiAiZi(dataLunga(lipsa[0])), c: 'rau' });
       return true;
     }
     var pl = problemaLipsa();
@@ -1133,12 +2006,12 @@ textarea.camp{min-height:92px;resize:vertical}
   document.getElementById('copiaza').addEventListener('click', function () {
     if (primaProblema()) return;
     var text = mesaj();
-    function bine() { deseneazaStarea({ t: 'Mesajul e copiat. Lipește-l în conversația cu îndrumătorul.', c: 'bine' }); }
+    function bine() { deseneazaStarea({ t: T.copiat, c: 'bine' }); }
     function vechi() {
       var a = document.createElement('textarea');
       a.value = text; a.setAttribute('readonly', ''); a.style.position = 'fixed'; a.style.opacity = '0';
       document.body.appendChild(a); a.select();
-      try { document.execCommand('copy'); bine(); } catch (x) { deseneazaStarea({ t: 'Nu s-a putut copia. Folosește butonul verde.', c: 'rau' }); }
+      try { document.execCommand('copy'); bine(); } catch (x) { deseneazaStarea({ t: T.necopiat, c: 'rau' }); }
       document.body.removeChild(a);
     }
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(bine, vechi);
@@ -1146,25 +2019,54 @@ textarea.camp{min-height:92px;resize:vertical}
   });
 
   document.getElementById('dinNou').addEventListener('click', function () {
-    if (!window.confirm('Ștergi tot ce ai ales și o iei de la capăt?')) return;
-    var v = st.vedere, l = st.luna;
-    st = gol(); st.vedere = v; st.luna = l; foaie = null; pastreaza(); deseneaza(); window.scrollTo(0, 0);
+    if (!window.confirm(T.confirmNou)) return;
+    var v = st.vedere, l = st.luna, lb = st.limba;
+    st = gol(); st.vedere = v; st.luna = l; st.limba = lb; foaie = null; pastreaza(); deseneaza(); window.scrollTo(0, 0);
   });
 
   /* ================= capul paginii ================= */
-  var cine = CER.n ? '<b>' + esc(CER.n) + '</b>' : 'Îndrumătorul tău';
-  document.getElementById('intro').innerHTML = cine + ' îți face programul pentru ședințele de condus' +
-    (CER.s ? ' la <b>' + esc(CER.s) + '</b>' : '') + '. Spune-i când poți, apoi trimite-i răspunsul pe WhatsApp.';
-  document.getElementById('sedinta').textContent = 'O ședință durează ' + durata(CER.d) + '.';
-  var aviz = document.getElementById('aviz');
-  if (!CER.ok) {
-    aviz.hidden = false;
-    aviz.textContent = 'Linkul nu e cel trimis de îndrumător sau s-a tăiat pe drum. Poți completa oricum, dar cere-i linkul întreg ca orele să fie cele ale lui.';
-  } else if (!CER.w) {
-    aviz.hidden = false;
-    aviz.textContent = 'Când apeși Trimite, alege-l pe îndrumător din lista ta de WhatsApp.';
+  function scrieCapul() {
+    document.documentElement.lang = T.html;
+    document.querySelectorAll('[data-t]').forEach(function (el) {
+      var v = T[el.getAttribute('data-t')];
+      if (typeof v === 'string' && el.textContent !== v) el.textContent = v;
+    });
+    document.querySelectorAll('[data-t-aria]').forEach(function (el) {
+      var v = T[el.getAttribute('data-t-aria')];
+      if (typeof v === 'string') el.setAttribute('aria-label', v);
+    });
+    var cine = CER.n ? '<b>' + esc(CER.n) + '</b>' : T.cine;
+    document.getElementById('intro').innerHTML = T.intro(cine, CER.s ? '<b>' + esc(CER.s) + '</b>' : '');
+    document.getElementById('sedinta').textContent = T.sedinta(durata(CER.d));
+    var aviz = document.getElementById('aviz');
+    if (!CER.ok) {
+      aviz.hidden = false;
+      aviz.textContent = T.avizLink;
+    } else if (!CER.w) {
+      aviz.hidden = false;
+      aviz.textContent = T.avizWa;
+    }
+    var cod = document.getElementById('limba-cod');
+    if (cod) cod.textContent = T.html.toUpperCase();
+  }
+  /* Alegerea limbii, sus: arată toate limbile paginii, fiecare cu numele ei.
+     Se vede doar când linkul a venit cu o limbă sau când elevul a ales deja
+     una — un elev român nu are de ce s-o vadă. */
+  var elLimba = document.getElementById('limba'), elLimbaAlege = document.getElementById('limba-alege');
+  if (elLimba) {
+    elLimba.innerHTML = ORDINE_LIMBI.map(function (k) {
+      return '<option value="' + k + '">' + esc(LIMBI[k].nume) + '</option>';
+    }).join('');
+    elLimba.value = T.html;
+    elLimbaAlege.hidden = !(CER.l || st.limba);
+    elLimba.addEventListener('change', function () {
+      var L = elLimba.value;
+      if (!LIMBI[L]) return;
+      st.limba = L; pastreaza(); puneLimba(L); scrieCapul(); deseneaza();
+    });
   }
 
+  scrieCapul();
   deseneaza();
 
   /* ================= versiunea ================= */
