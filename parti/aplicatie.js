@@ -2902,16 +2902,17 @@ function iasProgramSaptamana(setari) {
     })
 }
 
-/* Linkul pentru elev. Duce doar codul fișei, orele tale de lucru, durata unei
-   ședințe, numele tău, numărul tău de WhatsApp și limba în care se deschide
-   pagina — altceva despre elev nu. */
+/* Linkul pentru elev. Duce doar codul fișei, durata unei ședințe, numele tău,
+   numărul tău de WhatsApp și limba în care se deschide pagina — altceva
+   despre elev nu. Orele tale de lucru nu mai pleacă: elevul spune când poate
+   el, în toate zilele și la orice oră, iar planul îl pune doar în programul
+   tău (cel al săptămânii respective). */
 function iasLinkCerereProgram(elev, setari) {
     var s = setari || {},
         o = {
             v: 1,
             e: String((elev || {}).id || ""),
             w: qw(String(s.telefonulTau || "")),
-            z: iasProgramSaptamana(s),
             d: Math.round(Number(s.sessionMin) || si),
             n: String(s.numeleTau || "").trim().slice(0, 60),
             s: String(s.numeScoala || "").trim().slice(0, 80),
@@ -9262,7 +9263,8 @@ function IasCereProgram({ elev: iasEl, setari: iasS, onClose: iasInchide, onNuma
         iasTel ? null : E("p", { className: "text-xs text-slate-400 mt-2" },
             "Elevul n-are telefon pe fi\u0219\u0103: WhatsApp te las\u0103 s\u0103-l alegi din contacte."),
         E("p", { className: "text-xs text-slate-400 mt-3" },
-            iasLimbaDe(iasEl) ? "Linkul duce doar codul fi\u0219ei, orele tale de lucru, num\u0103rul t\u0103u \u0219i limba paginii. Altceva despre elev nu con\u021Bine." : "Linkul duce doar codul fi\u0219ei, orele tale de lucru \u0219i num\u0103rul t\u0103u. Despre elev nu con\u021Bine nimic."))
+            "Elevul spune c\xE2nd poate el, \xEEn toate zilele s\u0103pt\u0103m\xE2nii; planul \xEEl pune doar \xEEn programul t\u0103u de lucru. ",
+            iasLimbaDe(iasEl) ? "Linkul duce doar codul fi\u0219ei, num\u0103rul t\u0103u \u0219i limba paginii \u2014 nici orele tale, nici altceva despre elev." : "Linkul duce doar codul fi\u0219ei \u0219i num\u0103rul t\u0103u \u2014 nici orele tale, nici altceva despre elev."))
 }
 
 /* Linkul din mesajul elevului a deschis aplicația. Alegi: doar îl păstrezi
@@ -14825,6 +14827,16 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.61.3.7",
+    titlu: "Elevul spune când poate, toată săptămâna",
+    puncte: [
+        "Pe pagina de disponibilitate elevul completează acum toate cele 7 zile, inclusiv sâmbăta și duminica, și poate alege orice oră din zi. Înainte vedea închise zilele în care nu lucrai și orele din afara programului tău, de unde părea că „nu ești disponibil în weekend”.",
+        "Orele tale de lucru nu mai pleacă în link și nu mai apar nicăieri pe pagină. În foaia unei zile scrie acum: „Spune când poți tu. Îndrumătorul te programează doar în orele lui de lucru.”",
+        "Planul nu se schimbă: pune ședințele doar în programul tău, așa cum e el în săptămâna respectivă, și doar acolo unde elevul a spus că poate. Când schimbi programul pe o săptămână, disponibilitatea elevilor e deja acolo, pe toată săptămâna.",
+        "Linkurile trimise deja merg mai departe și se deschid și ele pe toată săptămâna."
+    ],
+    scurt: "Pe pagina de disponibilitate elevul completează acum toată săptămâna, la orice oră; planul îl programează doar când lucrezi."
+}, {
     v: "v2.61.3.6",
     titlu: "Pagina de disponibilitate, în limba elevului",
     puncte: [
