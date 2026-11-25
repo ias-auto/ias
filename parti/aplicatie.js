@@ -642,7 +642,7 @@ var IAS_CUVINTE_SETARI = {
     amintiri: "notificari alarma calendar telefon seara dimineata",
     elevi: "limita saptamana judet moneda lei",
     programElevi: "link disponibilitate whatsapp numar",
-    euSiScoala: "nume scoala mesaj bun venit prezinti",
+    euSiScoala: "nume scoala mesaj bun venit prezinti engleza english limbi limba straina ucraineana rusa turca franceza germana italiana spaniola",
     masini: "masina numar cutie automata manuala",
     locatii: "puncte intalnire casa harta start",
     tema: "zi noapte intunecat luminos culori sistem",
@@ -1472,17 +1472,38 @@ function Vw(n, e) {
     return Number.isFinite(s) && s >= 0 ? s : i
 }
 
+/* Salariul pe limbi. Engleza își păstrează rândurile de dinainte
+   (englishBase / englishOvertime); celelalte limbi primesc „l:<limba>:base"
+   și „l:<limba>:overtime". */
+function iasCheieSalariu(limba, peste) {
+    return !limba ? (peste ? "overtime" : "base") : limba === "en" ? (peste ? "englishOvertime" : "englishBase") : `l:${limba}:${peste ? "overtime" : "base"}`
+}
+
+function iasTarifeSalariu(setari) {
+    let a = { ...sr.employer, ...(setari && setari.employer || {}) },
+        tarife = {
+            base: Number(a.baseRate) || 0,
+            overtime: Number(a.overtimeRate) || 0,
+            englishBase: iasTarifLimba(setari, "en", !1),
+            englishOvertime: iasTarifLimba(setari, "en", !0)
+        },
+        randuri = { base: 0, overtime: 0, englishBase: 0, englishOvertime: 0 };
+    iasLimbi(setari).forEach(l => {
+        if (l.id === "en") return;
+        [!1, !0].forEach(peste => {
+            let k = iasCheieSalariu(l.id, peste);
+            tarife[k] = Number(peste ? l.tarifPeste : l.tarif) || 0, randuri[k] = 0
+        })
+    });
+    return { tarife, randuri }
+}
+
 function vw(n, e, t, a) {
     let r = {
             ...sr.employer,
             ...a.employer || {}
         },
-        i = {
-            base: Number(r.baseRate) || 0,
-            overtime: Number(r.overtimeRate) || 0,
-            englishBase: Number(r.englishBaseRate) || 0,
-            englishOvertime: Number(r.englishOvertimeRate) || 0
-        },
+        i = iasTarifeSalariu(a).tarife,
         s = Number(r.hoursPerDay) || 8,
         l = Number(r.hoursPerSession) || 2,
         u = {};
@@ -1501,8 +1522,8 @@ function vw(n, e, t, a) {
             let y = c + h >= m;
             y && w++;
             let _ = e.find(M => M.id === x.studentId),
-                b = !!(_ && _.english);
-            v += i[b ? y ? "englishOvertime" : "englishBase" : y ? "overtime" : "base"]
+                b = iasCheieSalariu(iasLimbaDe(_), y);
+            v += i[b] != null ? i[b] : iasTarifLimba(a, iasLimbaDe(_), y)
         }), d.push({
             month: p,
             count: g.length,
@@ -1526,22 +1547,16 @@ function JA(n, e, t) {
         l = Number(a.hoursPerSession) || 2,
         u = i * s,
         d = Math.floor(u / Math.max(.5, l)),
-        f = {
-            base: Number(a.baseRate) || 0,
-            overtime: Number(a.overtimeRate) || 0,
-            englishBase: Number(a.englishBaseRate) || 0,
-            englishOvertime: Number(a.englishOvertimeRate) || 0
-        },
-        p = {
-            base: 0,
-            overtime: 0,
-            englishBase: 0,
-            englishOvertime: 0
-        },
+        iasTS = iasTarifeSalariu(t),
+        f = iasTS.tarife,
+        p = iasTS.randuri,
         c = 0;
     return r.forEach((m, g) => {
         let v = g >= d,
-            w = m.english ? v ? "englishOvertime" : "englishBase" : v ? "overtime" : "base";
+            w = iasCheieSalariu(iasLimbaDe(m), v);
+        /* O limbă ștearsă din Setări, cu ședințe făcute în ea: rândul ei rămâne,
+           cu tariful obișnuit. */
+        f[w] == null && (f[w] = iasTarifLimba(t, "", v), p[w] = 0);
         p[w]++, c += f[w]
     }), {
         workingDays: i,
@@ -1820,7 +1835,569 @@ function _0(n) {
 }
 var p0 = "{salut}, {prenume}! Numele meu este {eu} \u0219i te contactez din partea \u0219colii {scoala}. Eu voi fi \xEEndrum\u0103torul t\u0103u pentru \u0219edin\u021Bele de conducere pe care le vei face la noi. Spune-mi, te rog, c\xE2nd ai fi {disponibil} pentru o prim\u0103 \xEEnt\xE2lnire!";
 
+/* ============ LIMBILE ȘEDINȚELOR ============
+   Un elev face ședințele în română sau într-o limbă străină. Limba străină are
+   tariful ei la salariu (în program și peste program) și mesajele ei: bun
+   venit, programare, mutare, anulare, lista ședințelor.
+
+   Limbile tale stau în Setări (settings.limbi) și se aleg dintr-un catalog
+   care are mesajele deja scrise. Una în afara catalogului se poate adăuga cu
+   numele și tariful ei; mesajele pentru ea pleacă în engleză.
+
+   Limba elevului (limba) e cea cu care pornesc ședințele lui; limba ședinței
+   hotărăște tariful și mesajele despre ea. Datele vechi aveau doar english:
+   true — se citesc ca „en". */
+var IAS_LIMBI = {
+    en: {
+        nume: "Engleză", nativ: "English",
+        zile: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+        luni: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+        data: (z, d, l) => `${z}, ${d} ${l}`,
+        salut: "Hi", virgula: "", disponibil: "available", scoala: "our driving school",
+        bunVenit: "{salut} {prenume}! My name is {eu} and I'm contacting you on behalf of {scoala}. I'll be your instructor for the driving lessons you'll be taking with us. Please let me know when you'd be {disponibil} for a first meeting!",
+        programat: (d, h) => `I've booked your driving lesson for ${d}, ${h}.`,
+        loc: "Meeting point:",
+        confirma: "Please confirm within the next hour, so I can free up the slot if you can't make it.",
+        multumesc: "Thank you!",
+        anulat: (d, h) => `As you asked, I've cancelled your driving lesson on ${d} at ${h}. Let me know when you're available, so we can find another time.`,
+        cuvinte: { zi: "DAY", ora: "TIME", loc: "PLACE" },
+        toate3: "I've changed your driving lesson.\n*PLEASE NOTE: the DAY, the TIME and the PLACE are all changing.*",
+        doua: (a, b) => `I've changed your driving lesson.\n*PLEASE NOTE: both the ${a} and the ${b} are changing.*`,
+        doarLoc: "Your lesson stays on the same day, at the same time.\n*Only the MEETING PLACE is changing.*",
+        doarZi: "I've moved your driving lesson.\n*The DAY is changing.* The time stays the same.",
+        doarOra: "I've moved your driving lesson.\n*The TIME is changing.* The day stays the same.",
+        nimic: "I'm writing about your driving lesson.",
+        eticheta: { zi: "Day:", ora: "Time:", loc: "Place:" },
+        nestabilit: "(not set yet)",
+        laFelZiOra: (d, h) => `The day and time stay the same: ${d}, ${h}`,
+        laFelZi: d => `The day stays the same: ${d}`,
+        laFelOra: h => `The time stays the same: ${h}`,
+        laFelLoc: l => `The meeting place stays the same: ${l}`,
+        lista: "Your upcoming driving lessons:",
+        listaFinal: "Please confirm. Thank you!"
+    },
+    uk: {
+        nume: "Ucraineană", nativ: "Українська",
+        zile: ["неділя", "понеділок", "вівторок", "середа", "четвер", "пʼятниця", "субота"],
+        luni: ["січня", "лютого", "березня", "квітня", "травня", "червня", "липня", "серпня", "вересня", "жовтня", "листопада", "грудня"],
+        data: (z, d, l) => `${z}, ${d} ${l}`,
+        salut: "Добрий день", virgula: ",", disponibil: "зручно", scoala: "нашої автошколи",
+        bunVenit: "{salut}, {prenume}! Мене звати {eu}, пишу вам від імені {scoala}. Я буду вашим інструктором на заняттях з водіння. Будь ласка, напишіть, коли вам було б {disponibil} зустрітися вперше!",
+        programat: (d, h) => `Ваше заняття з водіння заплановано: ${d}, ${h}.`,
+        loc: "Місце зустрічі:",
+        confirma: "Будь ласка, підтвердьте протягом години, щоб час можна було звільнити, якщо ви не зможете прийти.",
+        multumesc: "Дякую!",
+        anulat: (d, h) => `Як ви просили, заняття з водіння (${d}, ${h}) скасовано. Напишіть, коли вам зручно, і ми знайдемо інший час.`,
+        cuvinte: { zi: "ДЕНЬ", ora: "ЧАС", loc: "МІСЦЕ" },
+        toate3: "Ваше заняття з водіння змінено.\n*УВАГА: змінюються ДЕНЬ, ЧАС і МІСЦЕ.*",
+        doua: (a, b) => `Ваше заняття з водіння змінено.\n*УВАГА: змінюються ${a} і ${b}.*`,
+        doarLoc: "Заняття залишається того ж дня, о тій самій годині.\n*Змінюється лише МІСЦЕ ЗУСТРІЧІ.*",
+        doarZi: "Ваше заняття з водіння перенесено.\n*Змінюється ДЕНЬ.* Час залишається той самий.",
+        doarOra: "Ваше заняття з водіння перенесено.\n*Змінюється ЧАС.* День залишається той самий.",
+        nimic: "Пишу щодо вашого заняття з водіння.",
+        eticheta: { zi: "День:", ora: "Час:", loc: "Місце:" },
+        nestabilit: "(ще не визначено)",
+        laFelZiOra: (d, h) => `День і час залишаються ті самі: ${d}, ${h}`,
+        laFelZi: d => `День залишається той самий: ${d}`,
+        laFelOra: h => `Час залишається той самий: ${h}`,
+        laFelLoc: l => `Місце зустрічі те саме: ${l}`,
+        lista: "Ваші заплановані заняття з водіння:",
+        listaFinal: "Будь ласка, підтвердьте. Дякую!"
+    },
+    ru: {
+        nume: "Rusă", nativ: "Русский",
+        zile: ["воскресенье", "понедельник", "вторник", "среда", "четверг", "пятница", "суббота"],
+        luni: ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"],
+        data: (z, d, l) => `${z}, ${d} ${l}`,
+        salut: "Здравствуйте", virgula: ",", disponibil: "удобно", scoala: "нашей автошколы",
+        bunVenit: "{salut}, {prenume}! Меня зовут {eu}, пишу вам от имени {scoala}. Я буду вашим инструктором на занятиях по вождению. Пожалуйста, напишите, когда вам было бы {disponibil} встретиться в первый раз!",
+        programat: (d, h) => `Ваше занятие по вождению назначено: ${d}, ${h}.`,
+        loc: "Место встречи:",
+        confirma: "Пожалуйста, подтвердите в течение часа, чтобы время можно было освободить, если вы не сможете прийти.",
+        multumesc: "Спасибо!",
+        anulat: (d, h) => `Как вы просили, занятие по вождению (${d}, ${h}) отменено. Напишите, когда вам удобно, и мы подберём другое время.`,
+        cuvinte: { zi: "ДЕНЬ", ora: "ВРЕМЯ", loc: "МЕСТО" },
+        toate3: "Ваше занятие по вождению изменено.\n*ВНИМАНИЕ: меняются ДЕНЬ, ВРЕМЯ и МЕСТО.*",
+        doua: (a, b) => `Ваше занятие по вождению изменено.\n*ВНИМАНИЕ: меняются ${a} и ${b}.*`,
+        doarLoc: "Занятие остаётся в тот же день, в то же время.\n*Меняется только МЕСТО ВСТРЕЧИ.*",
+        doarZi: "Ваше занятие по вождению перенесено.\n*Меняется ДЕНЬ.* Время остаётся прежним.",
+        doarOra: "Ваше занятие по вождению перенесено.\n*Меняется ВРЕМЯ.* День остаётся прежним.",
+        nimic: "Пишу по поводу вашего занятия по вождению.",
+        eticheta: { zi: "День:", ora: "Время:", loc: "Место:" },
+        nestabilit: "(пока не указано)",
+        laFelZiOra: (d, h) => `День и время остаются прежними: ${d}, ${h}`,
+        laFelZi: d => `День остаётся прежним: ${d}`,
+        laFelOra: h => `Время остаётся прежним: ${h}`,
+        laFelLoc: l => `Место встречи прежнее: ${l}`,
+        lista: "Ваши запланированные занятия по вождению:",
+        listaFinal: "Пожалуйста, подтвердите. Спасибо!"
+    },
+    tr: {
+        nume: "Turcă", nativ: "Türkçe",
+        zile: ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"],
+        luni: ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"],
+        data: (z, d, l) => `${d} ${l} ${z}`,
+        salut: "Merhaba", virgula: "", disponibil: "uygun", scoala: "sürücü kursumuz",
+        bunVenit: "{salut} {prenume}! Benim adım {eu}, {scoala} adına yazıyorum. Sürüş derslerinizde eğitmeniniz ben olacağım. İlk görüşme için ne zaman {disponibil} olduğunuzu yazar mısınız?",
+        programat: (d, h) => `Sürüş dersiniz planlandı: ${d}, ${h}.`,
+        loc: "Buluşma yeri:",
+        confirma: "Gelemeyecekseniz saati boşaltabilmem için lütfen bir saat içinde onaylayın.",
+        multumesc: "Teşekkürler!",
+        anulat: (d, h) => `İsteğiniz üzerine ${d}, ${h} tarihli sürüş dersinizi iptal ettim. Başka bir saat bulmak için ne zaman uygun olduğunuzu yazın.`,
+        cuvinte: { zi: "GÜN", ora: "SAAT", loc: "YER" },
+        toate3: "Sürüş dersinizde değişiklik var.\n*DİKKAT: GÜN, SAAT ve YER değişiyor.*",
+        doua: (a, b) => `Sürüş dersinizde değişiklik var.\n*DİKKAT: ${a} ve ${b} değişiyor.*`,
+        doarLoc: "Dersiniz aynı gün, aynı saatte.\n*Sadece BULUŞMA YERİ değişiyor.*",
+        doarZi: "Sürüş dersiniz taşındı.\n*GÜN değişiyor.* Saat aynı kalıyor.",
+        doarOra: "Sürüş dersiniz taşındı.\n*SAAT değişiyor.* Gün aynı kalıyor.",
+        nimic: "Sürüş dersiniz hakkında yazıyorum.",
+        eticheta: { zi: "Gün:", ora: "Saat:", loc: "Yer:" },
+        nestabilit: "(henüz belli değil)",
+        laFelZiOra: (d, h) => `Gün ve saat aynı: ${d}, ${h}`,
+        laFelZi: d => `Gün aynı: ${d}`,
+        laFelOra: h => `Saat aynı: ${h}`,
+        laFelLoc: l => `Buluşma yeri aynı: ${l}`,
+        lista: "Planlanmış sürüş dersleriniz:",
+        listaFinal: "Lütfen onaylayın. Teşekkürler!"
+    },
+    fr: {
+        nume: "Franceză", nativ: "Français",
+        zile: ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"],
+        luni: ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"],
+        data: (z, d, l) => `${z} ${d} ${l}`,
+        salut: "Bonjour", virgula: "", disponibil: "disponible", scoala: "notre auto-école",
+        bunVenit: "{salut} {prenume} ! Je m'appelle {eu} et je vous contacte de la part de {scoala}. Je serai votre moniteur pour les leçons de conduite. Dites-moi quand vous seriez {disponibil} pour un premier rendez-vous !",
+        programat: (d, h) => `Votre leçon de conduite est prévue : ${d}, ${h}.`,
+        loc: "Lieu de rendez-vous :",
+        confirma: "Merci de confirmer dans l'heure, pour que je puisse libérer le créneau si vous ne pouvez pas venir.",
+        multumesc: "Merci !",
+        anulat: (d, h) => `Comme vous l'avez demandé, j'ai annulé votre leçon de conduite du ${d} à ${h}. Dites-moi quand vous êtes disponible, pour trouver un autre créneau.`,
+        cuvinte: { zi: "le JOUR", ora: "l'HEURE", loc: "le LIEU" },
+        toate3: "Votre leçon de conduite a changé.\n*ATTENTION : le JOUR, l'HEURE et le LIEU changent.*",
+        doua: (a, b) => `Votre leçon de conduite a changé.\n*ATTENTION : ${a} et ${b} changent.*`,
+        doarLoc: "Votre leçon reste le même jour, à la même heure.\n*Seul le LIEU DE RENDEZ-VOUS change.*",
+        doarZi: "Votre leçon de conduite est déplacée.\n*Le JOUR change.* L'heure reste la même.",
+        doarOra: "Votre leçon de conduite est déplacée.\n*L'HEURE change.* Le jour reste le même.",
+        nimic: "Je vous écris au sujet de votre leçon de conduite.",
+        eticheta: { zi: "Jour :", ora: "Heure :", loc: "Lieu :" },
+        nestabilit: "(pas encore fixé)",
+        laFelZiOra: (d, h) => `Le jour et l'heure restent les mêmes : ${d}, ${h}`,
+        laFelZi: d => `Le jour reste le même : ${d}`,
+        laFelOra: h => `L'heure reste la même : ${h}`,
+        laFelLoc: l => `Le lieu de rendez-vous reste le même : ${l}`,
+        lista: "Vos prochaines leçons de conduite :",
+        listaFinal: "Merci de confirmer !"
+    },
+    de: {
+        nume: "Germană", nativ: "Deutsch",
+        zile: ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"],
+        luni: ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"],
+        data: (z, d, l) => `${z}, ${d}. ${l}`,
+        salut: "Hallo", virgula: "", disponibil: "Zeit", scoala: "unserer Fahrschule",
+        bunVenit: "{salut} {prenume}! Mein Name ist {eu}, ich melde mich im Namen von {scoala}. Ich bin Ihr Fahrlehrer für die Fahrstunden bei uns. Sagen Sie mir bitte, wann Sie {disponibil} für ein erstes Treffen hätten!",
+        programat: (d, h) => `Ihre Fahrstunde ist eingetragen: ${d}, ${h}.`,
+        loc: "Treffpunkt:",
+        confirma: "Bitte bestätigen Sie innerhalb einer Stunde, damit ich den Termin freigeben kann, falls Sie nicht kommen können.",
+        multumesc: "Danke!",
+        anulat: (d, h) => `Wie gewünscht habe ich Ihre Fahrstunde am ${d} um ${h} abgesagt. Sagen Sie mir Bescheid, wann Sie Zeit haben, damit wir einen neuen Termin finden.`,
+        cuvinte: { zi: "der TAG", ora: "die UHRZEIT", loc: "der ORT" },
+        toate3: "Ihre Fahrstunde wurde geändert.\n*ACHTUNG: Es ändern sich TAG, UHRZEIT und ORT.*",
+        doua: (a, b) => `Ihre Fahrstunde wurde geändert.\n*ACHTUNG: Es ändern sich ${a} und ${b}.*`,
+        doarLoc: "Ihre Fahrstunde bleibt am selben Tag zur selben Uhrzeit.\n*Nur der TREFFPUNKT ändert sich.*",
+        doarZi: "Ihre Fahrstunde wurde verschoben.\n*Der TAG ändert sich.* Die Uhrzeit bleibt gleich.",
+        doarOra: "Ihre Fahrstunde wurde verschoben.\n*Die UHRZEIT ändert sich.* Der Tag bleibt gleich.",
+        nimic: "Ich schreibe Ihnen wegen Ihrer Fahrstunde.",
+        eticheta: { zi: "Tag:", ora: "Uhrzeit:", loc: "Ort:" },
+        nestabilit: "(noch offen)",
+        laFelZiOra: (d, h) => `Tag und Uhrzeit bleiben gleich: ${d}, ${h}`,
+        laFelZi: d => `Der Tag bleibt gleich: ${d}`,
+        laFelOra: h => `Die Uhrzeit bleibt gleich: ${h}`,
+        laFelLoc: l => `Der Treffpunkt bleibt gleich: ${l}`,
+        lista: "Ihre nächsten Fahrstunden:",
+        listaFinal: "Bitte bestätigen Sie. Danke!"
+    },
+    it: {
+        nume: "Italiană", nativ: "Italiano",
+        zile: ["domenica", "lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato"],
+        luni: ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"],
+        data: (z, d, l) => `${z} ${d} ${l}`,
+        salut: "Buongiorno", virgula: "", disponibil: "disponibile", scoala: "questa autoscuola",
+        bunVenit: "{salut} {prenume}! Mi chiamo {eu} e la contatto per conto di {scoala}. Sarò il suo istruttore per le lezioni di guida. Mi faccia sapere quando sarebbe {disponibil} per un primo incontro!",
+        programat: (d, h) => `La sua lezione di guida è fissata: ${d}, ${h}.`,
+        loc: "Luogo d'incontro:",
+        confirma: "La prego di confermare entro un'ora, così posso liberare l'orario se non riesce a venire.",
+        multumesc: "Grazie!",
+        anulat: (d, h) => `Come richiesto, ho annullato la sua lezione di guida di ${d} alle ${h}. Mi faccia sapere quando è disponibile, così troviamo un altro orario.`,
+        cuvinte: { zi: "il GIORNO", ora: "l'ORA", loc: "il LUOGO" },
+        toate3: "La sua lezione di guida è cambiata.\n*ATTENZIONE: cambiano il GIORNO, l'ORA e il LUOGO.*",
+        doua: (a, b) => `La sua lezione di guida è cambiata.\n*ATTENZIONE: cambiano ${a} e ${b}.*`,
+        doarLoc: "La lezione resta lo stesso giorno, alla stessa ora.\n*Cambia solo il LUOGO D'INCONTRO.*",
+        doarZi: "La sua lezione di guida è stata spostata.\n*Cambia il GIORNO.* L'ora resta la stessa.",
+        doarOra: "La sua lezione di guida è stata spostata.\n*Cambia l'ORA.* Il giorno resta lo stesso.",
+        nimic: "Le scrivo per la sua lezione di guida.",
+        eticheta: { zi: "Giorno:", ora: "Ora:", loc: "Luogo:" },
+        nestabilit: "(ancora da stabilire)",
+        laFelZiOra: (d, h) => `Giorno e ora restano gli stessi: ${d}, ${h}`,
+        laFelZi: d => `Il giorno resta lo stesso: ${d}`,
+        laFelOra: h => `L'ora resta la stessa: ${h}`,
+        laFelLoc: l => `Il luogo d'incontro resta lo stesso: ${l}`,
+        lista: "Le sue prossime lezioni di guida:",
+        listaFinal: "La prego di confermare. Grazie!"
+    },
+    es: {
+        nume: "Spaniolă", nativ: "Español",
+        zile: ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"],
+        luni: ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"],
+        data: (z, d, l) => `${z}, ${d} de ${l}`,
+        salut: "Hola", virgula: ",", disponibil: "disponible", scoala: "nuestra autoescuela",
+        bunVenit: "¡{salut}, {prenume}! Me llamo {eu} y le escribo de parte de {scoala}. Seré su instructor en las clases de conducir. ¡Dígame cuándo estaría {disponibil} para un primer encuentro!",
+        programat: (d, h) => `Su clase de conducir está programada: ${d}, ${h}.`,
+        loc: "Lugar de encuentro:",
+        confirma: "Por favor, confirme en la próxima hora, para que pueda liberar el horario si no puede venir.",
+        multumesc: "¡Gracias!",
+        anulat: (d, h) => `Como me pidió, he cancelado su clase de conducir del ${d} a las ${h}. Dígame cuándo puede, para buscar otro horario.`,
+        cuvinte: { zi: "el DÍA", ora: "la HORA", loc: "el LUGAR" },
+        toate3: "Su clase de conducir ha cambiado.\n*ATENCIÓN: cambian el DÍA, la HORA y el LUGAR.*",
+        doua: (a, b) => `Su clase de conducir ha cambiado.\n*ATENCIÓN: cambian ${a} y ${b}.*`,
+        doarLoc: "Su clase sigue el mismo día, a la misma hora.\n*Solo cambia el LUGAR DE ENCUENTRO.*",
+        doarZi: "Su clase de conducir se ha movido.\n*Cambia el DÍA.* La hora sigue igual.",
+        doarOra: "Su clase de conducir se ha movido.\n*Cambia la HORA.* El día sigue igual.",
+        nimic: "Le escribo por su clase de conducir.",
+        eticheta: { zi: "Día:", ora: "Hora:", loc: "Lugar:" },
+        nestabilit: "(aún por fijar)",
+        laFelZiOra: (d, h) => `El día y la hora siguen igual: ${d}, ${h}`,
+        laFelZi: d => `El día sigue igual: ${d}`,
+        laFelOra: h => `La hora sigue igual: ${h}`,
+        laFelLoc: l => `El lugar de encuentro sigue igual: ${l}`,
+        lista: "Sus próximas clases de conducir:",
+        listaFinal: "Por favor, confirme. ¡Gracias!"
+    }
+};
+
+/* Saluturile care încep cu semn întors (spaniola) îl pun și la începutul
+   mesajului: „¡Hola, Juan!". */
+function iasSalutStrain(T, prenume) {
+    let s = `${T.salut}${T.virgula} ${prenume}`;
+    return T === IAS_LIMBI.es ? `\xA1${s}!` : T === IAS_LIMBI.fr ? `${s} !` : `${s}!`
+}
+
+/* Limbile tale, cu tarifele lor. Până să umbli la ele, e una singură:
+   engleza, cu tarifele de engleză puse la angajator. */
+function iasLimbi(setari) {
+    if (setari && Array.isArray(setari.limbi)) return setari.limbi;
+    let a = { ...sr.employer, ...(setari && setari.employer || {}) };
+    return [{ id: "en", nume: IAS_LIMBI.en.nume, tarif: Number(a.englishBaseRate) || 0, tarifPeste: Number(a.englishOvertimeRate) || 0 }]
+}
+
+/* Limba unui elev sau a unei ședințe: "" e româna. */
+function iasLimbaDe(x) {
+    return !x ? "" : x.limba != null ? String(x.limba) : x.english ? "en" : ""
+}
+
+/* Câmpurile de scris pe elev sau pe ședință, ca să rămână citite și de cine
+   știe doar de english. */
+function iasCuLimba(x, limba) {
+    return { ...x, limba: limba || "", english: limba === "en" }
+}
+
+function iasNumeLimba(setari, id) {
+    if (!id) return "Rom\xE2nă";
+    let l = iasLimbi(setari).find(x => x.id === id);
+    return l ? l.nume : IAS_LIMBI[id] ? IAS_LIMBI[id].nume : id
+}
+
+/* Prescurtarea de pe fișă: RO, EN, UK… */
+function iasCodLimba(id) {
+    return !id ? "RO" : String(id).replace(/^x-/, "").slice(0, 2).toUpperCase()
+}
+
+/* Textele unei limbi. Limba adăugată în afara catalogului vorbește engleză. */
+function iasTexte(id) {
+    return IAS_LIMBI[id] || IAS_LIMBI.en
+}
+
+function iasFoLimba(id, iso) {
+    let T = iasTexte(id), e = Ue(iso);
+    return T.data(T.zile[e.getDay()], e.getDate(), T.luni[e.getMonth()])
+}
+
+/* Tariful unei ședințe la salariu, după limba ei. */
+function iasTarifLimba(setari, id, peste) {
+    let a = { ...sr.employer, ...(setari && setari.employer || {}) };
+    if (id) {
+        let l = iasLimbi(setari).find(x => x.id === id);
+        if (l) return Number(peste ? l.tarifPeste : l.tarif) || 0
+    }
+    return Number(peste ? a.overtimeRate : a.baseRate) || 0
+}
+
+/* Mesajul de bun venit al unei limbi: cel scris de tine în Setări, altfel cel
+   din catalog. */
+function iasBunVenitLimba(setari, id) {
+    let t = setari && setari.textBunVenitLimbi || {};
+    return t[id] || (id === "en" && setari && setari.textBunVenitEn) || iasTexte(id).bunVenit
+}
+
+function iasBunVenitStrain(id, n, e) {
+    let T = iasTexte(id);
+    return iasBunVenitLimba(e, id).replace(/\{salut\}/g, T.salut).replace(/\{prenume\}/g, Ff(n))
+        .replace(/\{eu\}/g, e && e.numeleTau || "").replace(/\{scoala\}/g, e && e.numeScoala || T.scoala)
+        .replace(/\{disponibil\}/g, T.disponibil)
+}
+
+/* Ședința într-o limbă străină: programare, mutare (ziua, ora, locul) și
+   anulare, cu aceleași îngroșări ca în română. */
+function iasMesajStrain(id, n, e, t, a, r) {
+    let T = iasTexte(id),
+        cap = iasSalutStrain(T, Ff(e)),
+        u = `${Se(t.startMin)}–${Se(t.startMin+(Number(t.duration)||si))}`,
+        d = $w(xo(r, t.location), t.location),
+        harta = d ? `\n${d}` : "",
+        f = t.location ? `\n${T.loc} *${t.location}*${harta}` : "";
+    if (n === "rescheduled" || n === "location") {
+        let ce = iasCeSaSchimbat(a, t),
+            ziVeche = a ? iasFoLimba(id, a.date) : "",
+            ziNoua = iasFoLimba(id, t.date),
+            locVechi = (a && a.location || "").trim(),
+            locNou = (t.location || "").trim(),
+            ceSeMuta = [ce.ziua && T.cuvinte.zi, ce.ora && T.cuvinte.ora, ce.locul && T.cuvinte.loc].filter(Boolean),
+            bucati = [];
+        let titlu = ceSeMuta.length === 3 ? T.toate3 : ceSeMuta.length === 2 ? T.doua(ceSeMuta[0], ceSeMuta[1])
+            : ce.locul ? T.doarLoc : ce.ziua ? T.doarZi : ce.ora ? T.doarOra : T.nimic;
+        if (ce.ziua) bucati.push(`\n\n${T.eticheta.zi}\n${ziVeche ? `_${ziVeche}_\n→ ` : ""}*${ziNoua}*`);
+        if (ce.ora) bucati.push(`\n\n${T.eticheta.ora}\n${a ? `_${Se(a.startMin)}_\n→ ` : ""}*${u}*`);
+        if (ce.locul) bucati.push(`\n\n${T.eticheta.loc}\n${locVechi ? `_${locVechi}_\n→ ` : ""}*${locNou || T.nestabilit}*${harta}`);
+        if (!ce.ziua && !ce.ora) bucati.push(`\n\n${T.laFelZiOra(ziNoua, u)}`);
+        else if (!ce.ziua) bucati.push(`\n\n${T.laFelZi(ziNoua)}`);
+        else if (!ce.ora) bucati.push(`\n\n${T.laFelOra(u)}`);
+        if (!ce.locul && locNou) bucati.push(`\n\n${T.laFelLoc(locNou)}${harta}`);
+        return `${cap} ${titlu}` + bucati.join("") + `\n\n${T.confirma} ${T.multumesc}`
+    }
+    return n === "created" ? `${cap} ${T.programat(iasFoLimba(id, t.date), u)}${f}\n${T.confirma} ${T.multumesc}`
+        : n === "cancelled" ? `${cap} ${T.anulat(iasFoLimba(id, t.date), Se(t.startMin))} ${T.multumesc}`
+        : ""
+}
+
+/* Lista ședințelor programate, de pe fișa elevului. */
+function iasListaStrain(id, e, N, a, W) {
+    let T = iasTexte(id);
+    return `${iasSalutStrain(T, Ff(e))} ${T.lista}
+${N.map(R=>`• ${iasFoLimba(id, R.date)}, ${Se(R.startMin)}–${Se(R.startMin+or(R,a))}${R.location?` \xB7 ${R.location}`:""}`).join(`
+`)}${W.replace(/^\nLocul:/, `\n${T.loc}`)}
+${T.listaFinal}`
+}
+
+/* Limba elevului trece și pe ședințele lui de azi înainte, încă nefăcute
+   (programate sau propuse). Cele efectuate sau anulate rămân cum au fost —
+   după ele s-a socotit deja salariul. */
+function iasLimbaPeViitoare(sesiuni, idElev, limba) {
+    let azi = Be(), n = 0, L = limba || "";
+    let out = (sesiuni || []).map(x => x.studentId === idElev && x.date >= azi && (x.status === "scheduled" || x.status === "pending") && iasLimbaDe(x) !== L
+        ? (n++, iasCuLimba(x, L)) : x);
+    return { sesiuni: out, schimbate: n }
+}
+
+/* Alegerea limbii: română, limbile tale (cu tarif) și, la cerere, una nouă.
+   Mic: o pastilă pentru capul fișei (RO / EN / UK…), care deschide lista. */
+function IasLimbaElev({ limba: iasL, setari: iasS, onAlege: iasAlege, onAdauga: iasAdauga, mic: iasMic }) {
+    let lista = iasLimbi(iasS),
+        [adaug, puneAdaug] = (0, o.useState)(!1);
+    if (iasMic) return o.default.createElement(o.default.Fragment, null, o.default.createElement("label", {
+        className: "relative inline-flex items-center rounded-full border text-xs font-medium px-2.5 py-0.5",
+        style: iasL ? { color: "var(--accent-ink)", background: "var(--accent-soft)", borderColor: "var(--accent-line)" } : { color: "var(--text)", borderColor: "var(--line)" },
+        "data-ias-limba-elev": iasL || "ro",
+        title: "Limba ședințelor și a mesajelor"
+    }, o.default.createElement("span", { "aria-hidden": "true" }, iasCodLimba(iasL), " ▾"),
+        o.default.createElement("select", {
+            "aria-label": "Limba ședințelor și a mesajelor",
+            value: iasL || "",
+            onChange: q => q.target.value === "__nou" ? puneAdaug(!0) : iasAlege(q.target.value),
+            style: { position: "absolute", inset: 0, opacity: 0, width: "100%" }
+        }, [["", "Rom\xE2n\u0103"]].concat(lista.map(x => [x.id, x.nume]), iasL && !lista.some(x => x.id === iasL) ? [[iasL, iasNumeLimba(iasS, iasL)]] : [], iasAdauga ? [["__nou", "+ Alt\u0103 limb\u0103\u2026"]] : []).map(([v, t]) => o.default.createElement("option", { key: v || "ro", value: v }, t)))),
+        adaug && o.default.createElement(oi, { open: !0, onClose: () => puneAdaug(!1), title: "Alt\u0103 limb\u0103", layer: Wt.dialog },
+            o.default.createElement(IasLimbaNoua, {
+                setari: iasS,
+                onRenunta: () => puneAdaug(!1),
+                onAdauga: l => { iasAdauga(l), puneAdaug(!1), iasAlege(l.id) }
+            })));
+    return o.default.createElement("div", { "data-ias-limba-elev": iasL || "ro" },
+        o.default.createElement("div", { className: "space-y-1.5" },
+            [{ id: "", nume: "Rom\xE2nă", nota: "tarif normal" }].concat(lista.map(x => ({ id: x.id, nume: x.nume, nota: `${x.tarif} / ${x.tarifPeste} pe ședință` }))).map(x => {
+                let ales = (iasL || "") === x.id;
+                return o.default.createElement("button", {
+                    key: x.id || "ro", type: "button", "data-ias-limba": x.id || "ro", "aria-pressed": ales,
+                    onClick: () => iasAlege(x.id),
+                    className: "w-full flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-left",
+                    style: { background: ales ? "var(--accent-soft)" : "var(--surface)", border: `${ales ? 2 : 1}px solid ${ales ? "var(--accent)" : "var(--line)"}` }
+                }, o.default.createElement("span", { className: "font-mono-time text-xs shrink-0", style: { width: 28, color: ales ? "var(--accent-ink)" : "var(--muted)" } }, iasCodLimba(x.id)),
+                    o.default.createElement("span", { className: "text-sm font-medium flex-1", style: { color: ales ? "var(--accent-ink)" : "var(--text)" } }, x.nume),
+                    o.default.createElement("span", { className: "text-xs", style: { color: "var(--muted-2)" } }, x.nota))
+            })),
+        iasAdauga ? adaug ? o.default.createElement(IasLimbaNoua, {
+            setari: iasS,
+            onRenunta: () => puneAdaug(!1),
+            onAdauga: l => { iasAdauga(l), puneAdaug(!1), iasAlege(l.id) }
+        }) : o.default.createElement("button", {
+            type: "button", "data-ias-limba-noua": "",
+            onClick: () => puneAdaug(!0),
+            className: "w-full mt-1.5 py-2.5 rounded-xl text-sm font-medium",
+            style: { border: "1px dashed var(--accent-line)", color: "var(--accent-ink)", background: "var(--accent-soft)" }
+        }, "+ Altă limbă, cu tariful ei") : null)
+}
+
+/* O limbă nouă: din catalog (cu mesajele gata scrise) sau alta, cu numele ei;
+   tariful în program și peste program. */
+function IasLimbaNoua({ setari: iasS, onAdauga: iasAdauga, onRenunta: iasRenunta }) {
+    let are = iasLimbi(iasS).map(x => x.id),
+        catalog = Object.keys(IAS_LIMBI).filter(k => are.indexOf(k) < 0),
+        a = { ...sr.employer, ...(iasS && iasS.employer || {}) },
+        [id, puneId] = (0, o.useState)(catalog[0] || "alta"),
+        [nume, puneNume] = (0, o.useState)(""),
+        [tarif, puneTarif] = (0, o.useState)(String(Number(a.englishBaseRate) || Number(a.baseRate) || "")),
+        [peste, punePeste] = (0, o.useState)(String(Number(a.englishOvertimeRate) || Number(a.overtimeRate) || "")),
+        alta = id === "alta",
+        bun = (alta ? nume.trim() : id) && Number(tarif) > 0;
+    return o.default.createElement("div", { className: "rounded-2xl p-3.5 mt-2", "data-ias-limba-formular": "", style: { background: "var(--surface-2)", border: "1px solid var(--line)" } },
+        o.default.createElement(xe, { label: "Limba" }, o.default.createElement("select", {
+            className: ie, value: id, onChange: q => puneId(q.target.value)
+        }, catalog.map(k => o.default.createElement("option", { key: k, value: k }, IAS_LIMBI[k].nume, " \xB7 ", IAS_LIMBI[k].nativ)),
+            o.default.createElement("option", { value: "alta" }, "Altă limbă…"))),
+        alta ? o.default.createElement(xe, { label: "Numele limbii" }, o.default.createElement("input", {
+            className: ie, value: nume, placeholder: "ex. Poloneză", onChange: q => puneNume(q.target.value)
+        })) : null,
+        alta ? o.default.createElement("p", { className: "text-xs text-slate-400 -mt-2 mb-3" }, "Pentru limbile din afara listei, mesajele către elev pleacă \xEEn engleză.") : null,
+        o.default.createElement("div", { className: "grid grid-cols-2 gap-3" },
+            o.default.createElement(xe, { label: "Tarif \xEEn program" }, o.default.createElement("input", {
+                type: "number", min: "0", inputMode: "numeric", className: ie, value: tarif, onChange: q => puneTarif(q.target.value)
+            })),
+            o.default.createElement(xe, { label: "Peste program" }, o.default.createElement("input", {
+                type: "number", min: "0", inputMode: "numeric", className: ie, value: peste, onChange: q => punePeste(q.target.value)
+            }))),
+        o.default.createElement("p", { className: "text-xs text-slate-400 -mt-2 mb-3" }, "Tariful e cel pe care \xEEl primești la salariu pentru o ședință \xEEn limba asta."),
+        o.default.createElement("div", { className: "flex gap-2" },
+            o.default.createElement("button", { type: "button", onClick: iasRenunta, className: "flex-1 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600" }, "Renunță"),
+            o.default.createElement("button", {
+                type: "button", disabled: !bun, "data-ias-limba-adauga": "",
+                onClick: () => iasAdauga({
+                    id: alta ? "x-" + nume.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") : id,
+                    nume: alta ? nume.trim() : IAS_LIMBI[id].nume,
+                    tarif: Number(tarif) || 0,
+                    tarifPeste: Number(peste) || Number(tarif) || 0
+                }),
+                className: "flex-1 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-medium disabled:opacity-40"
+            }, "Adaugă limba")))
+}
+
+/* Ce se scrie în Setări când se schimbă limbile: lista și, pentru engleză,
+   tarifele de la angajator (le citesc și versiunile mai vechi). */
+function iasSetariCuLimbi(setari, limbi) {
+    let en = limbi.find(x => x.id === "en"),
+        a = { ...sr.employer, ...(setari && setari.employer || {}) };
+    return { limbi: limbi, employer: en ? { ...a, englishBaseRate: Number(en.tarif) || 0, englishOvertimeRate: Number(en.tarifPeste) || 0 } : a }
+}
+
+/* Limbile tale, în Finanțe → Salariu: tariful fiecăreia, de schimbat sau de
+   șters, și una nouă. Ștearsă, limba nu mai apare la alegere; ședințele deja
+   făcute în ea rămân la salariu cu tariful obișnuit. */
+function IasLimbiTarife({ setari: iasS, onSchimba: iasSchimba }) {
+    let lista = iasLimbi(iasS),
+        [ed, puneEd] = (0, o.useState)(null),
+        [nou, puneNou] = (0, o.useState)(!1),
+        bani = x => `${Number(x) || 0} ${iasS && iasS.currency || "lei"}`;
+    return o.default.createElement("div", { className: "mt-4", "data-ias-limbi-tarife": "" },
+        o.default.createElement("div", { className: "text-xs font-medium text-slate-500 mb-1.5 px-1" }, "Ședințe în alte limbi"),
+        o.default.createElement("div", { className: "space-y-1.5" }, lista.map(l => ed && ed.id === l.id ? o.default.createElement("div", {
+            key: l.id, className: "rounded-xl p-3", style: { background: "var(--surface-2)", border: "1px solid var(--line)" }
+        }, o.default.createElement("div", { className: "text-sm font-medium mb-2" }, l.nume),
+            o.default.createElement("div", { className: "grid grid-cols-2 gap-3" },
+                o.default.createElement(xe, { label: "În program" }, o.default.createElement("input", {
+                    type: "number", min: "0", inputMode: "numeric", className: ie, value: ed.tarif, onChange: q => puneEd({ ...ed, tarif: q.target.value })
+                })),
+                o.default.createElement(xe, { label: "Peste program" }, o.default.createElement("input", {
+                    type: "number", min: "0", inputMode: "numeric", className: ie, value: ed.tarifPeste, onChange: q => puneEd({ ...ed, tarifPeste: q.target.value })
+                }))),
+            o.default.createElement("div", { className: "flex gap-2" },
+                o.default.createElement("button", {
+                    type: "button", "data-ias-limba-sterge": l.id,
+                    onClick: () => { iasSchimba(lista.filter(x => x.id !== l.id)), puneEd(null) },
+                    className: "py-2 px-3 rounded-lg border text-sm",
+                    style: { borderColor: "var(--bad)", color: "var(--bad)" }
+                }, "Șterge"),
+                o.default.createElement("button", { type: "button", onClick: () => puneEd(null), className: "flex-1 py-2 rounded-lg border border-slate-200 text-sm text-slate-600" }, "Renunță"),
+                o.default.createElement("button", {
+                    type: "button", "data-ias-limba-salveaza": l.id,
+                    onClick: () => { iasSchimba(lista.map(x => x.id === l.id ? { ...x, tarif: Number(ed.tarif) || 0, tarifPeste: Number(ed.tarifPeste) || Number(ed.tarif) || 0 } : x)), puneEd(null) },
+                    className: "flex-1 py-2 rounded-lg bg-slate-900 text-white text-sm"
+                }, "Salvează"))) : o.default.createElement("button", {
+            key: l.id, type: "button", "data-ias-limba-rand": l.id,
+            onClick: () => puneEd({ id: l.id, tarif: String(l.tarif), tarifPeste: String(l.tarifPeste) }),
+            className: "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-sky-50 border border-sky-200 text-left"
+        }, o.default.createElement("span", { className: "font-mono-time text-xs text-sky-700", style: { width: 24 } }, iasCodLimba(l.id)),
+            o.default.createElement("span", { className: "flex-1 text-sm text-sky-700" }, l.nume),
+            o.default.createElement("span", { className: "font-mono-time text-xs text-sky-700" }, bani(l.tarif), " · ", bani(l.tarifPeste)),
+            o.default.createElement(ka, { size: 14, className: "text-sky-700", style: { opacity: .5 } })))),
+        nou ? o.default.createElement(IasLimbaNoua, {
+            setari: iasS,
+            onRenunta: () => puneNou(!1),
+            onAdauga: l => { iasSchimba(lista.filter(x => x.id !== l.id).concat([l])), puneNou(!1) }
+        }) : o.default.createElement("button", {
+            type: "button", "data-ias-limba-noua": "",
+            onClick: () => puneNou(!0),
+            className: "w-full mt-1.5 py-2.5 rounded-xl border border-dashed border-slate-300 text-slate-500 text-sm"
+        }, "+ Alt\u0103 limb\u0103"),
+        o.default.createElement("p", { className: "text-xs text-slate-400 mt-2 px-1" }, "Tariful în program și cel peste program, pe ședință. Limba o alegi pe fișa elevului; ședințele lui pornesc în ea, iar mesajele către el se scriu în ea."))
+}
+
+/* Ce spune aplicația când schimbi limba unui elev. */
+function iasMesajLimbaNoua(setari, L) {
+    if (!L) return "Ședințele și mesajele lui sunt de acum în română.";
+    let n = iasNumeLimba(setari, L).toLowerCase();
+    return IAS_LIMBI[L] ? `Ședințele și mesajele lui sunt de acum în ${n}.` : `Ședințele lui sunt de acum în ${n}; mesajele pleacă în engleză.`
+}
+
+/* Mesajul de bun venit în celelalte limbi, în Setări → Numele tău și școala.
+   Câte unul pentru fiecare limbă a ta care are mesajele scrise; limbile din
+   afara catalogului folosesc textul englez. Engleza se ține, ca înainte, în
+   textBunVenitEn. */
+function IasBunVenitLimbi({ setari: J, onSchimba: e }) {
+    let lista = iasLimbi(J).filter(x => IAS_LIMBI[x.id]),
+        [ales, puneAles] = (0, o.useState)(lista[0] ? lista[0].id : "");
+    if (!lista.length) return null;
+    let id = lista.some(x => x.id === ales) ? ales : lista[0].id,
+        T = IAS_LIMBI[id],
+        scrie = v => id === "en" ? e({ textBunVenitEn: v }) : e({ textBunVenitLimbi: { ...(J.textBunVenitLimbi || {}), [id]: v } });
+    return o.default.createElement("div", { className: "mt-4", "data-ias-bun-venit-limbi": "" },
+        o.default.createElement("div", { className: "text-xs font-medium text-slate-500 mb-1.5" }, "Mesajul de bun venit în alte limbi"),
+        lista.length > 1 ? o.default.createElement("div", { className: "flex flex-wrap gap-1.5 mb-2" }, lista.map(x => o.default.createElement("button", {
+            key: x.id, type: "button", "data-ias-bun-venit-limba": x.id, "aria-pressed": x.id === id,
+            onClick: () => puneAles(x.id),
+            className: "text-xs px-2.5 py-1 rounded-full border " + (x.id === id ? "bg-slate-900 text-white border-slate-900" : "border-slate-200 text-slate-600")
+        }, x.nume))) : null,
+        o.default.createElement("textarea", {
+            rows: 5,
+            className: ie,
+            "data-ias-bun-venit-en": id === "en" ? "" : void 0,
+            "data-ias-bun-venit-text": id,
+            value: iasBunVenitLimba(J, id),
+            onChange: H => scrie(H.target.value)
+        }),
+        o.default.createElement("p", { className: "text-xs text-slate-400 mt-1 mb-2" }, `Pentru elevii cu \u201ELimba \u0219edin\u021Belor: ${IAS_LIMBI[id].nume}\u201D. Acelea\u0219i complet\u0103ri: `, o.default.createElement("span", { className: "font-mono-time" }, "{salut}"), ` devine \u201E${T.salut}\u201D, iar `, o.default.createElement("span", { className: "font-mono-time" }, "{disponibil}"), ` devine \u201E${T.disponibil}\u201D.`),
+        o.default.createElement("button", {
+            type: "button",
+            onClick: () => scrie(T.bunVenit),
+            className: "w-full py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm"
+        }, `Revino la textul implicit \xEEn ${IAS_LIMBI[id].nume.toLowerCase()}`))
+}
+
+/* Numele de dinainte, pentru engleză. */
+var IAS_ZILE_EN = IAS_LIMBI.en.zile, IAS_LUNI_EN = IAS_LIMBI.en.luni, iasBunVenitEn = IAS_LIMBI.en.bunVenit;
+function iasFoEn(n) { return iasFoLimba("en", n) }
+function iasBunVenitEngleza(n, e) { return iasBunVenitStrain("en", n, e) }
+function iasMesajEngleza(n, e, t, a, r) { return iasMesajStrain("en", n, e, t, a, r) }
+function iasListaEngleza(e, N, a, W) { return iasListaStrain("en", e, N, a, W) }
+
 function ik(n, e) {
+    if (iasLimbaDe(n)) return iasBunVenitStrain(iasLimbaDe(n), n, e);
     let {
         salut: t,
         cand: a
@@ -1847,6 +2424,7 @@ function iasCeSaSchimbat(veche, noua) {
 }
 
 function yw(n, e, t, a, r) {
+    if (iasLimbaDe(t)) return iasMesajStrain(iasLimbaDe(t), n, e, t, a, r);
     let i = Ff(e),
         {
             salut: s,
@@ -3168,8 +3746,9 @@ function Lf({
     setari: iasSet
 }) {
     var iasSala = iasAsteaptaSala(n, iasSes, iasSet),
-        iasZi = BA(n);
-    if (!iasZi && !iasSala) return null;
+        iasZi = BA(n),
+        iasProv = iasProvizoriu(n);
+    if (!iasZi && !iasSala && !iasProv) return null;
     let t = vu(n.birthDate);
     return o.default.createElement("span", {
         className: "shrink-0 inline-flex items-center gap-1"
@@ -3184,7 +3763,12 @@ function Lf({
         iasSala ? o.default.createElement("span", {
             title: `${iasSala} \u0219edin\u021Be efectuate \u2014 poate fi programat la teoretic`,
             style: { alignSelf: "flex-start", marginTop: -2 }
-        }, o.default.createElement(IasSemnNou, { size: e + 2 })) : null)
+        }, o.default.createElement(IasSemnNou, { size: e + 2 })) : null,
+        iasProv ? o.default.createElement("span", {
+            title: "\u0218colarizare provizorie \u2014 noteaz\u0103 ce a pl\u0103tit la \u0219coal\u0103",
+            "data-ias-semn-provizoriu": "",
+            className: "inline-flex items-center"
+        }, o.default.createElement(IasSemnProvizoriu, { size: e })) : null)
 }
 
 function Bf({
@@ -5813,7 +6397,8 @@ function zk({
     onOpenStudent: i,
     onGoToCalendar: s,
     onOpenExamene: iasLaExamene,
-    onGoToSettings: iasLaSetari
+    onGoToSettings: iasLaSetari,
+    onOpenScolarizare: iasLaScolarizare
 }) {
     let [iasSalaDesfacuta, iasDesfaSala] = (0, o.useState)(!1),
         [iasPromovatiDesfacuti, iasDesfaPromovati] = (0, o.useState)(!1),
@@ -6008,6 +6593,32 @@ function zk({
                             className: "block text-xs", style: { color: "var(--accent-ink)" }
                         }, z.cate, " \u0219edin\u021Be efectuate \u2014 a\u0219teapt\u0103 programare la sal\u0103")),
                     o.default.createElement(un, { size: 15, className: "shrink-0", style: { color: "var(--accent)" } })))))
+    })(),
+    /* Elevii cu școlarizarea provizorie: îți amintește să notezi ce au plătit
+       la școală. Atingi rândul și se deschide completarea. */
+    (() => {
+        let iasProv = n.students.filter(iasProvizoriu);
+        if (!iasProv.length) return null;
+        return o.default.createElement("div", { className: "px-4 mt-3 mb-4", "data-ias-acasa-provizorii": iasProv.length },
+            o.default.createElement("div", {
+                className: "rounded-2xl overflow-hidden",
+                style: { border: "1px solid var(--line)", background: "var(--surface)" }
+            },
+                o.default.createElement("div", {
+                    className: "px-3.5 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5",
+                    style: { color: "var(--muted)" }
+                }, o.default.createElement(IasSemnProvizoriu, { size: 16 }),
+                    iasProv.length === 1 ? "\u0218colarizare de completat" : `${iasProv.length} \u0219colariz\u0103ri de completat`),
+                iasProv.map(z => o.default.createElement("button", {
+                    key: z.id,
+                    onClick: () => iasLaScolarizare && iasLaScolarizare(z.id),
+                    className: "w-full flex items-center gap-2 px-3.5 py-2.5 text-left active:opacity-70"
+                },
+                    o.default.createElement("span", { className: "flex-1 min-w-0" },
+                        o.default.createElement("span", { className: "block text-sm font-medium truncate text-slate-900" }, z.name),
+                        o.default.createElement("span", { className: "block text-xs", style: { color: "var(--muted-2)" } },
+                            "Ce a pl\u0103tit la \u0219coal\u0103? P\u00E2n\u0103 afli: ", Number(z.scolarizare.ore) || 0, " incluse")),
+                    o.default.createElement(un, { size: 15, className: "shrink-0", style: { color: "var(--muted-2)" } })))))
     })(), o.default.createElement("div", {
         className: "px-4 mt-5"
     }, o.default.createElement("div", {
@@ -7520,7 +8131,7 @@ function Rk({
 }) {
     let [iasInit, iasPuneInit] = (0, o.useState)(""), [iasIntreb, iasIntreaba] = (0, o.useState)(!1),
         [iasCautaElev, iasCauta] = (0, o.useState)(!1),
-        [d, f] = (0, o.useState)(null), [p, c] = (0, o.useState)(""), [m, g] = (0, o.useState)(Be()), [v, w] = (0, o.useState)(a.settings.startMin), [x, h] = (0, o.useState)("included"), [y, _] = (0, o.useState)("scheduled"), [b, M] = (0, o.useState)(""), [S, k] = (0, o.useState)(""), [E, B] = (0, o.useState)(!1), [$, G] = (0, o.useState)(""), [A, O] = (0, o.useState)(!1), [N, C] = (0, o.useState)(""), [W, X] = (0, o.useState)(!1), [R, K] = (0, o.useState)(null), ne = (0, o.useMemo)(() => {
+        [d, f] = (0, o.useState)(null), [p, c] = (0, o.useState)(""), [m, g] = (0, o.useState)(Be()), [v, w] = (0, o.useState)(a.settings.startMin), [x, h] = (0, o.useState)("included"), [y, _] = (0, o.useState)("scheduled"), [b, M] = (0, o.useState)(""), [S, k] = (0, o.useState)(""), [E, B] = (0, o.useState)(!1), [$, G] = (0, o.useState)(""), [A, O] = (0, o.useState)(""), [N, C] = (0, o.useState)(""), [W, X] = (0, o.useState)(!1), [R, K] = (0, o.useState)(null), ne = (0, o.useMemo)(() => {
         if (e !== "edit" || !t || !t.id) return null;
         let L = Be();
         return t.status === "pending" && t.date >= L ? "pending" : (t.status === "scheduled" || t.status === "pending") && t.date < L ? "unmarked" : null
@@ -7530,7 +8141,7 @@ function Rk({
             T = (j, Q) => (j.date + Se(j.startMin)).localeCompare(Q.date + Se(Q.startMin));
         return Y === "pending" ? a.sessions.filter(j => j.status === "pending" && j.date >= L).sort(T) : a.sessions.filter(j => (j.status === "scheduled" || j.status === "pending") && j.date < L).sort(T)
     }, [Y, a.sessions]), z = L => {
-        c(L.studentId), g(L.date), w(L.startMin), h(L.type), _(L.status), M(L.notes || ""), k(L.location || ""), B(!!L.otherInstructor), G(L.instructorName || ""), O(!!L.english)
+        c(L.studentId), g(L.date), w(L.startMin), h(L.type), _(L.status), M(L.notes || ""), k(L.location || ""), B(!!L.otherInstructor), G(L.instructorName || ""), O(iasLimbaDe(L))
     };
     if ((0, o.useEffect)(() => {
             if (!n) {
@@ -7552,7 +8163,7 @@ function Rk({
                     let pe = sk(a.sessions, a.settings, j);
                     j = pe.date, Q = pe.startMin
                 }
-                c(L), g(j || Be()), w(Q), h(T ? gw(T, a.sessions) : "included"), _("scheduled"), M(""), k(t?.location || T?.defaultLocation || ""), B(!1), G(""), O(!!(T && T.english)), iasPuneInit("?")
+                c(L), g(j || Be()), w(Q), h(T ? gw(T, a.sessions) : "included"), _("scheduled"), M(""), k(t?.location || T?.defaultLocation || ""), B(!1), G(""), O(iasLimbaDe(T)), iasPuneInit("?")
             }
         }, [n, e, t]), (0, o.useEffect)(() => {
         /* Cum arăta fișa după ce s-a umplut. Înainte o măsuram pe un ceas pus
@@ -7651,7 +8262,8 @@ function Rk({
             location: S,
             otherInstructor: E,
             instructorName: E ? $.trim() : "",
-            english: A
+            limba: A,
+            english: A === "en"
         }, e, q || t)
     }
     /* Ca la fișa elevului: dacă ai schimbat ceva, închiderea întreabă întâi. */
@@ -7720,7 +8332,7 @@ function Rk({
         onChange: L => {
             c(L);
             let T = a.students.find(j => j.id === L);
-            h(T ? gw(T, a.sessions) : "included"), e !== "edit" && (k(T?.defaultLocation || ""), O(!!(T && T.english)))
+            h(T ? gw(T, a.sessions) : "included"), e !== "edit" && (k(T?.defaultLocation || ""), O(iasLimbaDe(T)))
         }
     })),
     o.default.createElement("div", {
@@ -7808,20 +8420,20 @@ function Rk({
             })))),
     o.default.createElement(Jn, {
         title: "Detalii avansate",
-        summary: `${A ? "englez\u0103" : "rom\xE2n\u0103"}${E ? " \xB7 alt instructor" : ""}${b && b.trim() ? " \xB7 noti\u021Be" : ""}`
+        summary: `${A ? iasNumeLimba(a.settings, A).toLowerCase() : "rom\xE2n\u0103"}${E ? " \xB7 alt instructor" : ""}${b && b.trim() ? " \xB7 noti\u021Be" : ""}`
     }, o.default.createElement(xe, {
         label: "Limba \u0219edin\u021Bei"
     }, o.default.createElement("select", {
         className: ie,
-        value: A ? "en" : "ro",
-        onChange: L => O(L.target.value === "en")
-    }, o.default.createElement("option", {
-        value: "ro"
-    }, "Rom\xE2n\u0103"), o.default.createElement("option", {
-        value: "en"
-    }, "Englez\u0103"))), A && o.default.createElement("p", {
+        value: A || "",
+        "data-ias-limba-sedinta": "",
+        onChange: L => O(L.target.value)
+    }, [["", "Rom\xE2n\u0103"]].concat(iasLimbi(a.settings).map(L => [L.id, L.nume]), A && !iasLimbi(a.settings).some(L => L.id === A) ? [[A, iasNumeLimba(a.settings, A)]] : []).map(([L, Q]) => o.default.createElement("option", {
+        key: L || "ro",
+        value: L
+    }, Q)))), A && o.default.createElement("p", {
         className: "text-xs text-slate-400 -mt-2 mb-3.5"
-    }, "La salariu se aplic\u0103 tariful pentru \u0219edin\u021Be \xEEn englez\u0103."), o.default.createElement(xe, {
+    }, `La salariu se aplic\u0103 tariful pentru ${iasNumeLimba(a.settings, A).toLowerCase()} (${iasTarifLimba(a.settings, A, !1)} / ${iasTarifLimba(a.settings, A, !0)} ${a.settings.currency || "lei"}), iar mesajele c\u0103tre elev pentru ea (programare, mutare, anulare) se scriu ${IAS_LIMBI[A] ? "\xEEn " + iasNumeLimba(a.settings, A).toLowerCase() : "\xEEn englez\u0103"}.`), o.default.createElement(xe, {
         label: "Efectuat\u0103 de"
     }, o.default.createElement("select", {
         className: ie,
@@ -7860,7 +8472,8 @@ function Rk({
             location: S,
             otherInstructor: E,
             instructorName: $,
-            english: A,
+            limba: A,
+            english: A === "en",
             duration: q && q.duration
         }),
         className: "w-full py-2.5 mt-1 mb-2 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-medium flex items-center justify-center gap-1.5"
@@ -8948,6 +9561,746 @@ function IasDispCalendar({ elev: c, program: iasProg, onSchimba: iasSchimba }) {
             }, "Scoate")) : null)
 }
 
+/* ============ ELEVUL NOU, PAS CU PAS ============
+   Fișa unui elev nou se completează întrebare cu întrebare: numele, telefonul,
+   nașterea (din CNP sau direct), domiciliul, dosarul, limba ședințelor,
+   categoria, școlarizarea, locul de start și ritmul. La capăt vezi totul
+   într-un loc, adaugi elevul și îi poți trimite pe loc mesajul de bun venit,
+   în limba lui. Formularul întreg rămâne la un buton distanță, iar tot ce
+   scrii aici se schimbă oricând din fișa lui. */
+
+/* CNP-ul: cifra de control (ponderile 279146358279), data nașterii și sexul.
+   CNP-ul nu se păstrează nicăieri — din el rămân doar data și adresarea. */
+function iasCitesteCnp(text) {
+    let c = String(text || "").replace(/\D/g, "");
+    if (!c) return { ok: !1, gol: !0 };
+    if (c.length < 13) return { ok: !1, motiv: `mai sunt ${13 - c.length} cifre` };
+    if (c.length > 13) return { ok: !1, motiv: "are mai mult de 13 cifre" };
+    let w = "279146358279", s = 0;
+    for (let k = 0; k < 12; k++) s += Number(c[k]) * Number(w[k]);
+    let ctrl = s % 11;
+    ctrl === 10 && (ctrl = 1);
+    if (ctrl !== Number(c[12])) return { ok: !1, motiv: "cifra de control nu se potrivește — verifică cifrele" };
+    let S = Number(c[0]), aa = Number(c.slice(1, 3)), ll = Number(c.slice(3, 5)), zz = Number(c.slice(5, 7)),
+        acum = new Date().getFullYear() % 100,
+        secol = S === 1 || S === 2 ? 1900 : S === 3 || S === 4 ? 1800 : S === 5 || S === 6 ? 2000 : aa <= acum ? 2000 : 1900;
+    if (!S) return { ok: !1, motiv: "prima cifră nu poate fi 0" };
+    let an = secol + aa, d = new Date(an, ll - 1, zz);
+    if (ll < 1 || ll > 12 || d.getMonth() !== ll - 1 || d.getDate() !== zz) return { ok: !1, motiv: "data din CNP nu există" };
+    return {
+        ok: !0,
+        data: `${an}-${String(ll).padStart(2, "0")}-${String(zz).padStart(2, "0")}`,
+        sex: S === 9 ? "" : S % 2 ? "m" : "f"
+    }
+}
+
+/* „12 martie 2006" */
+function iasDataLunga(iso) {
+    let e = Ue(iso);
+    return `${e.getDate()} ${yo[e.getMonth()]} ${e.getFullYear()}`
+}
+
+/* Felurile școlarizării, cum le alegi la elevul nou. */
+var IAS_FELURI_SCOLARIZARE = [
+    { id: "integral", nume: "Plătită integral", sub: "Achitată la școală. Primește ședințele incluse din plan." },
+    { id: "partial", nume: "Plătită parțial", sub: "A dat o parte. Primește ședințele incluse, iar restul răm\xE2ne de plată." },
+    { id: "perfectionare", nume: "\xCEn vederea perfecționării", sub: "Are permis. Nicio ședință inclusă — toate sunt suplimentare." },
+    { id: "provizorie", nume: "Provizorie", sub: "Nu știi \xEEncă ce a plătit. \xCEl programezi de acum, completezi mai t\xE2rziu." },
+    { id: "altfel", nume: "Altfel", sub: "Vine de la un coleg, are ședințe rămase sau face cele 3 de după un examen picat." }
+];
+
+/* Planurile de școlarizare: taxele tale care aduc ședințe incluse. */
+function iasPlanuri(setari) {
+    return ii(setari || {}).filter(t => ur(t) === "included" && Number(t.hours) > 0)
+}
+
+function iasScolarizareGoala(setari) {
+    let p = iasPlanuri(setari);
+    return { fel: "", plan: p[0] ? p[0].id : "", platit: "", unde: "school", ore: 15, altfel: "taxa", taxa: "", achitat: "", incluse: 0, suplimentare: 0 }
+}
+
+/* Ce lipsește ca școlarizarea aleasă să se poată pune. "" = e gata. */
+function iasScolarizareLipsa(sc, setari) {
+    if (!sc || !sc.fel) return "Alege felul școlarizării.";
+    let taxe = ii(setari || {}), plan = taxe.find(t => t.id === sc.plan);
+    if (sc.fel === "integral") return plan ? "" : "Alege planul sau adaugă unul nou.";
+    if (sc.fel === "partial") {
+        if (!plan) return "Alege planul sau adaugă unul nou.";
+        let p = Number(sc.platit) || 0;
+        if (p <= 0) return "Scrie c\xE2t a plătit p\xE2nă acum.";
+        if (p >= (Number(plan.price) || 0)) return "A plătit tot? Atunci alege „Plătită integral”.";
+        return ""
+    }
+    if (sc.fel === "altfel") {
+        if (sc.altfel === "ore") return (Number(sc.incluse) || 0) + (Number(sc.suplimentare) || 0) > 0 ? "" : "C\xE2te ședințe mai are de făcut?";
+        if (!taxe.find(t => t.id === sc.taxa)) return "Alege taxa sau adaugă una nouă.";
+        return sc.achitat ? "" : "Spune dacă s-a achitat.";
+    }
+    return ""
+}
+
+/* Școlarizarea, spusă pe scurt: pe fișă, în rezumat, în pașii elevului nou. */
+function iasDescriereScolarizare(sc, setari) {
+    if (!sc || !sc.fel) return "";
+    let taxe = ii(setari || {}), lei = setari && setari.currency || "lei",
+        bani = x => `${(Number(x) || 0).toLocaleString("ro-RO")} ${lei}`,
+        plan = taxe.find(t => t.id === sc.plan), taxa = taxe.find(t => t.id === sc.taxa);
+    switch (sc.fel) {
+        case "integral": return `Plătită integral${plan ? ` \xB7 ${plan.name} \xB7 ${Number(plan.hours) || 0} incluse` : ""}`;
+        case "partial": return `Plătită parțial \xB7 ${bani(sc.platit)}${plan ? ` din ${bani(plan.price)}` : ""} \xB7 ${Number(sc.ore) || 0} incluse`;
+        case "perfectionare": return "\xCEn vederea perfecționării \xB7 fără ședințe incluse";
+        case "provizorie": return `Provizorie \xB7 ${Number(sc.ore) || 0} incluse p\xE2nă afli`;
+        case "altfel": return sc.altfel === "ore"
+            ? `Ședințe rămase \xB7 ${Number(sc.incluse) || 0} incluse, ${Number(sc.suplimentare) || 0} suplimentare`
+            : `${taxa ? taxa.name : "Taxă"} \xB7 ${sc.achitat === "school" ? "achitată la școală" : sc.achitat === "me" ? "achitată la tine" : "intră la datorie"}`;
+    }
+    return ""
+}
+
+/* Pune școlarizarea pe elev: taxele, orele, plățile, perfecționarea. Ține
+   minte exact ce a adăugat (adaugat), ca s-o poți schimba mai târziu fără să
+   rămână nimic în plus. */
+function iasAplicaScolarizare(elev, sc, setari) {
+    let e = { ...elev, fees: { ...(elev.fees || {}) }, feeLog: [...(elev.feeLog || [])], payments: [...(elev.payments || [])] },
+        ad = { fees: {}, plati: [], incluse: 0, suplimentare: 0, perfectionare: !1, pachet: "" },
+        azi = Be(),
+        taxe = ii(setari || {}),
+        ore = (unde, n) => {
+            n = Math.max(0, Number(n) || 0);
+            if (!n) return;
+            unde === "included" ? (e.includedHours = (Number(e.includedHours) || 0) + n, ad.incluse += n) : (e.extraHours = (Number(e.extraHours) || 0) + n, ad.suplimentare += n)
+        },
+        puneTaxa = (t, cuOre) => {
+            e.fees[t.id] = (Number(e.fees[t.id]) || 0) + 1, e.feeLog.push({ feeId: t.id, date: azi }), ad.fees[t.id] = (ad.fees[t.id] || 0) + 1;
+            cuOre && ore(ur(t), t.hours)
+        },
+        plata = (suma, unde) => {
+            suma = Number(suma) || 0;
+            if (suma <= 0) return;
+            let p = { id: Vt("pay"), date: azi, amount: suma, collector: unde === "me" ? "me" : "school" };
+            e.payments.push(p), ad.plati.push(p.id)
+        },
+        plan = taxe.find(t => t.id === sc.plan),
+        taxa = taxe.find(t => t.id === sc.taxa);
+    if (sc.fel === "integral" && plan) {
+        puneTaxa(plan, !0), plata(plan.price, "school");
+        /* Ca în formular: pachetul ales se vede ales. Doar cel achitat la școală,
+           fiindcă schimbarea lui din formular știe să retragă plata. */
+        plan.laScoala && !e.pachet && (e.pachet = plan.id, ad.pachet = plan.id)
+    } else if (sc.fel === "partial" && plan) {
+        puneTaxa(plan, !1), ore("included", sc.ore), plata(sc.platit, sc.unde)
+    } else if (sc.fel === "perfectionare") {
+        e.perfectionare || (e.perfectionare = !0, ad.perfectionare = !0)
+    } else if (sc.fel === "provizorie") {
+        ore("included", sc.ore)
+    } else if (sc.fel === "altfel") {
+        if (sc.altfel === "ore") ore("included", sc.incluse), ore("extra", sc.suplimentare);
+        else if (taxa) puneTaxa(taxa, !0), sc.achitat === "school" ? plata(taxa.price, "school") : sc.achitat === "me" && plata(taxa.price, "me")
+    }
+    let pastrat = {};
+    ["fel", "plan", "platit", "unde", "ore", "altfel", "taxa", "achitat", "incluse", "suplimentare"].forEach(k => sc[k] != null && sc[k] !== "" && (pastrat[k] = sc[k]));
+    e.scolarizare = { ...pastrat, din: azi, adaugat: ad };
+    return e
+}
+
+/* Scoate ce pusese școlarizarea de dinainte — numai ce adăugase ea. */
+function iasScoateScolarizare(elev) {
+    let s = elev && elev.scolarizare, ad = s && s.adaugat;
+    if (!ad) return elev;
+    let e = { ...elev, fees: { ...(elev.fees || {}) }, feeLog: [...(elev.feeLog || [])] };
+    Object.keys(ad.fees || {}).forEach(id => {
+        let n = Number(ad.fees[id]) || 0, rest = Math.max(0, (Number(e.fees[id]) || 0) - n);
+        rest ? e.fees[id] = rest : delete e.fees[id];
+        for (let k = e.feeLog.length - 1; k >= 0 && n > 0; k--) e.feeLog[k] && e.feeLog[k].feeId === id && (e.feeLog.splice(k, 1), n--)
+    });
+    e.payments = (elev.payments || []).filter(p => (ad.plati || []).indexOf(p.id) < 0);
+    e.includedHours = Math.max(0, (Number(e.includedHours) || 0) - (Number(ad.incluse) || 0));
+    e.extraHours = Math.max(0, (Number(e.extraHours) || 0) - (Number(ad.suplimentare) || 0));
+    ad.perfectionare && (e.perfectionare = !1);
+    ad.pachet && e.pachet === ad.pachet && (e.pachet = "");
+    delete e.scolarizare;
+    return e
+}
+
+/* După ce se schimbă câte ședințe incluse are, ședințele lui se potrivesc:
+   primele, în ordinea zilelor, sunt incluse; cele de peste, suplimentare. */
+function iasRetipeaza(sesiuni, elevId, incluse) {
+    let ale = sesiuni.filter(x => x.studentId === elevId && x.status !== "cancelled")
+        .sort((a, b) => (a.date + Se(a.startMin)).localeCompare(b.date + Se(b.startMin))),
+        k = 0, tip = {};
+    ale.forEach(x => {
+        let t = k < incluse ? "included" : x.type === "included" ? "extra" : x.type;
+        t === "included" && k++;
+        t !== x.type && (tip[x.id] = t)
+    });
+    let n = Object.keys(tip).length;
+    return { sesiuni: n ? sesiuni.map(x => tip[x.id] ? { ...x, type: tip[x.id] } : x) : sesiuni, schimbate: n }
+}
+
+/* Școlarizarea încă necompletată. */
+function iasProvizoriu(elev) {
+    return !!(elev && !elev.withdrawn && elev.scolarizare && elev.scolarizare.fel === "provizorie")
+}
+
+/* Semnul de pe numele elevului cu școlarizarea provizorie: indicatorul
+   galben de lucrări — semnul de drum pentru ce e temporar. */
+function IasSemnProvizoriu({ size: iasS = 14 }) {
+    return o.default.createElement("svg", {
+        width: iasS, height: iasS, viewBox: "0 0 24 24", "aria-hidden": "true",
+        style: { display: "block" }
+    }, o.default.createElement("path", {
+        d: "M12 2.6 L22.4 20.6 Q22.8 21.4 21.9 21.4 L2.1 21.4 Q1.2 21.4 1.6 20.6 Z",
+        fill: "#f5c400", stroke: "#d0021b", strokeWidth: 2.2, strokeLinejoin: "round"
+    }), o.default.createElement("text", {
+        x: 12, y: 18.6, textAnchor: "middle", fontSize: 11.5, fontWeight: 900,
+        fontFamily: "system-ui, sans-serif", fill: "#111"
+    }, "?"))
+}
+
+/* Un număr care se schimbă cu − și +, mare, pentru degetul mare. */
+function IasPasNumar({ valoare: v, onSchimba: f, min: mn = 0, max: mx = 99, eticheta: et, mare: iasMare }) {
+    let n = Number(v) || 0,
+        buton = (semn, d) => o.default.createElement("button", {
+            type: "button", "aria-label": semn === "+" ? "Mai mult" : "Mai puțin",
+            "data-ias-pas-numar": semn,
+            disabled: semn === "+" ? n >= mx : n <= mn,
+            onClick: () => f(Math.min(mx, Math.max(mn, n + d))),
+            className: "shrink-0 rounded-full flex items-center justify-center text-xl font-medium disabled:opacity-30",
+            style: { width: iasMare ? 52 : 40, height: iasMare ? 52 : 40, border: "1px solid var(--line)", background: "var(--surface)", color: "var(--text)" }
+        }, semn === "+" ? "+" : "−");
+    return o.default.createElement("div", { className: "flex items-center gap-3" },
+        buton("−", -1),
+        o.default.createElement("div", { className: "flex-1 text-center" },
+            o.default.createElement("div", { className: "font-mono-time font-semibold", style: { fontSize: iasMare ? 44 : 26, lineHeight: 1.1, color: "var(--text)" } }, n),
+            et ? o.default.createElement("div", { className: "text-xs", style: { color: "var(--muted-2)" } }, et) : null),
+        buton("+", 1))
+}
+
+/* Alegere dintre câteva, ca pastile. */
+function IasPastile({ optiuni: op, valoare: v, onAlege: f, numeDate: nd }) {
+    return o.default.createElement("div", { className: "flex flex-wrap gap-1.5", "data-ias-pastile": nd || "" }, op.map(([id, t]) => {
+        let ales = v === id;
+        return o.default.createElement("button", {
+            key: id || "-", type: "button", "aria-pressed": ales, "data-ias-pastila": id,
+            onClick: () => f(id),
+            className: "text-sm px-3.5 py-2 rounded-full font-medium",
+            style: { background: ales ? "var(--invert)" : "var(--surface)", color: ales ? "#fff" : "var(--text)", border: `1px solid ${ales ? "var(--invert)" : "var(--line)"}` }
+        }, t)
+    }))
+}
+
+/* Un card de ales: titlu, rând mic dedesubt, bifat când e ales. */
+function IasCardAles({ ales, titlu, sub, dreapta, onClick: f, date: dt }) {
+    return o.default.createElement("button", {
+        type: "button", onClick: f, "aria-pressed": !!ales, ...(dt || {}),
+        className: "w-full text-left rounded-2xl px-3.5 py-3",
+        style: {
+            background: ales ? "var(--accent-soft)" : "var(--surface)",
+            border: `${ales ? 2 : 1}px solid ${ales ? "var(--accent)" : "var(--line)"}`,
+            boxShadow: ales ? "0 2px 12px -6px var(--accent)" : "var(--shadow)"
+        }
+    }, o.default.createElement("div", { className: "flex items-baseline gap-2" },
+        o.default.createElement("span", { className: "text-sm font-semibold flex-1 min-w-0", style: { color: ales ? "var(--accent-ink)" : "var(--text)" } }, titlu),
+        dreapta ? o.default.createElement("span", { className: "font-mono-time text-sm shrink-0", style: { color: ales ? "var(--accent-ink)" : "var(--muted)" } }, dreapta) : null,
+        ales ? o.default.createElement("span", { className: "text-sm shrink-0", style: { color: "var(--accent-ink)" } }, "✓") : null),
+        sub ? o.default.createElement("div", { className: "text-xs mt-1", style: { color: "var(--muted-2)" } }, sub) : null)
+}
+
+/* O taxă sau un plan nou, chiar de aici. Se adaugă în Finanțe → Taxe, la fel
+   ca acolo. */
+function IasTaxaNoua({ setari: iasS, plan: iasPlan, onAdauga: iasAdauga, onRenunta: iasRenunta }) {
+    let [d, pune] = (0, o.useState)(() => iasPlan
+        ? { name: "Școlarizare", price: "", hours: "17", oreTip: "included", laScoala: !0 }
+        : { name: "", price: "", hours: "3", oreTip: "included", laScoala: !1 }),
+        b = (k, v) => pune(x => ({ ...x, [k]: v })),
+        bun = d.name.trim() && Number(d.price) > 0;
+    return o.default.createElement("div", { className: "rounded-2xl p-3.5 mt-2", "data-ias-taxa-noua": iasPlan ? "plan" : "taxa", style: { background: "var(--surface-2)", border: "1px solid var(--line)" } },
+        o.default.createElement("div", { className: "text-sm font-semibold mb-3", style: { color: "var(--text)" } }, iasPlan ? "Plan de școlarizare nou" : "Taxă nouă"),
+        o.default.createElement(xe, { label: "Numele" }, o.default.createElement("input", {
+            className: ie, value: d.name, placeholder: iasPlan ? "ex. Școlarizare 20 ședințe" : "ex. Pachet 3 ședințe", onChange: q => b("name", q.target.value)
+        })),
+        o.default.createElement("div", { className: "grid grid-cols-2 gap-3" },
+            o.default.createElement(xe, { label: `Preț (${iasS && iasS.currency || "lei"})` }, o.default.createElement("input", {
+                type: "number", min: "0", inputMode: "numeric", className: ie, value: d.price, onChange: q => b("price", q.target.value)
+            })),
+            o.default.createElement(xe, { label: "Ședințe" }, o.default.createElement("input", {
+                type: "number", min: "0", inputMode: "numeric", className: ie, value: d.hours, onChange: q => b("hours", q.target.value)
+            }))),
+        iasPlan ? null : o.default.createElement("div", { className: "mb-3" },
+            o.default.createElement("span", { className: "block text-xs font-medium text-slate-500 mb-1.5" }, "Ședințele aduse sunt"),
+            o.default.createElement(IasPastile, { optiuni: [["included", "incluse"], ["extra", "suplimentare"]], valoare: d.oreTip, onAlege: v => b("oreTip", v) })),
+        o.default.createElement("button", {
+            type: "button", onClick: () => b("laScoala", !d.laScoala),
+            className: "w-full flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 mb-3 text-left",
+            style: { border: `1px solid ${d.laScoala ? "var(--accent-line)" : "var(--line)"}`, background: d.laScoala ? "var(--accent-soft)" : "var(--surface)" }
+        }, o.default.createElement("span", {
+            className: "flex items-center justify-center rounded-md shrink-0",
+            style: { width: 18, height: 18, border: `1.5px solid ${d.laScoala ? "var(--accent)" : "var(--line-2)"}`, background: d.laScoala ? "var(--accent)" : "transparent", color: "#3a2100", fontSize: 12, fontWeight: 900, lineHeight: 1 }
+        }, d.laScoala ? "✓" : ""), o.default.createElement("span", { className: "text-sm flex-1", style: { color: "var(--text)" } }, "Se achită la școală")),
+        o.default.createElement("div", { className: "flex gap-2" },
+            o.default.createElement("button", { type: "button", onClick: iasRenunta, className: "flex-1 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600" }, "Renunță"),
+            o.default.createElement("button", {
+                type: "button", disabled: !bun, "data-ias-taxa-adauga": "",
+                onClick: () => iasAdauga({ id: Vt("fee"), name: d.name.trim(), price: Number(d.price) || 0, hours: Number(d.hours) || 0, oreTip: iasPlan ? "included" : d.oreTip, laScoala: !!d.laScoala }),
+                className: "flex-1 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-medium disabled:opacity-40"
+            }, "Adaugă")),
+        o.default.createElement("p", { className: "text-xs text-slate-400 mt-2" }, "Se păstrează \xEEn Finanțe → Taxe, ca s-o alegi și la alți elevi."))
+}
+
+/* Alegerea școlarizării: cele cinci feluri și, sub cel ales, ce mai trebuie
+   spus despre el. Aceeași la elevul nou și pe fișă, la „Schimbă". */
+function IasScolarizareAlege({ sc, setari: iasS, onSchimba: iasF, onAdaugaTaxa: iasAdaugaTaxa, faraProvizorie: iasFaraProv }) {
+    let [nou, puneNou] = (0, o.useState)(""),
+        b = (k, v) => iasF({ ...sc, [k]: v }),
+        lei = iasS && iasS.currency || "lei",
+        bani = x => `${(Number(x) || 0).toLocaleString("ro-RO")} ${lei}`,
+        planuri = iasPlanuri(iasS),
+        taxe = ii(iasS || {}),
+        plan = taxe.find(t => t.id === sc.plan),
+        adaugaTaxa = (t, cheie) => { iasAdaugaTaxa && iasAdaugaTaxa(t), puneNou(""), iasF({ ...sc, [cheie]: t.id }) },
+        alegePlan = () => o.default.createElement("div", { className: "space-y-1.5", "data-ias-planuri": "" },
+            planuri.map(t => o.default.createElement(IasCardAles, {
+                key: t.id, ales: sc.plan === t.id, titlu: t.name, dreapta: bani(t.price),
+                sub: `${Number(t.hours) || 0} ședințe incluse${t.laScoala ? " \xB7 achitat la școală" : ""}`,
+                date: { "data-ias-plan": t.id },
+                onClick: () => b("plan", t.id)
+            })),
+            nou === "plan" ? o.default.createElement(IasTaxaNoua, { setari: iasS, plan: !0, onRenunta: () => puneNou(""), onAdauga: t => adaugaTaxa(t, "plan") })
+                : o.default.createElement("button", {
+                    type: "button", "data-ias-plan-nou": "", onClick: () => puneNou("plan"),
+                    className: "w-full py-2.5 rounded-xl text-sm font-medium",
+                    style: { border: "1px dashed var(--accent-line)", color: "var(--accent-ink)", background: "var(--accent-soft)" }
+                }, planuri.length ? "+ Plan nou (alt număr de ședințe)" : "+ Adaugă planul de școlarizare")),
+        nota = t => o.default.createElement("p", { className: "text-xs mt-2.5 px-1", style: { color: "var(--muted-2)" } }, t),
+        eticheta = t => o.default.createElement("span", { className: "block text-xs font-medium mb-1.5", style: { color: "var(--muted)", marginTop: 14 } }, t),
+        detalii = null;
+    if (sc.fel === "integral") detalii = o.default.createElement(o.default.Fragment, null, eticheta("Planul"), alegePlan(),
+        plan ? nota(`Primește ${Number(plan.hours) || 0} ședințe incluse. Cei ${bani(plan.price)} se trec ca plată făcută la școală — nu răm\xE2ne datorie.`) : null);
+    else if (sc.fel === "partial") {
+        let rest = plan ? (Number(plan.price) || 0) - (Number(sc.platit) || 0) : 0;
+        detalii = o.default.createElement(o.default.Fragment, null, eticheta("Planul (suma \xEEntreagă)"), alegePlan(),
+            eticheta("C\xE2t a plătit p\xE2nă acum"),
+            o.default.createElement("input", {
+                type: "number", min: "0", inputMode: "numeric", className: ie, "data-ias-platit": "",
+                style: { fontSize: 17 }, value: sc.platit, placeholder: lei, onChange: q => b("platit", q.target.value)
+            }),
+            eticheta("Unde a plătit"),
+            o.default.createElement(IasPastile, { optiuni: [["school", "La școală"], ["me", "La mine"]], valoare: sc.unde, onAlege: v => b("unde", v) }),
+            eticheta("Ședințe incluse"),
+            o.default.createElement(IasPasNumar, { valoare: sc.ore, min: 0, max: 60, onSchimba: v => b("ore", v), eticheta: "incluse acum" }),
+            plan && Number(sc.platit) > 0 && rest > 0 ? o.default.createElement("div", {
+                className: "rounded-xl px-3.5 py-2.5 mt-3 text-sm", "data-ias-rest": rest,
+                style: { background: "var(--surface-2)", border: "1px solid var(--line)", color: "var(--text)" }
+            }, "Răm\xE2n de plată ", o.default.createElement("b", { className: "font-mono-time" }, bani(rest)), ". Intră la datoria lui; c\xE2nd achită, treci plata pe fișă.") : null)
+    } else if (sc.fel === "perfectionare") detalii = nota("Toate ședințele lui intră ca suplimentare, după tarifele tale. Nu e socotit la sală și nici la adeverință — are deja permis.");
+    else if (sc.fel === "provizorie") detalii = o.default.createElement(o.default.Fragment, null,
+        eticheta("P\xE2nă afli, socotesc"),
+        o.default.createElement(IasPasNumar, { valoare: sc.ore, min: 0, max: 60, onSchimba: v => b("ore", v), eticheta: "ședințe incluse" }),
+        o.default.createElement("div", { className: "flex items-start gap-2.5 rounded-xl px-3.5 py-3 mt-3", style: { background: "var(--surface-2)", border: "1px solid var(--line)" } },
+            o.default.createElement("span", { className: "shrink-0 mt-0.5" }, o.default.createElement(IasSemnProvizoriu, { size: 20 })),
+            o.default.createElement("span", { className: "text-xs", style: { color: "var(--muted)" } }, "\xCEl poți programa și \xEEl prinde planul. P\xE2nă completezi, numele lui poartă semnul galben, iar pe Acasă \xEEți amintește. De pe fișa lui: „Completează școlarizarea”.")));
+    else if (sc.fel === "altfel") detalii = o.default.createElement(o.default.Fragment, null,
+        eticheta("Ce aduce"),
+        o.default.createElement(IasPastile, { optiuni: [["taxa", "O taxă stabilită"], ["ore", "Doar ședințele rămase"]], valoare: sc.altfel, onAlege: v => b("altfel", v), numeDate: "altfel" }),
+        sc.altfel === "ore" ? o.default.createElement(o.default.Fragment, null,
+            eticheta("Ședințe incluse rămase"),
+            o.default.createElement(IasPasNumar, { valoare: sc.incluse, min: 0, max: 60, onSchimba: v => b("incluse", v) }),
+            eticheta("Ședințe suplimentare rămase, deja plătite"),
+            o.default.createElement(IasPasNumar, { valoare: sc.suplimentare, min: 0, max: 60, onSchimba: v => b("suplimentare", v) }),
+            nota("Cele incluse și cele suplimentare plătite nu intră la datorie. Ce face peste ele se socotește ca suplimentar, după tarifele tale."))
+            : o.default.createElement(o.default.Fragment, null,
+                eticheta("Taxa"),
+                o.default.createElement("div", { className: "space-y-1.5" },
+                    taxe.map(t => o.default.createElement(IasCardAles, {
+                        key: t.id, ales: sc.taxa === t.id, titlu: t.name, dreapta: bani(t.price),
+                        sub: Number(t.hours) > 0 ? `${Number(t.hours)} ${ur(t) === "included" ? "ședințe incluse" : "ședințe suplimentare"}` : "fără ședințe",
+                        date: { "data-ias-taxa": t.id },
+                        onClick: () => b("taxa", t.id)
+                    })),
+                    nou === "taxa" ? o.default.createElement(IasTaxaNoua, { setari: iasS, onRenunta: () => puneNou(""), onAdauga: t => adaugaTaxa(t, "taxa") })
+                        : o.default.createElement("button", {
+                            type: "button", "data-ias-taxa-noua-buton": "", onClick: () => puneNou("taxa"),
+                            className: "w-full py-2.5 rounded-xl text-sm font-medium",
+                            style: { border: "1px dashed var(--accent-line)", color: "var(--accent-ink)", background: "var(--accent-soft)" }
+                        }, "+ Taxă nouă")),
+                eticheta("S-a achitat?"),
+                o.default.createElement(IasPastile, { optiuni: [["school", "Da, la școală"], ["me", "Da, la mine"], ["nu", "Nu \xEEncă"]], valoare: sc.achitat, onAlege: v => b("achitat", v), numeDate: "achitat" }),
+                sc.achitat === "nu" ? nota("Suma intră la datoria lui, p\xE2nă treci plata pe fișă.") : null));
+    return o.default.createElement("div", { "data-ias-scolarizare-alege": sc.fel || "" },
+        o.default.createElement("div", { className: "space-y-1.5" }, IAS_FELURI_SCOLARIZARE.filter(x => !(iasFaraProv && x.id === "provizorie")).map(x => o.default.createElement(o.default.Fragment, { key: x.id },
+            o.default.createElement(IasCardAles, {
+                ales: sc.fel === x.id, titlu: x.nume, sub: x.sub,
+                date: { "data-ias-fel": x.id },
+                onClick: () => iasF({ ...sc, fel: x.id, ore: x.id === "partial" || x.id === "provizorie" ? (Number(sc.ore) || 15) : sc.ore })
+            }),
+            sc.fel === x.id && detalii ? o.default.createElement("div", { className: "px-1 pt-1 pb-3", "data-ias-fel-detalii": x.id }, detalii) : null))))
+}
+
+/* Schimbarea școlarizării de pe fișă (sau completarea celei provizorii). */
+function IasScolarizareDialog({ elev: iasE, setari: iasS, onClose: iasInchide, onSalveaza: iasSalveaza, onAdaugaTaxa: iasAdaugaTaxa }) {
+    let prov = iasProvizoriu(iasE),
+        [sc, puneSc] = (0, o.useState)(() => {
+            let g = iasScolarizareGoala(iasS), v = iasE && iasE.scolarizare || {};
+            return prov ? g : { ...g, ...v, adaugat: void 0, din: void 0 }
+        }),
+        [err, puneErr] = (0, o.useState)("");
+    if (!iasE) return null;
+    let veche = iasE.scolarizare, faraUrma = veche && !veche.adaugat;
+    return o.default.createElement(oi, {
+        open: !0, onClose: iasInchide, layer: Wt.form,
+        title: prov ? "Completează școlarizarea" : "Școlarizarea",
+        footer: o.default.createElement("div", null,
+            err ? o.default.createElement("p", { className: "text-xs mb-2", style: { color: "var(--bad)" } }, err) : null,
+            o.default.createElement("div", { className: "flex gap-2.5" },
+                o.default.createElement("button", { type: "button", onClick: iasInchide, className: "flex-1 py-3 rounded-xl border border-slate-200 text-slate-700 font-medium text-sm" }, "Renunță"),
+                o.default.createElement("button", {
+                    type: "button", "data-ias-scolarizare-salveaza": "",
+                    onClick: () => { let l = iasScolarizareLipsa(sc, iasS); l ? puneErr(l) : iasSalveaza(sc) },
+                    className: "flex-1 py-3 rounded-xl bg-slate-900 text-white font-medium text-sm"
+                }, "Salvează")))
+    }, o.default.createElement("p", { className: "text-sm mb-3.5", style: { color: "var(--muted)" } },
+        prov ? `Ce a plătit ${Ff(iasE)} la școală? Ce alegi aici ia locul celor ${Number(veche.ore) || 0} ședințe socotite p\xE2nă acum.`
+            : veche ? `Acum: ${iasDescriereScolarizare(veche, iasS)}. Ce alegi aici ia locul ei — taxele, orele și plățile puse atunci se retrag.`
+                : "Alege cum și-a plătit școlarizarea. Se adaugă peste ce are deja pe fișă."),
+        faraUrma ? o.default.createElement("p", { className: "text-xs mb-3", style: { color: "var(--bad)" } }, "Pachetul a fost schimbat din formular, așa că ce s-a pus atunci nu se mai retrage singur. Verifică după aceea orele și plățile.") : null,
+        o.default.createElement(IasScolarizareAlege, { sc, setari: iasS, faraProvizorie: prov, onAdaugaTaxa: iasAdaugaTaxa, onSchimba: x => { puneSc(x), puneErr("") } }))
+}
+
+/* Pașii elevului nou. */
+function IasVrajitor({
+    open: iasDeschis,
+    setari: iasS,
+    elevi: iasElevi = [],
+    sesiuni: iasSes = [],
+    programElevi: iasProgramPornit,
+    onClose: iasInchide,
+    onCreeaza: iasCreeaza,
+    onFormular: iasFormular,
+    onAdaugaLimba: iasAdaugaLimba,
+    onAdaugaTaxa: iasAdaugaTaxa,
+    onNotifica: iasNotifica,
+    onBunVenitTrimis: iasBunTrimis,
+    onCereProgram: iasCere,
+    onDeschide: iasDeschide,
+    poateInca: iasPoateInca = !0
+}) {
+    let gol = () => ({
+            lastName: "", firstName: "", sex: "", phone: "", birthDate: "", area: "", lat: null, lng: null,
+            county: iasS && iasS.defaultCounty || "B",
+            regNumber: "", group: "", enrollDate: Be(),
+            limba: "", english: !1,
+            licenseCategory: "B", masina: iasMasinaImplicita(iasS || {}) || "",
+            defaultLocation: "", weeklyLimit: Number(iasS && iasS.defaultWeeklyLimit) || 2
+        }),
+        [d, puneD] = (0, o.useState)(gol),
+        [sc, puneSc] = (0, o.useState)(() => iasScolarizareGoala(iasS)),
+        [pas, punePas] = (0, o.useState)(0),
+        [err, puneErr] = (0, o.useState)(""),
+        [cnp, puneCnp] = (0, o.useState)(""),
+        [felNastere, puneFelNastere] = (0, o.useState)("cnp"),
+        [sexDinCnp, puneSexDinCnp] = (0, o.useState)(!1),
+        [loc, puneLoc] = (0, o.useState)(""),
+        [facut, puneFacut] = (0, o.useState)(null),
+        [trimis, puneTrimis] = (0, o.useState)(!1),
+        [intreb, puneIntreb] = (0, o.useState)(!1),
+        [laRecap, puneLaRecap] = (0, o.useState)(!1),
+        miscare = (0, o.useRef)(null),
+        directie = (0, o.useRef)(1);
+    (0, o.useEffect)(() => {
+        iasDeschis && (puneD(gol()), puneSc(iasScolarizareGoala(iasS)), punePas(0), puneErr(""), puneCnp(""), puneFelNastere("cnp"), puneSexDinCnp(!1), puneLoc(""), puneFacut(null), puneTrimis(!1), puneIntreb(!1), puneLaRecap(!1))
+    }, [iasDeschis]);
+    /* Pasul nou intră dinspre partea în care mergi. */
+    (0, o.useLayoutEffect)(() => {
+        let el = miscare.current;
+        if (el && el.animate) try {
+            el.animate([{ opacity: 0, transform: `translateX(${directie.current * 18}px)` }, { opacity: 1, transform: "none" }], { duration: 240, easing: "cubic-bezier(.2,.9,.3,1)" })
+        } catch (x) {}
+    }, [pas, !!facut]);
+    if (!iasDeschis) return null;
+    let b = (k, v) => { puneD(x => ({ ...x, [k]: v })), puneErr("") },
+        lei = iasS && iasS.currency || "lei",
+        planuri = iasPlanuri(iasS),
+        cifre = x => String(x || "").replace(/\D/g, ""),
+        acelasiNume = (d.lastName.trim() || d.firstName.trim()) && iasElevi.find(x => !x.withdrawn && `${x.lastName || ""} ${x.firstName || ""}`.trim().toLowerCase() === `${d.lastName.trim()} ${d.firstName.trim()}`.trim().toLowerCase()),
+        acelasiTel = cifre(d.phone).length >= 9 && iasElevi.find(x => cifre(x.phone).slice(-9) === cifre(d.phone).slice(-9)),
+        citit = iasCitesteCnp(cnp),
+        varsta = d.birthDate ? vu(d.birthDate) : null,
+        locuri = iasLocuriDesFolosite(iasS && iasS.locations || [], iasSes),
+        masini = iasMasini(iasS || {}),
+        incluseEstimat = sc.fel === "integral" ? Number((ii(iasS || {}).find(t => t.id === sc.plan) || {}).hours) || 0
+            : sc.fel === "partial" || sc.fel === "provizorie" ? Number(sc.ore) || 0
+            : sc.fel === "altfel" ? (sc.altfel === "ore" ? (Number(sc.incluse) || 0) + (Number(sc.suplimentare) || 0) : Number((ii(iasS || {}).find(t => t.id === sc.taxa) || {}).hours) || 0) : 0,
+        mare = { fontSize: 17, paddingTop: 14, paddingBottom: 14 },
+        camp = (eticheta, el) => o.default.createElement(xe, { label: eticheta }, el),
+        nota = (t, stil) => o.default.createElement("p", { className: "text-xs mt-2", style: { color: "var(--muted-2)", ...(stil || {}) } }, t),
+        atentie = t => o.default.createElement("p", { className: "text-xs mt-2 flex items-start gap-1.5", "data-ias-atentie": "", style: { color: "var(--accent-ink)" } }, o.default.createElement("span", { "aria-hidden": "true" }, "⚠"), t),
+        laEnter = q => { q.key === "Enter" && (q.preventDefault(), inainte()) };
+    /* ---- pașii ---- */
+    let PASI = [{
+        id: "nume", grup: "Persoana", titlu: "Cum \xEEl cheamă?",
+        sub: "Numele așa cum e \xEEn dosar. \xCEn mesaje folosesc doar primul prenume.",
+        lipsa: () => d.lastName.trim() || d.firstName.trim() ? "" : "Scrie măcar numele sau prenumele.",
+        rezumat: () => `${d.lastName} ${d.firstName}`.trim(),
+        arata: () => o.default.createElement(o.default.Fragment, null,
+            camp("Nume de familie", o.default.createElement("input", { className: ie, style: mare, autoCapitalize: "words", autoFocus: !0, "data-ias-v": "lastName", value: d.lastName, placeholder: "Popescu", onChange: q => b("lastName", q.target.value), onKeyDown: laEnter })),
+            camp("Prenume", o.default.createElement("input", { className: ie, style: mare, autoCapitalize: "words", "data-ias-v": "firstName", value: d.firstName, placeholder: "Ana Maria", onChange: q => b("firstName", q.target.value), onKeyDown: laEnter })),
+            o.default.createElement("span", { className: "block text-xs font-medium text-slate-500 mb-1.5" }, "Adresarea \xEEn mesaje"),
+            o.default.createElement(IasPastile, { optiuni: [["m", "„Salut, Andrei!”"], ["f", "„Bună, Ana!”"], ["", "Neutră"]], valoare: d.sex, onAlege: v => { b("sex", v), puneSexDinCnp(!1) }, numeDate: "sex" }),
+            nota("Din CNP o pun singur, dacă \xEEl scrii la pasul cu nașterea."),
+            acelasiNume ? atentie(`Ai deja un elev cu numele ăsta${acelasiNume.group ? ` (grupa ${acelasiNume.group})` : ""}. Dacă e altcineva, mergi mai departe.`) : null)
+    }, {
+        id: "telefon", grup: "Persoana", titlu: "Numărul lui de telefon", optional: !0,
+        sub: "Pe el \xEEi trimiți mesajele, pe WhatsApp sau SMS.",
+        lipsa: () => { let c = cifre(d.phone); return !c || c.length >= 9 ? "" : "Numărul pare incomplet." },
+        rezumat: () => d.phone || "",
+        arata: () => o.default.createElement(o.default.Fragment, null,
+            camp("Telefon", o.default.createElement("input", {
+                className: ie, style: { ...mare, letterSpacing: ".04em" },
+                type: "text", inputMode: "tel", autoComplete: "off", autoCorrect: "off", spellCheck: !1, name: "ias-numar-elev", autoFocus: !0,
+                "data-ias-v": "phone", value: d.phone, placeholder: "07xx xxx xxx", onChange: q => b("phone", q.target.value), onKeyDown: laEnter
+            })),
+            acelasiTel ? atentie(`Numărul e deja la ${acelasiTel.name}.`) : null,
+            nota("\xCEl poți lăsa și pentru mai t\xE2rziu — fără el, doar mesajele nu au unde pleca."))
+    }, {
+        id: "nastere", grup: "Persoana", titlu: "C\xE2nd s-a născut?", optional: !0,
+        sub: "Scrie CNP-ul și scot eu data — sau alege data direct.",
+        lipsa: () => felNastere === "cnp" && cnp && !citit.ok ? "CNP-ul nu e bun: " + (citit.motiv || "verifică cifrele") + "." : "",
+        rezumat: () => d.birthDate ? `${iasDataLunga(d.birthDate)}${varsta != null ? ` \xB7 ${varsta} ani` : ""}` : "",
+        arata: () => o.default.createElement(o.default.Fragment, null,
+            o.default.createElement(IasPastile, { optiuni: [["cnp", "Din CNP"], ["data", "Data nașterii"]], valoare: felNastere, onAlege: v => { puneFelNastere(v), puneErr("") }, numeDate: "nastere" }),
+            o.default.createElement("div", { style: { marginTop: 14 } }, felNastere === "cnp" ? o.default.createElement(o.default.Fragment, null,
+                camp("CNP", o.default.createElement("input", {
+                    className: ie, style: { ...mare, letterSpacing: ".08em" }, type: "text", inputMode: "numeric", autoComplete: "off", autoCorrect: "off", spellCheck: !1, name: "ias-cnp-elev", maxLength: 16, autoFocus: !0,
+                    "data-ias-v": "cnp", value: cnp, placeholder: "13 cifre",
+                    onKeyDown: laEnter,
+                    onChange: q => {
+                        let t = q.target.value, r = iasCitesteCnp(t);
+                        puneCnp(t), puneErr("");
+                        /* Adresarea aleasă de tine rămâne; altfel o dă CNP-ul. */
+                        r.ok && (puneD(x => ({ ...x, birthDate: r.data, sex: x.sex && !sexDinCnp ? x.sex : r.sex || x.sex })), (!d.sex || sexDinCnp) && puneSexDinCnp(!!r.sex))
+                    }
+                })),
+                citit.ok ? o.default.createElement("div", { className: "rounded-xl px-3.5 py-3 flex items-center gap-2.5", "data-ias-cnp-ok": citit.data, style: { background: "var(--ok-soft)", border: "1px solid var(--ok-line)" } },
+                    o.default.createElement("span", { className: "text-lg", style: { color: "var(--ok)" } }, "✓"),
+                    o.default.createElement("span", { className: "text-sm", style: { color: "var(--text)" } }, `Născut${citit.sex === "f" ? "ă" : citit.sex === "m" ? "" : "(ă)"} pe ${iasDataLunga(citit.data)}`,
+                        vu(citit.data) != null ? ` \xB7 ${vu(citit.data)} ani` : "", citit.sex ? ` \xB7 ${citit.sex === "f" ? "feminin" : "masculin"}` : ""))
+                    : cnp && !citit.gol ? o.default.createElement("p", { className: "text-xs", "data-ias-cnp-gresit": "", style: { color: citit.motiv && /mai sunt/.test(citit.motiv) ? "var(--muted-2)" : "var(--bad)" } }, "CNP: ", citit.motiv) : null,
+                nota("CNP-ul nu se păstrează \xEEn aplicație: din el răm\xE2n doar data nașterii și adresarea."))
+                : camp("Data nașterii", o.default.createElement("input", { type: "date", className: ie, style: mare, "data-ias-v": "birthDate", value: d.birthDate, max: Be(), onChange: q => b("birthDate", q.target.value) }))),
+            varsta != null && varsta < 16 ? atentie(`Are ${varsta} ani — verifică data.`) : null)
+    }, {
+        id: "domiciliu", grup: "Persoana", titlu: "Unde locuiește?", optional: !0,
+        sub: "Opțional. Zona \xEEl ajută pe plan să pună unul după altul elevii care stau aproape.",
+        lipsa: () => "",
+        rezumat: () => [d.area, Fn(d) ? "punct pe hartă" : ""].filter(Boolean).join(" \xB7 "),
+        arata: () => o.default.createElement(o.default.Fragment, null,
+            camp("Zona sau adresa", o.default.createElement("input", { className: ie, style: mare, autoFocus: !0, "data-ias-v": "area", value: d.area, placeholder: "Ex: Tomis Nord, Km 5, centru", onChange: q => b("area", q.target.value), onKeyDown: laEnter })),
+            o.default.createElement("div", { className: "rounded-xl px-3 py-2.5 mb-3.5", style: { border: "1px solid var(--line)", background: "var(--surface)" } },
+                o.default.createElement("div", { className: "flex items-center justify-between gap-2" },
+                    o.default.createElement("span", { className: "text-xs min-w-0", style: { color: Fn(d) ? "var(--ok)" : "var(--muted)" } }, Fn(d) ? `${d.lat}, ${d.lng}` : "Punct pe hartă — nesetat"),
+                    Fn(d) ? o.default.createElement("button", { type: "button", onClick: () => puneD(x => ({ ...x, lat: null, lng: null })), className: "text-xs text-slate-400" }, "Șterge") : null),
+                o.default.createElement("button", {
+                    type: "button", disabled: loc === "caut",
+                    onClick: async () => { puneLoc("caut"); try { let r = await jw(); puneD(x => ({ ...x, lat: r.lat, lng: r.lng })), puneLoc("") } catch (x) { puneLoc(x && x.code === 1 ? "refuzat" : "eroare") } },
+                    className: "w-full mt-2 py-2 rounded-lg border border-slate-200 text-slate-600 text-xs flex items-center justify-center gap-1.5 disabled:opacity-50"
+                }, o.default.createElement(dn, { size: 13 }), loc === "caut" ? "Caut…" : "Sunt acum acolo"),
+                o.default.createElement("input", {
+                    className: `${ie} mt-2`, placeholder: "link de hartă, coordonate sau Plus Code",
+                    onChange: q => { let r = iasReper(iasS || {}), k = Xw(q.target.value, r[0], r[1]); k && (puneD(x => ({ ...x, lat: k.lat, lng: k.lng })), q.target.value = "", puneLoc("")) }
+                }),
+                loc === "refuzat" ? o.default.createElement("p", { className: "text-xs mt-1.5", style: { color: "var(--bad)" } }, "Telefonul nu a dat voie la locație.") : loc === "eroare" ? o.default.createElement("p", { className: "text-xs mt-1.5", style: { color: "var(--bad)" } }, "Nu am prins semnalul.") : null),
+            camp("Județul (pentru plăcuța de pe fișă)", o.default.createElement("select", { className: ie, value: d.county, onChange: q => b("county", q.target.value) }, Aw.map(x => o.default.createElement("option", { key: x, value: x }, x)))))
+    }, {
+        id: "dosar", grup: "Dosar", titlu: "Dosarul de la școală", optional: !0,
+        sub: "Numărul dosarului, grupa și ziua \xEEnscrierii. Le poți completa și mai t\xE2rziu.",
+        lipsa: () => "",
+        rezumat: () => [d.regNumber ? "dosar " + d.regNumber : "", d.group ? "grupa " + d.group : "", d.enrollDate ? "\xEEnscris " + qe(d.enrollDate) : ""].filter(Boolean).join(" \xB7 "),
+        arata: () => o.default.createElement(o.default.Fragment, null,
+            o.default.createElement("div", { className: "grid grid-cols-2 gap-3" },
+                camp("Nr. dosar", o.default.createElement("input", { className: ie, style: mare, inputMode: "numeric", autoFocus: !0, "data-ias-v": "regNumber", value: d.regNumber, placeholder: "ex. 1234", onChange: q => b("regNumber", q.target.value), onKeyDown: laEnter })),
+                camp("Nr. grupă", o.default.createElement("input", { className: ie, style: mare, "data-ias-v": "group", value: d.group, placeholder: "ex. 12", onChange: q => b("group", q.target.value), onKeyDown: laEnter }))),
+            camp("Data \xEEnscrierii", o.default.createElement("input", { type: "date", className: ie, style: mare, value: d.enrollDate, onChange: q => b("enrollDate", q.target.value) })))
+    }, {
+        id: "limba", grup: "Ședințe", titlu: "\xCEn ce limbă se fac ședințele?",
+        sub: "Mesajul de bun venit și cele despre ședințe pleacă \xEEn limba aleasă. Rom\xE2na are tariful obișnuit; celelalte, tariful lor.",
+        lipsa: () => "",
+        rezumat: () => iasNumeLimba(iasS, d.limba),
+        arata: () => o.default.createElement(IasLimbaElev, { limba: d.limba, setari: iasS, onAdauga: iasAdaugaLimba, onAlege: v => puneD(x => iasCuLimba(x, v)) })
+    }, {
+        id: "categorie", grup: "Ședințe", titlu: "Pentru ce categorie?",
+        sub: masini.length > 1 ? "Categoria de permis și mașina cu care \xEEnvață." : "Categoria de permis pentru care se pregătește.",
+        lipsa: () => "",
+        rezumat: () => `Categoria ${d.licenseCategory}${d.masina && iasMasina(iasS || {}, d.masina) ? ` \xB7 ${iasMasina(iasS || {}, d.masina).nume}` : ""}`,
+        arata: () => o.default.createElement(o.default.Fragment, null,
+            o.default.createElement("div", { className: "grid grid-cols-4 gap-1.5", "data-ias-categorii": "" }, NA.map(x => {
+                let ales = d.licenseCategory === x;
+                return o.default.createElement("button", {
+                    key: x, type: "button", "aria-pressed": ales, "data-ias-categorie": x,
+                    onClick: () => b("licenseCategory", x),
+                    className: "rounded-xl py-3 font-mono-time font-semibold",
+                    style: { fontSize: x === "B" ? 20 : 15, gridColumn: x === "B" ? "span 2" : void 0, background: ales ? "var(--accent-soft)" : "var(--surface)", color: ales ? "var(--accent-ink)" : "var(--text)", border: `${ales ? 2 : 1}px solid ${ales ? "var(--accent)" : "var(--line)"}` }
+                }, x)
+            })),
+            masini.length > 1 ? o.default.createElement("div", { className: "mt-4" },
+                o.default.createElement("span", { className: "block text-xs font-medium text-slate-500 mb-1.5" }, "Mașina lui"),
+                o.default.createElement(IasPastile, { optiuni: [["", "Oricare"]].concat(masini.map(m => [m.id, m.nume + (m.cutie === "automata" ? " \xB7 automată" : "")])), valoare: d.masina, onAlege: v => b("masina", v), numeDate: "masina" })) : null)
+    }, {
+        id: "scolarizare", grup: "Școlarizare", titlu: "Cum și-a plătit școlarizarea?",
+        sub: "De aici știe aplicația c\xE2te ședințe are incluse și ce răm\xE2ne de plată.",
+        lipsa: () => iasScolarizareLipsa(sc, iasS),
+        rezumat: () => iasDescriereScolarizare(sc, iasS),
+        arata: () => o.default.createElement(IasScolarizareAlege, { sc, setari: iasS, onAdaugaTaxa: iasAdaugaTaxa, onSchimba: x => { puneSc(x), puneErr("") } })
+    }, {
+        id: "start", grup: "Programare", titlu: "De unde pornește de obicei?", optional: !0,
+        sub: "Locul de \xEEnt\xE2lnire cu care \xEEi pornesc ședințele. \xCEl poți schimba la fiecare ședință.",
+        lipsa: () => "",
+        rezumat: () => d.defaultLocation || "",
+        arata: () => o.default.createElement(o.default.Fragment, null,
+            locuri.length ? o.default.createElement("div", { className: "space-y-1.5 mb-3.5", "data-ias-locuri": "" }, locuri.slice(0, 8).map(x => o.default.createElement(IasCardAles, {
+                key: x.id, ales: d.defaultLocation === x.name, titlu: x.name, date: { "data-ias-loc": x.name },
+                onClick: () => b("defaultLocation", d.defaultLocation === x.name ? "" : x.name)
+            }))) : null,
+            camp(locuri.length ? "Sau alt loc" : "Locul de start", o.default.createElement("input", { className: ie, style: mare, "data-ias-v": "defaultLocation", value: d.defaultLocation, placeholder: "Punct de \xEEnt\xE2lnire obișnuit", onChange: q => b("defaultLocation", q.target.value), onKeyDown: laEnter })))
+    }, {
+        id: "ritm", grup: "Programare", titlu: "C\xE2te ședințe pe săptăm\xE2nă?",
+        sub: "Planul nu-i pune mai multe dec\xE2t at\xE2tea \xEEntr-o săptăm\xE2nă.",
+        lipsa: () => "",
+        rezumat: () => `${Number(d.weeklyLimit) || 1} pe săptăm\xE2nă`,
+        arata: () => {
+            let n = Number(d.weeklyLimit) || 1, sapt = incluseEstimat ? Math.ceil(incluseEstimat / n) : 0;
+            return o.default.createElement(o.default.Fragment, null,
+                o.default.createElement(IasPasNumar, { valoare: n, min: 1, max: 7, mare: !0, onSchimba: v => b("weeklyLimit", v), eticheta: n === 1 ? "ședință pe săptăm\xE2nă" : "ședințe pe săptăm\xE2nă" }),
+                sapt ? o.default.createElement("p", { className: "text-sm text-center mt-4", "data-ias-estimare": sapt, style: { color: "var(--muted)" } }, `Cu ${n} pe săptăm\xE2nă, cele ${incluseEstimat} ședințe ies \xEEn cam `, o.default.createElement("b", { style: { color: "var(--text)" } }, sapt === 1 ? "o săptăm\xE2nă" : `${sapt} săptăm\xE2ni`), ".") : null)
+        }
+    }, {
+        id: "gata", grup: "Gata", titlu: "Totul e bine?",
+        sub: "Atinge un r\xE2nd ca să-l schimbi. Examenele, disponibilitatea și agenda le completezi apoi pe fișa lui.",
+        lipsa: () => "",
+        arata: () => o.default.createElement("div", { className: "rounded-2xl overflow-hidden", "data-ias-recap": "", style: { border: "1px solid var(--line)", background: "var(--surface)" } },
+            PASI.slice(0, -1).map((p, k) => {
+                let r = p.rezumat ? p.rezumat() : "";
+                return o.default.createElement("button", {
+                    key: p.id, type: "button", "data-ias-recap-rand": p.id,
+                    onClick: () => { directie.current = -1, puneLaRecap(!0), punePas(k), puneErr("") },
+                    className: "w-full flex items-center gap-3 px-3.5 py-2.5 text-left",
+                    style: { borderTop: k ? "1px solid var(--line)" : "none" }
+                }, o.default.createElement("span", { className: "text-xs shrink-0", style: { width: 88, color: "var(--muted-2)" } }, p.scurt || p.titlu.replace(/\?$/, "")),
+                    o.default.createElement("span", { className: "text-sm flex-1 min-w-0", style: { color: r ? "var(--text)" : "var(--muted-2)" } }, r || "—"),
+                    o.default.createElement(un, { size: 14, className: "shrink-0", style: { color: "var(--muted-2)" } }))
+            }))
+    }];
+    ["Numele", "Telefon", "Nașterea", "Domiciliu", "Dosar", "Limba", "Categoria", "Școlarizare", "Start", "Ritm"].forEach((t, k) => PASI[k].scurt = t);
+    let P = PASI[pas], ultim = pas === PASI.length - 1,
+        elevul = () => {
+            let ln = d.lastName.trim(), fn = d.firstName.trim();
+            return {
+                ...d, lastName: ln, firstName: fn, name: `${ln} ${fn}`.trim(), phone: d.phone.trim(),
+                includedHours: 0, extraHours: 0,
+                examDate: "", examAttempts: 0, examResult: "", examPeriod: "",
+                theoryExamDate: "", theoryExamAttempts: 0, theoryExamResult: "",
+                availFrom: "", availTo: "",
+                weeklyLimit: Number(d.weeklyLimit) || 1, notes: ""
+            }
+        },
+        mergiLa = k => { directie.current = k > pas ? 1 : -1, punePas(k), puneErr("") },
+        inainte = () => {
+            let l = P.lipsa();
+            if (l) { puneErr(l); return }
+            if (ultim) {
+                let el = iasCreeaza(elevul(), sc);
+                el && puneFacut(el);
+                return
+            }
+            laRecap ? mergiLa(PASI.length - 1) : mergiLa(pas + 1)
+        },
+        gol0 = !(d.lastName || d.firstName || d.phone || cnp || d.area || d.regNumber || d.group || sc.fel),
+        inchide = () => facut || gol0 ? iasInchide() : puneIntreb(!0);
+    /* ---- după ce l-ai adăugat ---- */
+    if (facut) {
+        let L = iasLimbaDe(facut), mesaj = ik(facut, iasS || {});
+        return o.default.createElement(oi, { open: !0, onClose: iasInchide, title: "Elev nou", layer: Wt.form },
+            o.default.createElement("div", { ref: miscare, className: "text-center pt-2 pb-1", "data-ias-vrajitor-gata": facut.id },
+                o.default.createElement("div", {
+                    className: "mb-3 rounded-full flex items-center justify-center text-3xl",
+                    style: { margin: "0 auto 12px", width: 64, height: 64, background: "var(--ok-soft)", border: "1px solid var(--ok-line)", color: "var(--ok)" }
+                }, "✓"),
+                o.default.createElement("div", { className: "text-lg font-semibold", style: { color: "var(--text)" } }, facut.name),
+                o.default.createElement("div", { className: "text-sm mt-1", style: { color: "var(--muted)" } }, "e \xEEn lista ta",
+                    iasProvizoriu(facut) || sc.fel === "provizorie" ? " — cu școlarizarea de completat" : ""),
+                o.default.createElement("div", { className: "flex justify-center mt-3" }, o.default.createElement(Bf, { student: facut, county: facut.county, h: 34 }))),
+            o.default.createElement("div", { className: "space-y-2 mt-5" },
+                facut.phone ? o.default.createElement("button", {
+                    type: "button", "data-ias-vrajitor-bun-venit": L || "ro",
+                    onClick: () => { iasNotifica && iasNotifica({ name: facut.name, phone: facut.phone, title: "Trimite mesajul de bun venit", message: mesaj, onTrimis: () => { iasBunTrimis && iasBunTrimis(facut.id), puneTrimis(!0) } }) },
+                    className: "w-full py-3 rounded-xl text-white text-sm font-medium flex items-center justify-center gap-1.5",
+                    style: { background: trimis ? "var(--ok)" : "var(--invert)" }
+                }, o.default.createElement(ai, { size: 15 }), trimis ? "Mesajul de bun venit a plecat" : `Trimite mesajul de bun venit${L ? ` \xB7 ${iasNumeLimba(iasS, L).toLowerCase()}` : ""}`) : null,
+                facut.phone && !trimis ? o.default.createElement("div", { className: "rounded-xl px-3.5 py-2.5 text-xs text-left", "data-ias-vrajitor-mesaj": "", style: { whiteSpace: "pre-line", background: "var(--surface-2)", border: "1px solid var(--line)", color: "var(--muted)" } }, mesaj) : null,
+                facut.phone && iasProgramPornit && iasCere ? o.default.createElement("button", {
+                    type: "button", onClick: () => iasCere(facut),
+                    className: "w-full py-3 rounded-xl border border-slate-200 text-slate-700 text-sm font-medium"
+                }, "Cere-i disponibilitatea") : null,
+                o.default.createElement("button", {
+                    type: "button", "data-ias-vrajitor-fisa": "",
+                    onClick: () => iasDeschide && iasDeschide(facut.id),
+                    className: "w-full py-3 rounded-xl border border-slate-200 text-slate-700 text-sm font-medium"
+                }, "Deschide fișa — examene, disponibilitate, agendă"),
+                o.default.createElement("div", { className: "flex gap-2" },
+                    iasPoateInca && o.default.createElement("button", {
+                        type: "button", "data-ias-vrajitor-inca": "",
+                        onClick: () => { directie.current = 1, puneD(gol()), puneSc(iasScolarizareGoala(iasS)), punePas(0), puneErr(""), puneCnp(""), puneSexDinCnp(!1), puneFacut(null), puneTrimis(!1), puneLaRecap(!1) },
+                        className: "flex-1 py-3 rounded-xl border border-slate-200 text-slate-700 text-sm font-medium"
+                    }, "\xCEncă un elev"),
+                    o.default.createElement("button", { type: "button", onClick: iasInchide, className: "flex-1 py-3 rounded-xl bg-slate-900 text-white text-sm font-medium" }, "Gata"))))
+    }
+    return o.default.createElement(oi, {
+        open: !0, onClose: inchide, title: "Elev nou", layer: Wt.form,
+        footer: o.default.createElement("div", null,
+            err ? o.default.createElement("p", { className: "text-xs mb-2", "data-ias-vrajitor-eroare": "", style: { color: "var(--bad)" } }, err) : null,
+            o.default.createElement("div", { className: "flex gap-2.5" },
+                pas > 0 ? o.default.createElement("button", {
+                    type: "button", "data-ias-vrajitor-inapoi": "",
+                    onClick: () => mergiLa(laRecap && !ultim ? PASI.length - 1 : pas - 1),
+                    className: "py-3 px-4 rounded-xl border border-slate-200 text-slate-700 font-medium text-sm"
+                }, laRecap && !ultim ? "Rezumat" : "←") : null,
+                o.default.createElement("button", {
+                    type: "button", "data-ias-vrajitor-inainte": P.id,
+                    onClick: inainte,
+                    className: "flex-1 py-3 rounded-xl text-white font-medium text-sm",
+                    style: { background: ultim ? "var(--ok)" : "var(--invert)" }
+                }, ultim ? "Adaugă elevul" : laRecap ? "Gata, \xEEnapoi la rezumat" : P.optional && !(P.rezumat && P.rezumat()) ? "Sari peste" : "Mai departe")))
+    },
+        /* Unde ești: grupa pasului și câți au rămas. */
+        o.default.createElement("div", { className: "mb-4", "data-ias-vrajitor-pas": P.id },
+            o.default.createElement("div", { className: "flex items-center justify-between text-xs mb-1.5" },
+                o.default.createElement("span", { className: "font-medium uppercase tracking-wide", style: { color: "var(--accent-ink)" } }, P.grup),
+                o.default.createElement("span", { className: "font-mono-time", style: { color: "var(--muted-2)" } }, pas + 1, " / ", PASI.length)),
+            o.default.createElement("div", { className: "flex gap-1" }, PASI.map((p, k) => o.default.createElement("button", {
+                key: p.id, type: "button", "aria-label": p.scurt || p.titlu, tabIndex: -1,
+                /* Înapoi poți sări oricând; înainte, doar peste pașii deja trecuți. */
+                onClick: () => k < pas && mergiLa(k),
+                style: { flex: 1, height: 4, borderRadius: 99, background: k <= pas ? "var(--accent)" : "var(--line)", opacity: k < pas ? .55 : 1, transition: "background .3s" }
+            })))),
+        o.default.createElement("div", { ref: miscare, key: P.id },
+            o.default.createElement("h2", { className: "font-semibold mb-1", style: { fontSize: 22, lineHeight: 1.2, color: "var(--text)" } }, P.titlu),
+            o.default.createElement("p", { className: "text-sm mb-4", style: { color: "var(--muted)" } }, P.sub),
+            P.arata()),
+        pas === 0 && iasFormular ? o.default.createElement("button", {
+            type: "button", "data-ias-formular-intreg": "",
+            onClick: () => iasFormular({ ...elevul(), pachet: sc.fel === "integral" ? sc.plan : "" }),
+            className: "w-full mt-5 py-2 text-xs", style: { color: "var(--muted-2)" }
+        }, "Prefer formularul \xEEntreg, pe o singură pagină") : null,
+        o.default.createElement(Ri, {
+            open: intreb,
+            title: "Renunți la elevul nou?",
+            message: "Ce ai completat p\xE2nă acum se pierde.",
+            confirmLabel: "Renunț",
+            danger: !0,
+            onConfirm: () => { puneIntreb(!1), iasInchide() },
+            onCancel: () => puneIntreb(!1)
+        }))
+}
+
 function Wk({
     open: n,
     mode: e,
@@ -8964,6 +10317,7 @@ function Wk({
     onCereProgram: iasOnCere,
     programElevi: iasProgramPornit,
     programLucru: iasProgramLucru,
+    onAdaugaLimba: iasOnAdaugaLimba,
     onClose: u,
     onSave: d,
     onDelete: f
@@ -9031,8 +10385,9 @@ function Wk({
                     }
                     m(S), iasPuneInitial(JSON.stringify(S)), iasIntreaba(!1)
                 } else {
-                    let iasG = p();
-                    m(iasG), iasPuneInitial(JSON.stringify(iasG)), iasIntreaba(!1)
+                    /* Venit din pașii elevului nou: ce scriseseși acolo e deja aici. */
+                    let iasG = { ...p(), ...(t || {}) };
+                    m(iasG), iasPuneInitial(JSON.stringify(p())), iasIntreaba(!1)
                 }
         }, [n, e, t]), !n) return null;
     /* Închiderea nu mai pierde ce ai scris: dacă s-a schimbat ceva, întreabă. */
@@ -9093,7 +10448,7 @@ function Wk({
     })),
     o.default.createElement(Jn, {
         title: "Persoana",
-        summary: `${(c.lastName || "") + " " + (c.firstName || "")}`.trim() || "necompletat",
+        summary: (`${(c.lastName || "") + " " + (c.firstName || "")}`.trim() || "necompletat") + (iasLimbaDe(c) ? " \xB7 " + iasNumeLimba(s, iasLimbaDe(c)) : ""),
         defaultOpen: !0
     },
     /* Numele e câmpul cel mai important din fișă, deci stă pe toată lățimea și
@@ -9142,6 +10497,19 @@ function Wk({
     }, "Feminin"))),
     o.default.createElement(IasInfo, {
         text: '\xCEn mesajele c\u0103tre elev se folose\u0219te doar primul prenume, iar adresarea se acord\u0103: \u201ESalut, Andrei!" la b\u0103ie\u021Bi, \u201EBun\u0103, Ana!" la fete. F\u0103r\u0103 men\u021Biune, mesajul r\u0103m\xE2ne neutru.'
+    }),
+    /* Limba ține de persoană, ca adresarea: stă aici, la vedere, ca s-o alegi
+       chiar când îl adaugi — mesajul de bun venit pleacă deja în limba lui. */
+    o.default.createElement(xe, {
+        label: "Limba \u0219edin\u021Belor"
+    }, o.default.createElement(IasLimbaElev, {
+        limba: iasLimbaDe(c),
+        setari: s,
+        onAdauga: iasOnAdaugaLimba,
+        onAlege: S => m(E => iasCuLimba(E, S))
+    })),
+    o.default.createElement(IasInfo, {
+        text: "Ședințele lui pornesc în limba asta, iar mesajele către el (bun venit, programări, mutări, anulări) se scriu în ea. Când o schimbi, trec pe ea și ședințele lui de acum înainte încă nefăcute; la o ședință anume o poți schimba din Detalii avansate. La salariu se aplică tariful limbii, din Finanțe → Salariu."
     }),
     o.default.createElement(xe, {
         label: "Telefon"
@@ -9377,7 +10745,13 @@ function Wk({
     o.default.createElement(Jn, {
         title: "\u0218colarizare",
         summary: `${(Number(c.includedHours) || 0) + (Number(c.extraHours) || 0)} \u0219edin\u021Be`
-    }, (() => {
+    }, c.scolarizare && c.scolarizare.fel ? o.default.createElement("div", {
+        className: "flex items-start gap-2 rounded-xl px-3.5 py-2.5 mb-3.5", "data-ias-form-scolarizare": c.scolarizare.fel,
+        style: { background: "var(--surface-2)", border: "1px solid var(--line)" }
+    }, iasProvizoriu(c) ? o.default.createElement("span", { className: "shrink-0 mt-0.5" }, o.default.createElement(IasSemnProvizoriu, { size: 16 })) : null,
+        o.default.createElement("span", { className: "text-xs flex-1", style: { color: "var(--muted)" } },
+            o.default.createElement("b", { style: { color: "var(--text)", fontWeight: 600 } }, iasDescriereScolarizare(c.scolarizare, s)), ". ",
+            iasProvizoriu(c) ? "Alege mai jos pachetul pl\u0103tit \u2014 \u0219edin\u021Bele socotite p\xE2n\u0103 acum se \xEEnlocuiesc cu cele din pachet. Sau, de pe fi\u0219\u0103: \u201ECompleteaz\u0103 \u0219colarizarea\u201D." : "Felul \u0219colariz\u0103rii \xEEl schimbi de pe fi\u0219a lui, din r\xE2ndul \u201E\u0218colarizare\u201D.")) : null, (() => {
         let S = ii(s).filter(E => Number(E.hours) > 0);
         if (!S.length) return null;
         let k = S.find(E => E.id === c.pachet);
@@ -9527,20 +10901,7 @@ function Wk({
         ? "Planul \xEEi a\u0219az\u0103 unul dup\u0103 altul pe elevii cu aceea\u0219i ma\u0219in\u0103, ca s\u0103 n-o schimbi de la o \u0219edin\u021B\u0103 la alta."
         : "Ma\u0219inile se adaug\u0103 \xEEn Set\u0103ri \u2192 Ma\u0219inile mele."
     }),
-    o.default.createElement(xe, {
-        label: "Limba \u0219edin\u021Belor"
-    }, o.default.createElement("select", {
-        className: ie,
-        value: c.english ? "en" : "ro",
-        onChange: S => b("english", S.target.value === "en")
-    }, o.default.createElement("option", {
-        value: "ro"
-    }, "Rom\xE2n\u0103"), o.default.createElement("option", {
-        value: "en"
-    }, "Englez\u0103"))),
-    o.default.createElement(IasInfo, {
-        text: "Toate \u0219edin\u021Bele lui pornesc \xEEn limba asta. La salariu se aplic\u0103 tarifele corespunz\u0103toare, iar la fiecare \u0219edin\u021B\u0103 po\u021Bi schimba punctual."
-    })),
+    ),
     o.default.createElement(Jn, {
         title: "Disponibilitate",
         summary: (() => {
@@ -9840,7 +11201,11 @@ function Wk({
                că adunându-le iar ieșeau de două ori — 17 deveneau 34. */
             iasPachetNou = c.pachet && c.pachet !== (t && t.pachet),
             iasDin = (iasP && iasPachetNou) ? Number(iasP.hours) || 0 : 0,
-            iasTotal = iasInc + iasSup + iasDin;
+            /* Provizoriu completat din formular: orele socotite până acum
+               pleacă, pachetul le ia locul. */
+            iasPleaca = iasPachetNou && iasProvizoriu(t) ? Math.min(iasInc, Number(t.scolarizare.ore) || 0) : 0;
+        iasInc -= iasPleaca;
+        let iasTotal = iasInc + iasSup + iasDin;
         if (!iasTotal && !iasP) return null;
         let iasRand = (et, val, tare) => o.default.createElement("div", {
             key: et, className: "flex items-baseline justify-between py-1"
@@ -9987,7 +11352,10 @@ function qk({
     onElibereazaAdeverinta: v,
     onBunVenitTrimis: w,
     laExamene: iasVreaExamene,
-    onExameneDeschis: iasDuLaExamene
+    onExameneDeschis: iasDuLaExamene,
+    onLimba: iasPuneLimba,
+    onAdaugaLimba: iasAdaugaLimba,
+    onCompleteaza: iasCompleteaza
 }) {
     let [x, h] = (0, o.useState)(!1);
     /* Venit din înștiințarea „gata de sală": fișa nu se oprește aici, ci trece
@@ -10021,7 +11389,7 @@ function qk({
 Locul: ${C[0].link}` : `
 ${C.map(R=>`${R.n}: ${R.link}`).join(`
 `)}`,
-        X = `${_0(e).salut}, ${Ff(e)}! \u0218edin\u021Bele tale de conducere programate:
+        X = iasLimbaDe(e) ? iasListaStrain(iasLimbaDe(e), e, N, a, W) : `${_0(e).salut}, ${Ff(e)}! \u0218edin\u021Bele tale de conducere programate:
 ${N.map(R=>`\u2022 ${fo(R.date)}, ${Se(R.startMin)}\u2013${Se(R.startMin+or(R,a))}${R.location?` \xB7 ${R.location}`:""}`).join(`
 `)}${W}
 Te rog confirm\u0103. Mul\u021Bumesc!`;
@@ -10050,7 +11418,13 @@ Te rog confirm\u0103. Mul\u021Bumesc!`;
         className: "text-xs font-medium px-2 py-0.5 rounded-full border bg-slate-50 text-slate-600 border-slate-200"
     }, "Grupa ", e.group), o.default.createElement("span", {
         className: `text-xs font-medium px-2 py-0.5 rounded-full border ${S==="nou"?"bg-amber-50 text-amber-700 border-amber-200":"bg-blue-50 text-blue-700 border-blue-200"}`
-    }, S === "nou" ? "Elev nou" : "\xCEn curs"), e.phone && o.default.createElement(tS, {
+    }, S === "nou" ? "Elev nou" : "\xCEn curs"), iasPuneLimba && o.default.createElement(IasLimbaElev, {
+        limba: iasLimbaDe(e),
+        setari: a,
+        mic: !0,
+        onAdauga: iasAdaugaLimba,
+        onAlege: iasV => iasV !== iasLimbaDe(e) && iasPuneLimba(e.id, iasV)
+    }), e.phone && o.default.createElement(tS, {
         phone: e.phone
     })))),
     e.examResult === "promovat" && o.default.createElement("div", {
@@ -10172,6 +11546,30 @@ Te rog confirm\u0103. Mul\u021Bumesc!`;
     }, o.default.createElement(cn, {
         size: 14
     }), "\u0218edin\u021B\u0103 nou\u0103")))),
+    /* Școlarizarea: provizorie, cu îndemnul de completat; altfel, un rând de
+       unde o schimbi. Elevii adăugați înainte de pași n-au rândul. */
+    iasProvizoriu(e) ? o.default.createElement("div", {
+        className: "rounded-2xl px-3.5 py-3 mb-3", "data-ias-fisa-provizorie": "",
+        style: { background: "color-mix(in srgb, #f5c400 14%, var(--surface))", border: "1px solid color-mix(in srgb, #f5c400 55%, var(--line))" }
+    }, o.default.createElement("div", { className: "flex items-start gap-2.5" },
+        o.default.createElement("span", { className: "shrink-0 mt-0.5" }, o.default.createElement(IasSemnProvizoriu, { size: 22 })),
+        o.default.createElement("div", { className: "flex-1 min-w-0" },
+            o.default.createElement("div", { className: "text-sm font-medium", style: { color: "var(--text)" } }, "\u0218colarizare provizorie"),
+            o.default.createElement("div", { className: "text-xs mt-0.5", style: { color: "var(--muted)" } }, "\xCEnc\u0103 nu \u0219tii ce a pl\u0103tit la \u0219coal\u0103. P\xE2n\u0103 atunci socotesc ", Number(e.scolarizare.ore) || 0, " \u0219edin\u021Be incluse."))),
+        iasCompleteaza ? o.default.createElement("button", {
+            type: "button", "data-ias-completeaza": "",
+            onClick: () => iasCompleteaza(e.id),
+            className: "w-full mt-2.5 py-2.5 rounded-xl text-white text-sm font-medium",
+            style: { background: "var(--invert)" }
+        }, "Completeaz\u0103 \u0219colarizarea") : null)
+    : e.scolarizare && e.scolarizare.fel && iasCompleteaza ? o.default.createElement("button", {
+        type: "button", "data-ias-fisa-scolarizare": e.scolarizare.fel,
+        onClick: () => iasCompleteaza(e.id),
+        className: "w-full flex items-center gap-2 rounded-xl px-3.5 py-2.5 mb-3 text-left",
+        style: { background: "var(--surface)", border: "1px solid var(--line)" }
+    }, o.default.createElement("span", { className: "text-xs shrink-0", style: { color: "var(--muted-2)" } }, "\u0218colarizare"),
+        o.default.createElement("span", { className: "text-sm flex-1 min-w-0 truncate", style: { color: "var(--text)" } }, iasDescriereScolarizare(e.scolarizare, a)),
+        o.default.createElement("span", { className: "text-xs shrink-0", style: { color: "var(--accent-ink)" } }, "Schimb\u0103")) : null,
     o.default.createElement("div", {
         className: "mb-4"
     }, o.default.createElement("div", {
@@ -10440,9 +11838,9 @@ Te rog confirm\u0103. Mul\u021Bumesc!`;
         className: "text-sm text-slate-800 font-medium"
     }, qe(R.date), R.otherInstructor && o.default.createElement("span", {
         className: "ml-1 text-xs font-normal text-violet-600"
-    }, "\xB7 ", R.instructorName || "alt instr."), R.english && o.default.createElement("span", {
+    }, "\xB7 ", R.instructorName || "alt instr."), iasLimbaDe(R) && o.default.createElement("span", {
         className: "ml-1 text-xs font-normal text-sky-600"
-    }, "\xB7 EN")), o.default.createElement("div", {
+    }, "\xB7 ", iasCodLimba(iasLimbaDe(R)))), o.default.createElement("div", {
         className: "font-mono-time text-xs text-slate-400"
     }, Se(R.startMin))), o.default.createElement("div", {
         className: "flex flex-col items-end gap-1 shrink-0"
@@ -11296,35 +12694,33 @@ function Yk({
             hoursPerSession: Number(p.hoursPerSession) || 2
         }), c(null)
     }
-    let W = [{
+    let iasRandLimba = (k, peste) => {
+            let lim = k === "englishBase" || k === "englishOvertime" ? "en" : (k.match(/^l:(.+):(base|overtime)$/) || [])[1];
+            return {
+                key: k,
+                label: (peste ? "Peste program" : "\xCEn program") + " \xB7 " + iasNumeLimba(n.settings, lim).toLowerCase(),
+                count: _.rows[k] || 0,
+                rate: _.rates[k] || 0,
+                cls: "bg-sky-50 border-sky-200 text-sky-700",
+                valCls: "text-sky-700"
+            }
+        },
+        iasChei = Object.keys(_.rows).filter(k => k !== "base" && k !== "overtime"),
+        W = [{
             key: "base",
             label: "\xCEn program",
             count: _.rows.base,
             rate: _.rates.base,
             cls: "bg-white border-slate-200 text-slate-700",
             valCls: "text-slate-900"
-        }, {
-            key: "englishBase",
-            label: "\xCEn program \xB7 englez\u0103",
-            count: _.rows.englishBase,
-            rate: _.rates.englishBase,
-            cls: "bg-sky-50 border-sky-200 text-sky-700",
-            valCls: "text-sky-700"
-        }, {
+        }].concat(iasChei.filter(k => !/[Oo]vertime$/.test(k)).map(k => iasRandLimba(k, !1)), [{
             key: "overtime",
             label: "Peste program",
             count: _.rows.overtime,
             rate: _.rates.overtime,
             cls: "bg-amber-50 border-amber-200 text-amber-700",
             valCls: "text-amber-700"
-        }, {
-            key: "englishOvertime",
-            label: "Peste program \xB7 englez\u0103",
-            count: _.rows.englishOvertime,
-            rate: _.rates.englishOvertime,
-            cls: "bg-sky-50 border-sky-200 text-sky-700",
-            valCls: "text-sky-700"
-        }],
+        }], iasChei.filter(k => /[Oo]vertime$/.test(k)).map(k => iasRandLimba(k, !0))),
         X = q => `${(q||0).toLocaleString("ro-RO")} ${n.settings.currency}`,
         R = aS(n, l),
         K = Ef(n) - gu(n.varsaminte);
@@ -11629,28 +13025,6 @@ function Yk({
                 overtimeRate: q.target.value
             })
         })), o.default.createElement(xe, {
-            label: "Englez\u0103 \xB7 \xEEn program"
-        }, o.default.createElement("input", {
-            type: "number",
-            min: "0",
-            className: ie,
-            value: p.englishBaseRate,
-            onChange: q => c({
-                ...p,
-                englishBaseRate: q.target.value
-            })
-        })), o.default.createElement(xe, {
-            label: "Englez\u0103 \xB7 peste program"
-        }, o.default.createElement("input", {
-            type: "number",
-            min: "0",
-            className: ie,
-            value: p.englishOvertimeRate,
-            onChange: q => c({
-                ...p,
-                englishOvertimeRate: q.target.value
-            })
-        })), o.default.createElement(xe, {
             label: "Ore lucr\u0103toare / zi"
         }, o.default.createElement("input", {
             type: "number",
@@ -11690,7 +13064,10 @@ function Yk({
             className: "w-full py-2.5 rounded-xl border border-dashed border-slate-300 text-slate-500 text-sm flex items-center justify-center gap-1.5"
         }, o.default.createElement(ka, {
             size: 14
-        }), "Editeaz\u0103 tarife angajator")) : m === "taxe" ? o.default.createElement(o.default.Fragment, null, o.default.createElement("p", {
+        }), "Editeaz\u0103 tarife angajator"), o.default.createElement(IasLimbiTarife, {
+            setari: n.settings,
+            onSchimba: q => e(iasSetariCuLimbi(n.settings, q))
+        })) : m === "taxe" ? o.default.createElement(o.default.Fragment, null, o.default.createElement("p", {
             className: "text-xs text-slate-400 mb-2"
         }, "Se adaug\u0103 la datoria elevului cu butoanele +/\u2212 de pe cardul lui."), o.default.createElement($A, {
             feeTypes: ii(n.settings),
@@ -12562,7 +13939,10 @@ function e3({
                     textBunVenit: p0
                 }),
                 className: "w-full py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm"
-            }, "Revino la textul implicit")) : ne === "programElevi" ? o.default.createElement(o.default.Fragment, null,
+            }, "Revino la textul implicit"), o.default.createElement(IasBunVenitLimbi, {
+                setari: J,
+                onSchimba: e
+            })) : ne === "programElevi" ? o.default.createElement(o.default.Fragment, null,
             /* Oprit din pornire: până nu-l pornești, aplicația e exact ca înainte. */
             o.default.createElement("div", {
                 className: "rounded-xl px-3.5 py-3 mb-3.5",
@@ -13430,6 +14810,26 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.61.3.5",
+    titlu: "Elevul nou, pas cu pas",
+    puncte: [
+        "„+” și „Elev nou” deschid acum pașii elevului nou: numele, telefonul, nașterea, domiciliul, dosarul, limba, categoria, școlarizarea, locul de start și câte ședințe pe săptămână. O întrebare pe ecran, cu butoane mari, „Sari peste” la cele opționale și bara de pași sus. Formularul întreg rămâne la un buton distanță („Prefer formularul întreg”), cu ce ai scris deja.",
+        "Nașterea din CNP: îl scrii și aplicația scoate data nașterii, vârsta și adresarea (Salut / Bună). Verifică cifra de control și data. CNP-ul nu se păstrează nicăieri.",
+        "Te avertizează dacă mai ai un elev cu același nume sau cu același număr de telefon.",
+        "Școlarizarea, în cinci feluri: plătită integral (alegi planul — sau adaugi pe loc unul nou, de exemplu cu 20 de ședințe), plătită parțial (cât a dat, unde, 15 incluse și restul la datorie), în vederea perfecționării (fără incluse), provizorie (15 incluse până afli) și altfel (o taxă stabilită, achitată sau nu — ca pachetul de 850 cu 3 ședințe — ori doar ședințele rămase de la alt coleg).",
+        "Școlarizarea provizorie are semnul galben de lucrări lângă nume, peste tot unde apare elevul, și un rând pe Acasă. De pe fișă: „Completează școlarizarea” — orele socotite provizoriu se înlocuiesc, iar ședințele lui deja puse se potrivesc la noul număr de incluse.",
+        "Pe fișă, rândul „Școlarizare” arată felul ales; „Schimbă” retrage exact ce pusese cel vechi (taxe, plăți, ore) și pune noul fel.",
+        "La capăt: rezumatul, cu fiecare rând de atins ca să-l schimbi, apoi elevul e în listă și îi trimiți pe loc mesajul de bun venit, în limba lui. De acolo deschizi fișa (examene, disponibilitate, agendă) sau treci la următorul elev.",
+        "Limbile ședințelor: pe lângă engleză, ucraineană, rusă, turcă, franceză, germană, italiană și spaniolă, cu mesajele scrise (bun venit, programare, mutare, anulare, lista ședințelor). Fiecare limbă are tariful ei, în program și peste program, adăugată de pe fișă, din formular sau din pașii elevului nou. O limbă din afara listei se poate adăuga cu numele ei; mesajele pentru ea pleacă în engleză.",
+        "Finanțe → Detalii salariu: limbile tale cu tarifele lor, de schimbat sau de șters, iar salariul are rând pentru fiecare limbă. Setări → Numele tău și școala: mesajul de bun venit în fiecare limbă, de schimbat ca pe cel în română."
+    ],
+    scurt: "Elevul nou se adaugă pas cu pas: CNP-ul îi dă data nașterii, alegi școlarizarea și limba ședințelor, apoi îi trimiți bun venitul în limba lui."
+}, {
+    v: "v2.60.3.5",
+    titlu: "Mesaje în engleză",
+    puncte: ["Pe fișa elevului, sus lângă grupă, alegi RO sau EN: limba ședințelor lui și a mesajelor către el. Tot acolo e și în formular, în „Persoana”, ca s-o alegi chiar când îl adaugi.", "Când schimbi limba, trec pe ea și ședințele lui de acum înainte încă nefăcute; cele efectuate rămân cum au fost.", "Pentru elevii pe English, mesajul de bun venit și lista ședințelor programate se scriu în engleză.", "La fiecare ședință, limba din Detalii avansate hotărăște mesajul: programarea, mutarea (ziua, ora, locul) și anularea ies în engleză când ședința e în engleză. Pornește singură din fișa elevului, iar o poți schimba la o ședință anume.", "Mesajul de bun venit în engleză are textul lui în Setări → Numele tău și școala, pe care îl poți schimba la fel ca pe cel în română."],
+    scurt: "Pe fișa elevului alegi RO sau EN; elevii pe English primesc în engleză mesajul de bun venit și pe cele despre ședințe."
+}, {
     v: "v2.59.3.5",
     titlu: "„Ce e nou”, mai pe scurt",
     puncte: ["„Ce e nou” are două feluri: tu vezi toate amănuntele, ca până acum, iar ceilalți utilizatori văd fiecare versiune într-o frază, fără detalii tehnice. Schimbările care te privesc doar pe tine nu le apar deloc.", "Sus, în „Ce e nou”, comuți între „Detaliat” și „Pe scurt”, ca să vezi exact ce văd ceilalți.", "Pagina pe care elevul își trimite programul arată jos versiunea aplicației de acum, oricare ar fi ea, fără s-o mai urci la fiecare versiune."],
@@ -14468,6 +15868,9 @@ function y3() {
        repete la următoarea pornire și-l arătăm spre confirmare. */
     let [iasProgramVenit, iasPuneProgramVenit] = (0, o.useState)(null),
         [iasCerereProgram, iasPuneCerereProgram] = (0, o.useState)(null),
+        /* Pașii elevului nou și schimbarea școlarizării de pe fișă. */
+        [iasVraj, iasPuneVraj] = (0, o.useState)(!1),
+        [iasScolId, iasPuneScolId] = (0, o.useState)(null),
         iasProgramPornit = !!(n.settings || {}).programElevi;
     (0, o.useEffect)(() => {
         let iasCiteste = () => {
@@ -14669,11 +16072,71 @@ function y3() {
             Y(`Licen\u021Ba ta cuprinde ${I} elevi. Pentru mai mul\u021Bi, scrie-mi.`, "error");
             return
         }
-        p({
-            open: !0,
-            mode: "create",
-            initial: null
-        })
+        iasPuneVraj(!0)
+    }
+
+    /* Elevul nou, din pași: fișa lui și școlarizarea aleasă. Întoarce elevul,
+       ca ultimul ecran să-i poată trimite bun venitul. */
+    function iasCreeazaElev(I, F) {
+        if (B.current) {
+            Y("Acces expirat. Cere prelungirea ca s\u0103 po\u021Bi modifica.", "error");
+            return null
+        }
+        let iasMax = Ct.maxElevi || 0;
+        if (iasMax && n.students.filter(x => !x.withdrawn).length >= iasMax) {
+            Y(`Licen\u021Ba ta cuprinde ${iasMax} elevi. Pentru mai mul\u021Bi, scrie-mi.`, "error");
+            return null
+        }
+        let V = {
+            id: Vt("stu"),
+            ...I,
+            payments: [],
+            createdAt: Yn()
+        };
+        F && F.fel && (V = iasAplicaScolarizare(V, F, n.settings));
+        ce(te => ({
+            ...te,
+            students: [...te.students, V]
+        }));
+        Y("Elev ad\u0103ugat.");
+        return V
+    }
+
+    /* Școlarizarea schimbată sau completată de pe fișă: se retrage ce pusese
+       cea veche, se pune cea nouă, iar ședințele lui se potrivesc la noul
+       număr de incluse. */
+    function iasSalveazaScolarizare(I, F) {
+        let iasCalc = (te) => {
+                let V = te.students.find(x => x.id === I);
+                if (!V) return null;
+                let ee = iasAplicaScolarizare(iasScoateScolarizare(V), F, te.settings),
+                    rt = Number(ee.includedHours) !== Number(V.includedHours) || !!ee.perfectionare !== !!V.perfectionare ? iasRetipeaza(te.sessions, I, Number(ee.includedHours) || 0) : { sesiuni: te.sessions, schimbate: 0 };
+                return { elev: ee, rt: rt }
+            },
+            iasAcum = iasCalc(n);
+        if (!iasAcum) return;
+        ce(te => {
+            let r = iasCalc(te);
+            return r ? {
+                ...te,
+                students: te.students.map(x => x.id === I ? r.elev : x),
+                sessions: r.rt.sesiuni
+            } : te
+        });
+        iasPuneScolId(null);
+        let iasNr = iasAcum.rt.schimbate;
+        Y(iasNr ? `\u0218colarizarea e pus\u0103. ${iasNr === 1 ? "O \u0219edin\u021B\u0103 de-a lui \u0219i-a" : iasNr + " \u0219edin\u021Be de-ale lui \u0219i-au"} schimbat felul (inclus\u0103 / suplimentar\u0103) dup\u0103 noul num\u0103r.` : "\u0218colarizarea e pus\u0103.")
+    }
+
+    /* O taxă sau un plan nou, adăugat din pașii elevului nou sau de pe fișă. */
+    function iasAdaugaTaxaApp(I) {
+        ce(F => ({
+            ...F,
+            settings: {
+                ...F.settings,
+                feeTypes: [...ii(F.settings), I]
+            }
+        })), Y(`\u201E${I.name}\u201D e acum \xEEn Finan\u021Be \u2192 Taxe.`)
     }
 
     function se(I, F, V) {
@@ -14741,7 +16204,8 @@ function y3() {
     }
 
     function fe(I, F, V) {
-        let ee = I.pachet && I.pachet !== (V && V.pachet);
+        let ee = I.pachet && I.pachet !== (V && V.pachet),
+            iasDeRetipat = null;
         F === "edit" ? (ce(te => ({
             ...te,
             students: te.students.map(ue => {
@@ -14755,17 +16219,26 @@ function y3() {
                 /* Câte pachete identice ai cerut în plus, atâtea se pun acum. */
                 let iasInPlus = Number(I.iasIncaUnPachet) || 0;
                 delete De.iasIncaUnPachet;
+                /* Școlarizarea provizorie completată din formular, alegând
+                   pachetul: orele socotite până acum se retrag, ca să nu se
+                   adune peste cele din pachet, iar ședințele lui se potrivesc
+                   la noul număr de incluse. Altă școlarizare, cu pachetul
+                   schimbat din formular, nu se mai poate retrage singură. */
+                if (ee && iasProvizoriu(V)) De = iasScoateScolarizare(De);
+                else if (ee && De.scolarizare && De.scolarizare.adaugat) De = { ...De, scolarizare: { ...De.scolarizare, adaugat: null } };
                 if (ee) {
                     let iasFaraVechi = (V && V.pachet) ? iasScoatePachet(De, V.pachet, te.settings) : De;
                     De = se(iasFaraVechi, I.pachet, te.settings)
                 }
                 for (let iasK = 0; iasK < iasInPlus; iasK++) De = se(De, I.pachet, te.settings);
+                ee && iasProvizoriu(V) && (iasDeRetipat = Number(De.includedHours) || 0);
                 return De
             }),
             /* Elevul tocmai retras nu mai are ce căuta în calendar: ședințele
                lui de azi înainte trec în „anulată" pe loc, ca intervalele să se
                elibereze fără să le cauți una câte una. */
-            sessions: (I.withdrawn && !(V && V.withdrawn))
+            /* Limba schimbată pe fișă trece și pe ședințele lui viitoare. */
+            sessions: (iasS0 => iasDeRetipat != null ? iasRetipeaza(iasS0, V.id, iasDeRetipat).sesiuni : iasS0)((iasS0 => V && iasLimbaDe(I) !== iasLimbaDe(V) ? iasLimbaPeViitoare(iasS0, V.id, iasLimbaDe(I)).sesiuni : iasS0)((I.withdrawn && !(V && V.withdrawn))
                 ? te.sessions.map(iasS => (iasS.studentId === V.id
                     && iasS.date >= Be()
                     && iasS.status !== "completed"
@@ -14783,10 +16256,12 @@ function y3() {
                     ? te.sessions.filter(iasS => !(iasS.studentId === V.id
                         && iasS.auto && iasS.status === "pending"
                         && iasLipseste(I, iasS.date)))
-                    : te.sessions
+                    : te.sessions))
         })), Y(I.withdrawn && !(V && V.withdrawn)
             ? "Elev retras. \u0218edin\u021Bele viitoare au fost anulate."
-            : "Elev actualizat.")) : (ce(te => {
+            : V && iasLimbaDe(I) !== iasLimbaDe(V)
+                ? "Elev actualizat. Ședințele lui de acum înainte sunt în " + iasNumeLimba(n.settings, iasLimbaDe(I)).toLowerCase() + "."
+                : "Elev actualizat.")) : (ce(te => {
             let ue = {
                 id: Vt("stu"),
                 ...I,
@@ -15106,7 +16581,8 @@ function y3() {
                     type: He,
                     status: "pending",
                     auto: !0,
-                    english: !!(ue && ue.english),
+                    limba: iasLimbaDe(ue),
+                    english: iasLimbaDe(ue) === "en",
                     notes: "",
                     location: ue?.defaultLocation || "",
                     createdAt: Yn(),
@@ -15164,6 +16640,17 @@ function y3() {
                 rateTypes: I
             }
         }))
+    }
+
+    /* O limbă nouă, adăugată din fișă, din formular sau din pașii elevului nou. */
+    function iasAdaugaLimbaApp(I) {
+        ce(F => ({
+            ...F,
+            settings: {
+                ...F.settings,
+                ...iasSetariCuLimbi(F.settings, iasLimbi(F.settings).filter(x => x.id !== I.id).concat([I]))
+            }
+        })), Y(`${I.nume} e acum \xEEntre limbile tale, cu ${I.tarif} / ${I.tarifPeste} pe \u0219edin\u021B\u0103.`)
     }
 
     function ke(I) {
@@ -16038,11 +17525,8 @@ function y3() {
             mode: I,
             initial: F
         }),
-        onAddStudent: () => p({
-            open: !0,
-            mode: "create",
-            initial: null
-        }),
+        onAddStudent: re,
+        onOpenScolarizare: I => { m(I), iasPuneScolId(I) },
         onAddSession: () => d({
             open: !0,
             mode: "create",
@@ -16190,6 +17674,16 @@ function y3() {
         onExportStudent: ut,
         onElibereazaAdeverinta: Pe,
         onBunVenitTrimis: Re,
+        /* Limba aleasă din capul fișei: elevul și ședințele lui viitoare. */
+        onLimba: (iasId, iasL) => {
+            ce(te => ({
+                ...te,
+                students: te.students.map(x => x.id === iasId ? iasCuLimba(x, iasL) : x),
+                sessions: iasLimbaPeViitoare(te.sessions, iasId, iasL).sesiuni
+            })), Y(iasMesajLimbaNoua(n.settings, iasL))
+        },
+        onAdaugaLimba: iasAdaugaLimbaApp,
+        onCompleteaza: I => iasPuneScolId(I),
         poateTransfera: cu(Ct, "transfer")
     }), o.default.createElement(Dk, {
         open: !!w,
@@ -16225,8 +17719,33 @@ function y3() {
         onDelete: he,
         onCereProgram: iasPuneCerereProgram,
         programElevi: iasProgramPornit,
-        programLucru: iasProgramSaptamana(n.settings)
-    }), o.default.createElement(Gk, {
+        programLucru: iasProgramSaptamana(n.settings),
+        onAdaugaLimba: iasAdaugaLimbaApp
+    }), o.default.createElement(IasVrajitor, {
+        open: iasVraj,
+        setari: n.settings,
+        elevi: n.students,
+        sesiuni: n.sessions,
+        programElevi: iasProgramPornit,
+        onClose: () => iasPuneVraj(!1),
+        onCreeaza: iasCreeazaElev,
+        /* „Prefer formularul întreg": ce ai scris până acum trece în formular. */
+        onFormular: I => { iasPuneVraj(!1), p({ open: !0, mode: "create", initial: I }) },
+        onAdaugaLimba: iasAdaugaLimbaApp,
+        onAdaugaTaxa: iasAdaugaTaxaApp,
+        onNotifica: I => v(I),
+        onBunVenitTrimis: Re,
+        onCereProgram: iasPuneCerereProgram,
+        onDeschide: I => { iasPuneVraj(!1), m(I) },
+        poateInca: !(Ct.maxElevi && n.students.filter(x => !x.withdrawn).length >= Ct.maxElevi)
+    }), iasScolId && n.students.find(x => x.id === iasScolId) ? o.default.createElement(IasScolarizareDialog, {
+        key: iasScolId,
+        elev: n.students.find(x => x.id === iasScolId),
+        setari: n.settings,
+        onClose: () => iasPuneScolId(null),
+        onSalveaza: I => iasSalveazaScolarizare(iasScolId, I),
+        onAdaugaTaxa: iasAdaugaTaxaApp
+    }) : null, o.default.createElement(Gk, {
         open: h && cu(Ct, "raport"),
         data: n,
         onClose: () => y(!1)
