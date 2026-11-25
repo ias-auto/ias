@@ -1874,7 +1874,8 @@ var IAS_LIMBI = {
         laFelOra: h => `The time stays the same: ${h}`,
         laFelLoc: l => `The meeting place stays the same: ${l}`,
         lista: "Your upcoming driving lessons:",
-        listaFinal: "Please confirm. Thank you!"
+        listaFinal: "Please confirm. Thank you!",
+        cerere: "To plan your driving lessons, I need to know when you're available: open the link below, choose for each day and tap “Send to instructor”. It only takes a minute."
     },
     uk: {
         nume: "Ucraineană", nativ: "Українська",
@@ -1902,7 +1903,8 @@ var IAS_LIMBI = {
         laFelOra: h => `Час залишається той самий: ${h}`,
         laFelLoc: l => `Місце зустрічі те саме: ${l}`,
         lista: "Ваші заплановані заняття з водіння:",
-        listaFinal: "Будь ласка, підтвердьте. Дякую!"
+        listaFinal: "Будь ласка, підтвердьте. Дякую!",
+        cerere: "Щоб скласти розклад ваших занять з водіння, мені треба знати, коли вам зручно: відкрийте посилання нижче, оберіть для кожного дня і натисніть «Надіслати інструктору». Це займе хвилину."
     },
     ru: {
         nume: "Rusă", nativ: "Русский",
@@ -1930,7 +1932,8 @@ var IAS_LIMBI = {
         laFelOra: h => `Время остаётся прежним: ${h}`,
         laFelLoc: l => `Место встречи прежнее: ${l}`,
         lista: "Ваши запланированные занятия по вождению:",
-        listaFinal: "Пожалуйста, подтвердите. Спасибо!"
+        listaFinal: "Пожалуйста, подтвердите. Спасибо!",
+        cerere: "Чтобы составить расписание ваших занятий по вождению, мне нужно знать, когда вам удобно: откройте ссылку ниже, выберите для каждого дня и нажмите «Отправить инструктору». Это займёт минуту."
     },
     tr: {
         nume: "Turcă", nativ: "Türkçe",
@@ -1958,7 +1961,8 @@ var IAS_LIMBI = {
         laFelOra: h => `Saat aynı: ${h}`,
         laFelLoc: l => `Buluşma yeri aynı: ${l}`,
         lista: "Planlanmış sürüş dersleriniz:",
-        listaFinal: "Lütfen onaylayın. Teşekkürler!"
+        listaFinal: "Lütfen onaylayın. Teşekkürler!",
+        cerere: "Sürüş derslerinizi planlayabilmem için ne zaman uygun olduğunuzu bilmem gerekiyor: aşağıdaki bağlantıyı açın, her gün için seçim yapın ve “Eğitmene gönder”e dokunun. Bir dakika sürer."
     },
     fr: {
         nume: "Franceză", nativ: "Français",
@@ -1986,7 +1990,8 @@ var IAS_LIMBI = {
         laFelOra: h => `L'heure reste la même : ${h}`,
         laFelLoc: l => `Le lieu de rendez-vous reste le même : ${l}`,
         lista: "Vos prochaines leçons de conduite :",
-        listaFinal: "Merci de confirmer !"
+        listaFinal: "Merci de confirmer !",
+        cerere: "Pour organiser vos leçons de conduite, j'ai besoin de savoir quand vous êtes disponible : ouvrez le lien ci-dessous, choisissez pour chaque jour et touchez « Envoyer au moniteur ». Cela prend une minute."
     },
     de: {
         nume: "Germană", nativ: "Deutsch",
@@ -2014,7 +2019,8 @@ var IAS_LIMBI = {
         laFelOra: h => `Die Uhrzeit bleibt gleich: ${h}`,
         laFelLoc: l => `Der Treffpunkt bleibt gleich: ${l}`,
         lista: "Ihre nächsten Fahrstunden:",
-        listaFinal: "Bitte bestätigen Sie. Danke!"
+        listaFinal: "Bitte bestätigen Sie. Danke!",
+        cerere: "Damit ich Ihre Fahrstunden planen kann, muss ich wissen, wann Sie Zeit haben: Öffnen Sie den Link unten, wählen Sie für jeden Tag aus und tippen Sie auf „An den Fahrlehrer senden“. Das dauert nur eine Minute."
     },
     it: {
         nume: "Italiană", nativ: "Italiano",
@@ -2042,7 +2048,8 @@ var IAS_LIMBI = {
         laFelOra: h => `L'ora resta la stessa: ${h}`,
         laFelLoc: l => `Il luogo d'incontro resta lo stesso: ${l}`,
         lista: "Le sue prossime lezioni di guida:",
-        listaFinal: "La prego di confermare. Grazie!"
+        listaFinal: "La prego di confermare. Grazie!",
+        cerere: "Per organizzare le sue lezioni di guida ho bisogno di sapere quando è disponibile: apra il link qui sotto, scelga per ogni giorno e tocchi «Invia all’istruttore». Ci vuole un minuto."
     },
     es: {
         nume: "Spaniolă", nativ: "Español",
@@ -2070,7 +2077,8 @@ var IAS_LIMBI = {
         laFelOra: h => `La hora sigue igual: ${h}`,
         laFelLoc: l => `El lugar de encuentro sigue igual: ${l}`,
         lista: "Sus próximas clases de conducir:",
-        listaFinal: "Por favor, confirme. ¡Gracias!"
+        listaFinal: "Por favor, confirme. ¡Gracias!",
+        cerere: "Para organizar sus clases de conducir necesito saber cuándo está disponible: abra el enlace de abajo, elija para cada día y toque «Enviar al instructor». Solo lleva un minuto."
     }
 };
 
@@ -2895,7 +2903,8 @@ function iasProgramSaptamana(setari) {
 }
 
 /* Linkul pentru elev. Duce doar codul fișei, orele tale de lucru, durata unei
-   ședințe, numele tău și numărul tău de WhatsApp — nimic despre elev. */
+   ședințe, numele tău, numărul tău de WhatsApp și limba în care se deschide
+   pagina — altceva despre elev nu. */
 function iasLinkCerereProgram(elev, setari) {
     var s = setari || {},
         o = {
@@ -2905,9 +2914,12 @@ function iasLinkCerereProgram(elev, setari) {
             z: iasProgramSaptamana(s),
             d: Math.round(Number(s.sessionMin) || si),
             n: String(s.numeleTau || "").trim().slice(0, 60),
-            s: String(s.numeScoala || "").trim().slice(0, 80)
+            s: String(s.numeScoala || "").trim().slice(0, 80),
+            /* Limba paginii: a elevului. Una din afara catalogului merge pe
+               engleză, ca mesajele lui. */
+            l: (function (L) { return !L ? "" : IAS_LIMBI[L] ? L : "en" })(iasLimbaDe(elev))
         };
-    ["e", "w", "n", "s"].forEach(function (k) { o[k] || delete o[k] });
+    ["e", "w", "n", "s", "l"].forEach(function (k) { o[k] || delete o[k] });
     var baza = IAS_PAGINA_PROGRAM;
     try { baza = new URL(IAS_PAGINA_PROGRAM, window.location.href).href } catch (x) {}
     return baza.split("#")[0].split("?")[0] + "#c=" + iasInB64(o)
@@ -9188,9 +9200,11 @@ function IasCereProgram({ elev: iasEl, setari: iasS, onClose: iasInchide, onNuma
         [iasCopiat, iasPuneCopiat] = (0, o.useState)(!1);
     (0, o.useEffect)(() => {
         if (!iasEl) return;
-        let { salut: iasSalut, cand: iasCand } = _0(iasEl), iasPren = Ff(iasEl);
+        let { salut: iasSalut, cand: iasCand } = _0(iasEl), iasPren = Ff(iasEl), iasL = iasLimbaDe(iasEl);
         iasPuneNr((iasS && iasS.telefonulTau) || "");
-        iasPuneTxt(`${iasSalut}${iasPren ? ", " + iasPren : ""}! Ca s\u0103-\u021Bi fac programul pentru \u0219edin\u021Bele de condus, spune-mi ${iasCand}: deschide linkul de mai jos, alege pentru fiecare zi \u0219i apas\u0103 \u201ETrimite \xEEndrum\u0103torului\u201D. Dureaz\u0103 un minut.`);
+        /* Elevul pe altă limbă primește cererea în limba lui, ca și pagina. */
+        iasL ? iasPuneTxt(`${iasPren ? iasSalutStrain(iasTexte(iasL), iasPren) : iasTexte(iasL).salut + "!"} ${iasTexte(iasL).cerere}`)
+            : iasPuneTxt(`${iasSalut}${iasPren ? ", " + iasPren : ""}! Ca s\u0103-\u021Bi fac programul pentru \u0219edin\u021Bele de condus, spune-mi ${iasCand}: deschide linkul de mai jos, alege pentru fiecare zi \u0219i apas\u0103 \u201ETrimite \xEEndrum\u0103torului\u201D. Dureaz\u0103 un minut.`);
         iasPuneCopiat(!1)
     }, [iasEl]);
     if (!iasEl) return null;
@@ -9207,7 +9221,8 @@ function IasCereProgram({ elev: iasEl, setari: iasS, onClose: iasInchide, onNuma
         } catch (x) {}
     }
     return E(oi, { open: !0, onClose: iasInchide, title: "Cere-i programul", layer: Wt.dialog },
-        E("p", { className: "text-xs text-slate-400 -mt-1 mb-3" }, "Pentru ", iasEl.name || "elev", ". Po\u021Bi schimba textul; linkul se adaug\u0103 la final."),
+        E("p", { className: "text-xs text-slate-400 -mt-1 mb-3" }, "Pentru ", iasEl.name || "elev", ". Po\u021Bi schimba textul; linkul se adaug\u0103 la final.",
+            iasLimbaDe(iasEl) ? ` Mesajul \u0219i pagina sunt \xEEn ${IAS_LIMBI[iasLimbaDe(iasEl)] ? iasNumeLimba(iasS, iasLimbaDe(iasEl)).toLowerCase() : "englez\u0103"}; elevul poate schimba limba paginii de sus.` : ""),
         E(xe, { label: "Num\u0103rul t\u0103u de WhatsApp", required: !0 },
             E("input", {
                 className: ie, type: "tel", inputMode: "tel",
@@ -9247,7 +9262,7 @@ function IasCereProgram({ elev: iasEl, setari: iasS, onClose: iasInchide, onNuma
         iasTel ? null : E("p", { className: "text-xs text-slate-400 mt-2" },
             "Elevul n-are telefon pe fi\u0219\u0103: WhatsApp te las\u0103 s\u0103-l alegi din contacte."),
         E("p", { className: "text-xs text-slate-400 mt-3" },
-            "Linkul duce doar codul fi\u0219ei, orele tale de lucru \u0219i num\u0103rul t\u0103u. Despre elev nu con\u021Bine nimic."))
+            iasLimbaDe(iasEl) ? "Linkul duce doar codul fi\u0219ei, orele tale de lucru, num\u0103rul t\u0103u \u0219i limba paginii. Altceva despre elev nu con\u021Bine." : "Linkul duce doar codul fi\u0219ei, orele tale de lucru \u0219i num\u0103rul t\u0103u. Despre elev nu con\u021Bine nimic."))
 }
 
 /* Linkul din mesajul elevului a deschis aplicația. Alegi: doar îl păstrezi
@@ -14810,6 +14825,17 @@ function sS(n, e) {
     return 0
 }
 var u3 = [{
+    v: "v2.61.3.6",
+    titlu: "Pagina de disponibilitate, în limba elevului",
+    puncte: [
+        "Pagina pe care elevul își spune programul se deschide în limba lui: engleză, ucraineană, rusă, turcă, franceză, germană, italiană sau spaniolă. Totul e tradus: calendarul, zilele și lunile, butoanele, foaia unei zile, „Pe scurt”, perioada în care lipsește și mesajul pe care ți-l trimite.",
+        "Limba o duce linkul din „Cere-i programul”, după limba ședințelor de pe fișa lui. Elevii pe română văd pagina exact ca până acum.",
+        "Sus, în dreapta, elevul poate schimba singur limba paginii; alegerea rămâne ținută minte în telefonul lui.",
+        "Mesajul cu care îi ceri programul e scris și el în limba lui, cu numele butonului de pe pagină. Pentru o limbă din afara listei, pagina și mesajul sunt în engleză.",
+        "Mesajul pe care ți-l trimite elevul e în limba lui; linkul din el se deschide în aplicație ca până acum, cu zilele în română."
+    ],
+    scurt: "Elevii care fac ședințele în altă limbă primesc și pagina de disponibilitate în limba lor; o pot schimba și singuri, de sus."
+}, {
     v: "v2.61.3.5",
     titlu: "Elevul nou, pas cu pas",
     puncte: [
