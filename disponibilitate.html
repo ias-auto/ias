@@ -13,7 +13,7 @@
 <title data-t="titlu">Programul tău la volan</title>
 <link rel="icon" href="icon-192.png">
 <!--
-  IAS — pagina pe care elevul își spune programul.  (v2.61.3.6)
+  IAS — pagina pe care elevul își spune programul.  (v2.61.3.7)
 
   Îndrumătorul o trimite din fișa elevului („Cere-i programul”). Linkul aduce
   doar codul fișei, orele de lucru ale îndrumătorului și numărul lui de
@@ -295,7 +295,7 @@ textarea.camp{min-height:92px;resize:vertical}
     <button class="leg" id="copiaza" type="button" data-t="copiaza">Copiază mesajul (pentru SMS)</button>
     <button class="leg slab" id="dinNou" type="button" data-t="dinNou">Începe din nou</button>
   </div>
-  <p class="versiune" id="versiune">IAS v2.61.3.6</p>
+  <p class="versiune" id="versiune">IAS v2.61.3.7</p>
 
   <footer class="bara">
     <p class="stare" id="stare" role="status" aria-live="polite"></p>
@@ -379,15 +379,15 @@ textarea.camp{min-height:92px;resize:vertical}
       plAlege: 'Alege prima și ultima zi.', plInvers: 'Ultima zi e înaintea primei.', plTrecut: 'Perioada a trecut deja.',
       fraza: {
         gol: 'Alege una dintre variantele de mai jos.',
-        oricand: function (S, E) { return 'Poți toată ziua, ' + S + '–' + E + '.'; },
+        oricand: function () { return 'Poți oricând în ziua asta.'; },
         nu: 'Nu poți deloc în ziua asta.',
-        dupa: function (a, E) { return 'Poți de la ' + a + ' până la ' + E + '.'; },
-        pana: function (S, b) { return 'Poți de la ' + S + ' până la ' + b + '.'; },
+        dupa: function (a) { return 'Poți de la ' + a + ' încolo.'; },
+        pana: function (S, b) { return 'Poți până la ' + b + '.'; },
         intre: function (a, b) { return 'Poți doar între ' + a + ' și ' + b + '.'; },
         afara: function (a, b) { return 'Nu poți între ' + a + ' și ' + b + '. În rest, da.'; }
       },
       fiecare: function (z) { return 'În fiecare ' + this.mici[z]; },
-      lucreaza: function (S, E) { return 'Îndrumătorul lucrează ' + S + '–' + E + '.'; },
+      foaieSub: 'Spune când poți tu. Îndrumătorul te programează doar în orele lui de lucru.',
       inchide: 'Închide', cumPoti: 'Cum poți?',
       potIncepe: 'Pot începe de la', notaDupa: 'Poți începe la ora aleasă sau oricând după ea.',
       terminPana: 'Trebuie să termin până la', notaPana: 'Ședința se termină cel târziu la ora aleasă.',
@@ -473,15 +473,15 @@ textarea.camp{min-height:92px;resize:vertical}
       plAlege: 'Pick the first and the last day.', plInvers: 'The last day is before the first one.', plTrecut: 'That period is already over.',
       fraza: {
         gol: 'Pick one of the options below.',
-        oricand: function (S, E) { return 'You can all day, ' + S + '–' + E + '.'; },
+        oricand: function () { return 'You can any time on this day.'; },
         nu: 'You can’t at all on this day.',
-        dupa: function (a, E) { return 'You can from ' + a + ' until ' + E + '.'; },
-        pana: function (S, b) { return 'You can from ' + S + ' until ' + b + '.'; },
+        dupa: function (a) { return 'You can from ' + a + ' on.'; },
+        pana: function (S, b) { return 'You can until ' + b + '.'; },
         intre: function (a, b) { return 'You can only between ' + a + ' and ' + b + '.'; },
         afara: function (a, b) { return 'You can’t between ' + a + ' and ' + b + '. Otherwise, yes.'; }
       },
       fiecare: function (z) { return 'Every ' + this.mici[z]; },
-      lucreaza: function (S, E) { return 'Your instructor works ' + S + '–' + E + '.'; },
+      foaieSub: 'Say when you can. Your instructor only books lessons within their working hours.',
       inchide: 'Close', cumPoti: 'When can you?',
       potIncepe: 'I can start from', notaDupa: 'You can start at the chosen time or any time after it.',
       terminPana: 'I have to finish by', notaPana: 'The lesson ends at the chosen time at the latest.',
@@ -569,15 +569,15 @@ textarea.camp{min-height:92px;resize:vertical}
       plAlege: 'Оберіть перший і останній день.', plInvers: 'Останній день раніше за перший.', plTrecut: 'Цей період уже минув.',
       fraza: {
         gol: 'Оберіть один із варіантів нижче.',
-        oricand: function (S, E) { return 'Можете весь день, ' + S + '–' + E + '.'; },
+        oricand: function () { return 'Можете будь-коли в цей день.'; },
         nu: 'У цей день не можете зовсім.',
-        dupa: function (a, E) { return 'Можете з ' + a + ' до ' + E + '.'; },
-        pana: function (S, b) { return 'Можете з ' + S + ' до ' + b + '.'; },
+        dupa: function (a) { return 'Можете з ' + a + ' і пізніше.'; },
+        pana: function (S, b) { return 'Можете до ' + b + '.'; },
         intre: function (a, b) { return 'Можете лише між ' + a + ' і ' + b + '.'; },
         afara: function (a, b) { return 'Не можете між ' + a + ' і ' + b + '. В інший час — так.'; }
       },
       fiecare: function (z) { return mare(this.kozhen[z]); },
-      lucreaza: function (S, E) { return 'Інструктор працює ' + S + '–' + E + '.'; },
+      foaieSub: 'Вкажіть, коли можете ви. Інструктор запише вас лише у свої робочі години.',
       inchide: 'Закрити', cumPoti: 'Коли можете?',
       potIncepe: 'Можу почати з', notaDupa: 'Можна почати в обраний час або будь-коли пізніше.',
       terminPana: 'Маю закінчити до', notaPana: 'Заняття закінчиться не пізніше обраного часу.',
@@ -665,15 +665,15 @@ textarea.camp{min-height:92px;resize:vertical}
       plAlege: 'Выберите первый и последний день.', plInvers: 'Последний день раньше первого.', plTrecut: 'Этот период уже прошёл.',
       fraza: {
         gol: 'Выберите один из вариантов ниже.',
-        oricand: function (S, E) { return 'Можете весь день, ' + S + '–' + E + '.'; },
+        oricand: function () { return 'Можете в любое время в этот день.'; },
         nu: 'В этот день не можете совсем.',
-        dupa: function (a, E) { return 'Можете с ' + a + ' до ' + E + '.'; },
-        pana: function (S, b) { return 'Можете с ' + S + ' до ' + b + '.'; },
+        dupa: function (a) { return 'Можете с ' + a + ' и позже.'; },
+        pana: function (S, b) { return 'Можете до ' + b + '.'; },
         intre: function (a, b) { return 'Можете только между ' + a + ' и ' + b + '.'; },
         afara: function (a, b) { return 'Не можете между ' + a + ' и ' + b + '. В остальное время — да.'; }
       },
       fiecare: function (z) { return mare(this.kozhen[z]); },
-      lucreaza: function (S, E) { return 'Инструктор работает ' + S + '–' + E + '.'; },
+      foaieSub: 'Укажите, когда можете вы. Инструктор запишет вас только в свои рабочие часы.',
       inchide: 'Закрыть', cumPoti: 'Когда можете?',
       potIncepe: 'Могу начать с', notaDupa: 'Можно начать в выбранное время или позже.',
       terminPana: 'Мне нужно закончить до', notaPana: 'Занятие закончится не позже выбранного времени.',
@@ -757,15 +757,15 @@ textarea.camp{min-height:92px;resize:vertical}
       plAlege: 'İlk ve son günü seçin.', plInvers: 'Son gün, ilk günden önce.', plTrecut: 'Bu dönem zaten geçti.',
       fraza: {
         gol: 'Aşağıdaki seçeneklerden birini seçin.',
-        oricand: function (S, E) { return 'Tüm gün uygunsunuz, ' + S + '–' + E + '.'; },
+        oricand: function () { return 'Bu gün her saat uygunsunuz.'; },
         nu: 'Bu gün hiç uygun değilsiniz.',
-        dupa: function (a, E) { return a + ' – ' + E + ' arası uygunsunuz.'; },
-        pana: function (S, b) { return S + ' – ' + b + ' arası uygunsunuz.'; },
+        dupa: function (a) { return a + ' sonrası uygunsunuz.'; },
+        pana: function (S, b) { return b + ' öncesi uygunsunuz.'; },
         intre: function (a, b) { return 'Sadece ' + a + ' – ' + b + ' arası uygunsunuz.'; },
         afara: function (a, b) { return a + ' – ' + b + ' arası uygun değilsiniz. Geri kalan saatlerde uygunsunuz.'; }
       },
       fiecare: function (z) { return 'Her ' + this.mici[z]; },
-      lucreaza: function (S, E) { return 'Eğitmeniniz ' + S + '–' + E + ' arası çalışıyor.'; },
+      foaieSub: 'Ne zaman uygun olduğunuzu söyleyin. Eğitmeniniz sizi yalnızca kendi çalışma saatlerinde planlar.',
       inchide: 'Kapat', cumPoti: 'Ne zaman uygunsunuz?',
       potIncepe: 'En erken başlayabileceğim saat', notaDupa: 'Seçtiğiniz saatte ya da daha sonra başlayabilirsiniz.',
       terminPana: 'En geç bitirmem gereken saat', notaPana: 'Ders en geç seçtiğiniz saatte biter.',
@@ -852,15 +852,15 @@ textarea.camp{min-height:92px;resize:vertical}
       plAlege: 'Choisissez le premier et le dernier jour.', plInvers: 'Le dernier jour est avant le premier.', plTrecut: 'Cette période est déjà passée.',
       fraza: {
         gol: 'Choisissez une des options ci-dessous.',
-        oricand: function (S, E) { return 'Vous pouvez toute la journée, ' + S + '–' + E + '.'; },
+        oricand: function () { return 'Vous pouvez à tout moment ce jour-là.'; },
         nu: 'Vous ne pouvez pas du tout ce jour-là.',
-        dupa: function (a, E) { return 'Vous pouvez de ' + a + ' à ' + E + '.'; },
-        pana: function (S, b) { return 'Vous pouvez de ' + S + ' à ' + b + '.'; },
+        dupa: function (a) { return 'Vous pouvez à partir de ' + a + '.'; },
+        pana: function (S, b) { return 'Vous pouvez jusqu’à ' + b + '.'; },
         intre: function (a, b) { return 'Vous pouvez seulement entre ' + a + ' et ' + b + '.'; },
         afara: function (a, b) { return 'Vous ne pouvez pas entre ' + a + ' et ' + b + '. Le reste du temps, oui.'; }
       },
       fiecare: function (z) { return 'Chaque ' + this.mici[z]; },
-      lucreaza: function (S, E) { return 'Votre moniteur travaille de ' + S + ' à ' + E + '.'; },
+      foaieSub: 'Dites quand vous pouvez. Votre moniteur ne vous place que pendant ses heures de travail.',
       inchide: 'Fermer', cumPoti: 'Quand pouvez-vous ?',
       potIncepe: 'Je peux commencer à partir de', notaDupa: 'Vous pouvez commencer à l’heure choisie ou plus tard.',
       terminPana: 'Je dois finir au plus tard à', notaPana: 'La leçon se termine au plus tard à l’heure choisie.',
@@ -947,15 +947,15 @@ textarea.camp{min-height:92px;resize:vertical}
       plAlege: 'Wählen Sie den ersten und den letzten Tag.', plInvers: 'Der letzte Tag liegt vor dem ersten.', plTrecut: 'Dieser Zeitraum ist schon vorbei.',
       fraza: {
         gol: 'Wählen Sie eine der Möglichkeiten unten.',
-        oricand: function (S, E) { return 'Sie können den ganzen Tag, ' + S + '–' + E + '.'; },
+        oricand: function () { return 'Sie können an diesem Tag jederzeit.'; },
         nu: 'Sie können an diesem Tag gar nicht.',
-        dupa: function (a, E) { return 'Sie können von ' + a + ' bis ' + E + '.'; },
-        pana: function (S, b) { return 'Sie können von ' + S + ' bis ' + b + '.'; },
+        dupa: function (a) { return 'Sie können ab ' + a + '.'; },
+        pana: function (S, b) { return 'Sie können bis ' + b + '.'; },
         intre: function (a, b) { return 'Sie können nur zwischen ' + a + ' und ' + b + '.'; },
         afara: function (a, b) { return 'Sie können nicht zwischen ' + a + ' und ' + b + '. Sonst ja.'; }
       },
       fiecare: function (z) { return 'Jeden ' + this.mici[z]; },
-      lucreaza: function (S, E) { return 'Ihr Fahrlehrer arbeitet ' + S + '–' + E + '.'; },
+      foaieSub: 'Sagen Sie, wann Sie können. Ihr Fahrlehrer plant Sie nur in seinen Arbeitszeiten ein.',
       inchide: 'Schließen', cumPoti: 'Wann können Sie?',
       potIncepe: 'Ich kann anfangen ab', notaDupa: 'Sie können zur gewählten Zeit oder später anfangen.',
       terminPana: 'Ich muss fertig sein bis', notaPana: 'Die Fahrstunde endet spätestens zur gewählten Zeit.',
@@ -1041,15 +1041,15 @@ textarea.camp{min-height:92px;resize:vertical}
       plAlege: 'Scelga il primo e l’ultimo giorno.', plInvers: 'L’ultimo giorno è prima del primo.', plTrecut: 'Il periodo è già passato.',
       fraza: {
         gol: 'Scelga una delle opzioni qui sotto.',
-        oricand: function (S, E) { return 'Può tutto il giorno, ' + S + '–' + E + '.'; },
+        oricand: function () { return 'Può in qualsiasi momento in questo giorno.'; },
         nu: 'Non può affatto in questo giorno.',
-        dupa: function (a, E) { return 'Può dalle ' + a + ' alle ' + E + '.'; },
-        pana: function (S, b) { return 'Può dalle ' + S + ' alle ' + b + '.'; },
+        dupa: function (a) { return 'Può dalle ' + a + ' in poi.'; },
+        pana: function (S, b) { return 'Può fino alle ' + b + '.'; },
         intre: function (a, b) { return 'Può solo tra le ' + a + ' e le ' + b + '.'; },
         afara: function (a, b) { return 'Non può tra le ' + a + ' e le ' + b + '. Per il resto, sì.'; }
       },
       fiecare: function (z) { return 'Ogni ' + this.mici[z]; },
-      lucreaza: function (S, E) { return 'L’istruttore lavora dalle ' + S + ' alle ' + E + '.'; },
+      foaieSub: 'Dica quando può. L’istruttore la programma solo nei suoi orari di lavoro.',
       inchide: 'Chiudi', cumPoti: 'Quando può?',
       potIncepe: 'Posso iniziare dalle', notaDupa: 'Può iniziare all’ora scelta o in qualsiasi momento dopo.',
       terminPana: 'Devo finire entro le', notaPana: 'La lezione finisce al più tardi all’ora scelta.',
@@ -1135,15 +1135,15 @@ textarea.camp{min-height:92px;resize:vertical}
       plAlege: 'Elija el primer y el último día.', plInvers: 'El último día es anterior al primero.', plTrecut: 'Ese periodo ya pasó.',
       fraza: {
         gol: 'Elija una de las opciones de abajo.',
-        oricand: function (S, E) { return 'Puede todo el día, ' + S + '–' + E + '.'; },
+        oricand: function () { return 'Puede a cualquier hora ese día.'; },
         nu: 'No puede nada ese día.',
-        dupa: function (a, E) { return 'Puede desde las ' + a + ' hasta las ' + E + '.'; },
-        pana: function (S, b) { return 'Puede desde las ' + S + ' hasta las ' + b + '.'; },
+        dupa: function (a) { return 'Puede desde las ' + a + ' en adelante.'; },
+        pana: function (S, b) { return 'Puede hasta las ' + b + '.'; },
         intre: function (a, b) { return 'Puede solo entre las ' + a + ' y las ' + b + '.'; },
         afara: function (a, b) { return 'No puede entre las ' + a + ' y las ' + b + '. El resto, sí.'; }
       },
       fiecare: function (z) { return 'Cada ' + this.mici[z]; },
-      lucreaza: function (S, E) { return 'Su instructor trabaja de ' + S + ' a ' + E + '.'; },
+      foaieSub: 'Diga cuándo puede. Su instructor solo le programa dentro de su horario de trabajo.',
       inchide: 'Cerrar', cumPoti: '¿Cuándo puede?',
       potIncepe: 'Puedo empezar desde las', notaDupa: 'Puede empezar a la hora elegida o más tarde.',
       terminPana: 'Tengo que terminar antes de las', notaPana: 'La clase termina como muy tarde a la hora elegida.',
@@ -1229,19 +1229,20 @@ textarea.camp{min-height:92px;resize:vertical}
     return JSON.parse(decodeURIComponent(pc));
   }
 
+  /* Elevul spune când poate el, în toate cele 7 zile și la orice oră din zi.
+     Orele tale de lucru nu-l mai îngrădesc aici (linkurile vechi le aduc încă,
+     dar nu se mai folosesc): planul din aplicație îl pune oricum doar în
+     programul tău, așa cum e el în săptămâna aceea. */
+  var ZI_INTREAGA = [0, 1440];
   function citesteCererea() {
-    var implicit = { e: null, w: '', z: [0, 1, 2, 3, 4, 5, 6].map(function () { return [420, 1260]; }),
+    var implicit = { e: null, w: '', z: [0, 1, 2, 3, 4, 5, 6].map(function () { return ZI_INTREAGA; }),
       d: 90, n: '', s: '', l: '', ok: false };
     var c = null, o = null;
     try { c = new URLSearchParams(location.hash.slice(1)).get('c'); } catch (x) { }
     if (!c) return implicit;
     try { o = din64(c); } catch (x) { return implicit; }
     if (!o || o.v !== 1) return implicit;
-    function ora(x) { return Number.isInteger(x) && x >= 0 && x <= 1440; }
-    var z = Array.isArray(o.z) && o.z.length === 7 && o.z.every(function (p) {
-      return p === 0 || (Array.isArray(p) && ora(p[0]) && ora(p[1]) && p[0] < p[1]);
-    }) ? o.z : implicit.z;
-    if (!z.some(Boolean)) z = implicit.z;
+    var z = implicit.z;
     return {
       e: typeof o.e === 'string' && /^[A-Za-z0-9_.-]{1,80}$/.test(o.e) ? o.e : null,
       w: typeof o.w === 'string' && /^\d{8,15}$/.test(o.w) ? o.w : '',
@@ -1675,7 +1676,7 @@ textarea.camp{min-height:92px;resize:vertical}
     var titlu = foaie.mod === 'zi' ? T.fiecare(z) : T.ziData(z, dataText(foaie.t));
     var t = '<button type="button" class="voal" data-act="inchide" tabindex="-1" aria-label="' + esc(T.inchide) + '"></button>' +
       '<section class="foaie" id="foaie" role="dialog" aria-modal="true" aria-labelledby="f-titlu">' +
-      '<div class="f-cap"><div><h2 id="f-titlu">' + esc(titlu) + '</h2><p class="sub">' + esc(T.lucreaza(H(S), H(E))) + '</p></div>' +
+      '<div class="f-cap"><div><h2 id="f-titlu">' + esc(titlu) + '</h2><p class="sub">' + esc(T.foaieSub) + '</p></div>' +
       '<button type="button" class="x" data-act="inchide" aria-label="' + esc(T.inchide) + '">×</button></div>' +
       htmlBanda(z, s.k === 'gata' ? r : null, 'drum') +
       '<span class="capete" aria-hidden="true"><span>' + H(S) + '</span><span>' + H(E) + '</span></span>' +
